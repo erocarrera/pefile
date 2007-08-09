@@ -6,25 +6,95 @@ Simple code snippets to get you started
 
 == Loading a PE file ==
 
-`import pefile`
+Import the module and parse a file.
+{{{
+import pefile
+pe =  pefile.PE(‘/path/to/pefile.exe’)
+}}}
 
-`pe =  pefile.PE(‘/path/to/pefile.exe’)`
+Optionally, setting the _fast_load_ argument to _True_ will prevent parsing the directories. In large PE files this can make loading significantly faster and it might be a good idea to use it none of the information from the data directories is needed.
+
+{{{
+import pefile
+pe =  pefile.PE(‘/path/to/pefile.exe’, fast_load=True)
+}}}
+
 
 == Iterating through the sections ==
 
-`for section in pe.sections:`
+Sections are added to a list accesible as the attribute _sections_ in the PE instance.
+The common structure members of the section header are reachable as attributes.
 
-`  print (section.Name, hex(section.VirtualAddress),`
+{{{
+for section in pe.sections:
+  print (section.Name, hex(section.VirtualAddress),
+    hex(section.Misc_VirtualSize), section.SizeOfRawData )
+}}}
 
-`    hex(section.Misc_VirtualSize), section.SizeOfRawData )`
 
+=== Output ===
+
+{{{
 ('.text', '0x1000L', '0x6D72L', 28160L)
-
 ('.data', '0x8000L', '0x1BA8L', 1536L)
-
 ('.rsrc', '0xA000L', '0x8948L', 35328L)
+}}}
 
 
 == Listing the imported symbols ==
 
+Each directory, if it exists in the PE file being processed, has an entry as _DIRECTORY_ENTRY_directoryname_ in the PE instance. The imported symbols can be listed as follows:
+
+{{{
+for entry in pe.DIRECTORY_ENTRY_IMPORT:
+  print entry.dll
+  for imp in entry.imports:
+    print '\t', hex(imp.address), imp.name
+}}}
+
+
+=== Output ===
+
+{{{
+comdlg32.dll
+        0x10012A0L PageSetupDlgW
+        0x10012A4L FindTextW
+        0x10012A8L PrintDlgExW
+[snip]
+SHELL32.dll
+        0x1001154L DragFinish
+        0x1001158L DragQueryFileW
+}}}
+
+
 == Listing the exported symbols ==
+
+Similarly, the exported symbols can be listed as follows:
+
+{{{
+for exp in pe.DIRECTORY_ENTRY_EXPORT.symbols:
+  print hex(pe.OPTIONAL_HEADER.ImageBase + exp.address), exp.name
+}}}
+
+
+=== Output ===
+
+{{{
+0x77e72ada ActivateActCtx
+0x77e682c2 AddAtomA
+0x77e6d39f AddAtomW
+0x77ec5b2d AddConsoleAliasA
+0x77ec5af6 AddConsoleAliasW
+0x77eb2a10 AddLocalAlternateComputerNameA
+0x77eb28fb AddLocalAlternateComputerNameW
+0x77ec0ffa AddRefActCtx
+}}}
+
+
+== Dumping all the information ==
+
+{{{
+print pe.dump_info()
+}}}
+
+Will produce a full textial dump of all the parsed information. Check FullDump0x90, FullDumpTinyPE or FullDumpKernel32 for examples.
