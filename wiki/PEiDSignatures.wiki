@@ -79,3 +79,20 @@ matches = sig.match_all(pe, ep_only = True)
 == Signature generation ==
 
 Experimental and not specially intelligent when generating signatures, _peutils_ is able to generate a signature for a given PE file.
+
+One can generate signatures for the entry point of a PE file as follows:
+
+{{{
+signatures.generate_ep_signature(pe, 'Name of the signature', length_of_the_signature)
+}}}
+
+
+Alternatively signatures for all section in a PE file can be generated as follows:
+
+
+{{{
+signatures.generate_section_signatures(pe, 'Name of the signature', length_of_the_signature)
+}}}
+
+
+Both of those methods will return a string following the same format as any other PEiD signature.
