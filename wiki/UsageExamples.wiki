@@ -30,7 +30,7 @@ pe = pefile.PE(data=str_object_with_pe_file_data)
 
 
 
-== Reading standard header members ==
+== Reading and writing standard header members ==
 
 Once the PE file is successfully parsed, the data is readily available as attributes of the PE instance.
 
@@ -40,7 +40,13 @@ pe.OPTIONAL_HEADER.NumberOfSections
 pe.OPTIONAL_HEADER.ImageBase
 }}}
 
-All of these values support assignment and a subsequent call to
+All of these values support assignment
+
+{{{
+pe.OPTIONAL_HEADER.AddressOfEntryPoint = 0xdeadbeef
+}}}
+
+and a subsequent call to
 
 {{{
 pe.write(filename='file_to_write.exe')
@@ -49,6 +55,13 @@ pe.write(filename='file_to_write.exe')
 will write the modified file to disk.
 
 All the structures and members defined in the PE format should be available with the same names. Some convenient shortcuts exist, for instance the _sections_ list. Usually, all the structures containing a member _Characteristics_ (or similar fields of flags) will contain attributes set to _True_ or _False_ according to the value of the corresponding flag.
+
+*Notes about the write support*
+
+_Starting from pefile 1.2 it's possible to write back any changes done to the PE file. One has to be careful with this functionality as it will not be very intelligent reconstructing the PE file. That is, it will not handle displacing structures if that would be needed because a new section/structure has been added._
+_The rule of thumb is, if there's room for an additional header/structure to fit then there'll be no problem and pefile will write it._
+_All other modifications, i.e. changing individual values in header/structure members should work well._
+_One possible useful application of this could be to correct malformed headers used by some malware in order to cause certain analysis tools to malfunction._
 
 
 == Iterating through the sections ==
