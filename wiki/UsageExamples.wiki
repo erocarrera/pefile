@@ -19,6 +19,37 @@ import pefile
 pe =  pefile.PE(‘/path/to/pefile.exe’, fast_load=True)
 }}}
 
+A later call to the _full_load()_ method would parse the missing information.
+
+
+It's also possible to just parse raw PE data:
+
+{{{
+pe = pefile.PE(data=str_object_with_pe_file_data)
+}}}
+
+
+
+== Reading standard header members ==
+
+Once the PE file is successfully parsed, the data is readily available as attributes of the PE instance.
+
+{{{
+pe.OPTIONAL_HEADER.AddressOfEntryPoint
+pe.OPTIONAL_HEADER.NumberOfSections
+pe.OPTIONAL_HEADER.ImageBase
+}}}
+
+All of these values support assignment and a subsequent call to
+
+{{{
+pe.write(filename='file_to_write.exe')
+}}}
+
+will write the modified file to disk.
+
+All the structures and members defined in the PE format should be available with the same names. Some convenient shortcuts exist, for instance the _sections_ list. Usually, all the structures containing a member _Characteristics_ (or similar fields of flags) will contain attributes set to _True_ or _False_ according to the value of the corresponding flag.
+
 
 == Iterating through the sections ==
 
