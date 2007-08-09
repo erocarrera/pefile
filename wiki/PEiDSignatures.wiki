@@ -57,19 +57,23 @@ matches = signatures.match(pe, ep_only = True)
 
 === Output ===
 
+{{{
 ['Upack 0.24 - 0.27 beta / 0.28 alpha -> Dwing']
+}}}
 
+
+We can also get all possible matches found as the signature tree is walked. The last signature will always be the most precise (as more bytes will have been matched) and is the one returned by the _match()_ method.
 
 {{{
 matches = sig.match_all(pe, ep_only = True)
 }}}
 
 === Output ===
-
+{{{
 [['Upack v0.1x - v0.2x -> Dwing'], 
 ['Upack v0.24 ~ v0.28 Alpha -> Dwing'], 
 ['Upack 0.24 - 0.27 beta / 0.28 alpha -> Dwing']]
-
+}}}
 
 
 == Signature generation ==
