@@ -98,3 +98,41 @@ print pe.dump_info()
 }}}
 
 Will produce a full textial dump of all the parsed information. Check FullDump0x90, FullDumpTinyPE or FullDumpKernel32 for examples.
+
+
+== Retrieving the bytes at the entry point ==
+
+We can use _pefile_ together with tools like [http://dkbza.org/pydasm.html pydasm] to build a small disassembler. A toy example might look like the following.
+
+We first fetch the entry point address, the retrieve 100 bytes starting at the entry point and we loop through the data disassembling as we go:
+
+{{{
+ep = pe.OPTIONAL_HEADER.AddressOfEntryPoint
+ep_ava = ep+pe.OPTIONAL_HEADER.ImageBase
+data = pe.get_memory_mapped_image()[ep:ep+100]
+offset = 0
+while offset < len(data):
+  i = pydasm.get_instruction(data[offset:], pydasm.MODE_32)
+  print pydasm.get_instruction_string(i, pydasm.FORMAT_INTEL, ep_ava+offset)
+  offset += i.length
+}}}
+
+
+=== Output ===
+
+{{{
+push byte 0x70
+push dword 0x1001888
+call 0x1006ca8
+xor ebx,ebx
+push ebx
+mov edi,[0x100114c]
+call edi
+cmp word [eax],0x5a4d
+jnz 0x1006b1d
+mov ecx,[eax+0x3c]
+add ecx,eax
+cmp dword [ecx],0x4550
+jnz 0x1006b1d
+movzx eax,[ecx+0x18
+}}}
