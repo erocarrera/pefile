@@ -76,7 +76,7 @@ for section in pe.sections:
 }}}
 
 
-=== Output ===
+==== Output ====
 
 {{{
 ('.text', '0x1000L', '0x6D72L', 28160L)
@@ -97,7 +97,7 @@ for entry in pe.DIRECTORY_ENTRY_IMPORT:
 }}}
 
 
-=== Output ===
+==== Output ====
 
 {{{
 comdlg32.dll
@@ -121,7 +121,7 @@ for exp in pe.DIRECTORY_ENTRY_EXPORT.symbols:
 }}}
 
 
-=== Output ===
+==== Output ====
 
 {{{
 0x77e72ada ActivateActCtx
@@ -162,7 +162,7 @@ while offset < len(data):
 }}}
 
 
-=== Output ===
+==== Output ====
 
 {{{
 push byte 0x70
