@@ -97,7 +97,7 @@ for exp in pe.DIRECTORY_ENTRY_EXPORT.symbols:
 print pe.dump_info()
 }}}
 
-Will produce a full textial dump of all the parsed information. Check FullDump0x90, FullDumpTinyPE or FullDumpKernel32 for examples.
+Will produce a full textial dump of all the parsed information. Check FullDump0x90, FullDumpTinyPe or FullDumpKernel32 for examples.
 
 
 == Retrieving the bytes at the entry point ==
