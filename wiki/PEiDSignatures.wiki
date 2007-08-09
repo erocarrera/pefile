@@ -2,7 +2,7 @@
 
 = Introduction =
 
-Since version 1.2.6 pefile supports parsing PEiD's signatures. Comprehensive signature datbases can be found at:
+Since version 1.2.6 _pefile_ supports parsing PEiD's signatures. Comprehensive signature datbases can be found at:
 
 http://www.secretashell.com/BobSoft/#Other (Look for UserDB.TXT)
 
@@ -11,38 +11,67 @@ Thanks to PEiD and BobSoft for the signatures!
 
 = Usage =
 
-==Loading==
+== Loading ==
 
 First import the new module, _peutils_, included with _pefile_
 
-`import peutils`
+{{{
+import peutils
+}}}
 
 Then we need to load a signature database, we can do this in different ways.
 
   * Loading a database from a file in the local filesystem
 
-`signatures = peutils.SignatureDatabase('/path/to/signature.txt')`
+{{{
+signatures = peutils.SignatureDatabase('/path/to/signature.txt')
+}}}
 
   * Loading a database directly from a URL
 
-`signatures = peutils.SignatureDatabase('http://url.to/signature/file.txt')`
+{{{
+signatures = peutils.SignatureDatabase('http://url.to/signature/file.txt')
+}}}
 
   * And finally, directly from data (for instance, if we have already read and loaded the contents of a database)
 
-`signatures = peutils.SignatureDatabase(data='/path/to/signature/file.txt')`
+{{{
+signatures = peutils.SignatureDatabase(data='/path/to/signature/file.txt')
+}}}
+
+It's also possible to aggregate more signatures to an already created instance by just using the _load()_ method:
+
+{{{
+signatures.load('/Users/ero/Devel/pefile/userdb-extra.txt')
+}}}
 
 
-sig.load('/Users/ero/Devel/pefile/userdb-extra.txt')
+== Matching ==
+
+Once we have a _SignatureDatabase_ instance, we can run PE instances through it in order to find matching packer signatures:
+
+{{{
+matches = signatures.match(pe, ep_only = True)
+}}}
 
 
-==Matching==
-
-`matches = sig.match(pe, ep_only = True)`
+=== Output ===
 
 ['Upack 0.24 - 0.27 beta / 0.28 alpha -> Dwing']
 
-`matches = sig.match_all(pe, ep_only = True)`
+
+{{{
+matches = sig.match_all(pe, ep_only = True)
+}}}
+
+=== Output ===
 
 [['Upack v0.1x - v0.2x -> Dwing'], 
 ['Upack v0.24 ~ v0.28 Alpha -> Dwing'], 
 ['Upack 0.24 - 0.27 beta / 0.28 alpha -> Dwing']]
+
+
+
+== Signature generation ==
+
+Experimental and not specially intelligent when generating signatures, _peutils_ is able to generate a signature for a given PE file.
