@@ -1,0 +1,48 @@
+#Using PEiD signatures
+
+= Introduction =
+
+Since version 1.2.6 pefile supports parsing PEiD's signatures. Comprehensive signature datbases can be found at:
+
+http://www.secretashell.com/BobSoft/#Other (Look for UserDB.TXT)
+
+Thanks to PEiD and BobSoft for the signatures!
+
+
+= Usage =
+
+==Loading==
+
+First import the new module, _peutils_, included with _pefile_
+
+`import peutils`
+
+Then we need to load a signature database, we can do this in different ways.
+
+  * Loading a database from a file in the local filesystem
+
+`signatures = peutils.SignatureDatabase('/path/to/signature.txt')`
+
+  * Loading a database directly from a URL
+
+`signatures = peutils.SignatureDatabase('http://url.to/signature/file.txt')`
+
+  * And finally, directly from data (for instance, if we have already read and loaded the contents of a database)
+
+`signatures = peutils.SignatureDatabase(data='/path/to/signature/file.txt')`
+
+
+sig.load('/Users/ero/Devel/pefile/userdb-extra.txt')
+
+
+==Matching==
+
+`matches = sig.match(pe, ep_only = True)`
+
+['Upack 0.24 - 0.27 beta / 0.28 alpha -> Dwing']
+
+`matches = sig.match_all(pe, ep_only = True)`
+
+[['Upack v0.1x - v0.2x -> Dwing'], 
+['Upack v0.24 ~ v0.28 Alpha -> Dwing'], 
+['Upack 0.24 - 0.27 beta / 0.28 alpha -> Dwing']]
