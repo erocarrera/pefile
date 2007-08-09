@@ -1,4 +1,4 @@
-#summary One-sentence summary of this page.
+#summary Full dump, pe.dump_info(), of 0x90.exe using pefile-1.2.6
 
 {{{
 ----------Parsing Warnings----------
