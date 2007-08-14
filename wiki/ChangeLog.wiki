@@ -4,7 +4,7 @@
 Thu Aug  9 01:27:18 CEST 2007  ero@dkbza.org
   * Fixed two bugs parsing OffensiveComputing files
   
-  layne@elsenot.com reported errors when doing a dump_info() on two files from OffensiveComputing with hashes:
+  Errors reported when doing a dump_info() on two files from OffensiveComputing with hashes:
   
   88ca1747f5242c852b26f73fd90dad6f
   eb274d67e89fad0fcc9dfad5aeb06dd360ff7f17
