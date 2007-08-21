@@ -6,7 +6,8 @@ setup(name = 'pefile',
     description = 'Python PE parsing module',
     author = pefile.__author__,
     author_email = pefile.__contact__,
-    url = 'http://dkbza.org/pefile.html',
+    url = 'http://code.google.com/p/pefile/',
+    download_url = 'http://pefile.googlecode.com/files/pefile-%s.tar.gz' % pefile.__version__,
     platforms = ['any'],
     classifiers = ['Development Status :: 5 - Production/Stable',
 	'Intended Audience :: Developers',
@@ -16,5 +17,5 @@ setup(name = 'pefile',
 	'Programming Language :: Python',
 	'Topic :: Software Development :: Libraries :: Python Modules'],
     long_description = "\n".join(pefile.__doc__.split('\n')),
-    py_modules = ['pefile', 'peutils'])
+    py_modules = ['pefile', 'peutils'] )
 
