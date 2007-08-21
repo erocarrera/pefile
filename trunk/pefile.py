@@ -21,7 +21,7 @@ the root of the distribution archive.
 """
 
 __author__ = 'Ero Carrera'
-__version__ = '1.2.6'
+__version__ = '1.2.7'
 __contact__ = 'ero@dkbza.org'
 
 import os
@@ -153,6 +153,11 @@ subsystem_types = [
     ('IMAGE_SUBSYSTEM_WINDOWS_CUI', 3),
     ('IMAGE_SUBSYSTEM_OS2_CUI',     5),
     ('IMAGE_SUBSYSTEM_POSIX_CUI',   7),
+    ('IMAGE_SUBSYSTEM_WINDOWS_CE_GUI',  9),
+    ('IMAGE_SUBSYSTEM_EFI_APPLICATION', 10),
+    ('IMAGE_SUBSYSTEM_EFI_BOOT_ SERVICE_DRIVER', 11),
+    ('IMAGE_SUBSYSTEM_EFI_RUNTIME_ DRIVER',      12),
+    ('IMAGE_SUBSYSTEM_EFI_ROM',     13),
     ('IMAGE_SUBSYSTEM_XBOX',        14)]
 
 SUBSYSTEM_TYPE = dict([(e[1], e[0]) for e in subsystem_types]+subsystem_types)
@@ -199,6 +204,24 @@ relocation_types = [
     ('IMAGE_REL_BASED_HIGH3ADJ',        11) ]
 
 RELOCATION_TYPE = dict([(e[1], e[0]) for e in relocation_types]+relocation_types)
+
+
+dll_characteristics = [
+    ('IMAGE_DLL_CHARACTERISTICS_RESERVED_0x0001', 0x0001),
+    ('IMAGE_DLL_CHARACTERISTICS_RESERVED_0x0002', 0x0002),
+    ('IMAGE_DLL_CHARACTERISTICS_RESERVED_0x0004', 0x0004),
+    ('IMAGE_DLL_CHARACTERISTICS_RESERVED_0x0008', 0x0008),
+    ('IMAGE_DLL_CHARACTERISTICS_DYNAMIC_BASE',      0x0040),
+    ('IMAGE_DLL_CHARACTERISTICS_FORCE_INTEGRITY',   0x0080),
+    ('IMAGE_DLL_CHARACTERISTICS_NX_COMPAT',         0x0100),
+    ('IMAGE_DLL_CHARACTERISTICS_NO_ISOLATION',      0x0200),
+    ('IMAGE_DLL_CHARACTERISTICS_NO_SEH',    0x0400),
+    ('IMAGE_DLL_CHARACTERISTICS_NO_BIND',   0x0800),
+    ('IMAGE_DLL_CHARACTERISTICS_RESERVED_0x1000', 0x1000),
+    ('IMAGE_DLL_CHARACTERISTICS_WDM_DRIVER',    0x2000),
+    ('IMAGE_DLL_CHARACTERISTICS_TERMINAL_SERVER_AWARE', 0x8000) ]
+
+DLL_CHARACTERISTICS = dict([(e[1], e[0]) for e in dll_characteristics]+dll_characteristics)
 
 
 # Resource types
@@ -641,7 +664,7 @@ class Structure:
                     val_str = '0x%-8X' % (val)
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
-                            val_str += ' [%s]' % time.ctime(val)
+                            val_str += ' [%s UTC]' % time.asctime(time.gmtime(val))
                         except exceptions.ValueError, e:
                             val_str += ' [INVALID TIME]'
                 else:
@@ -1250,12 +1273,25 @@ class PE:
                         padded_data,
                         file_offset = optional_header_offset)
         
+        
+        if not self.FILE_HEADER:
+            raise PEFormatError('File Header missing')
+
+
         # OC Patch:
         # Die gracefully if there is no OPTIONAL_HEADER field
         # 975440f5ad5e2e4a92c4d9a5f22f75c1
         if self.PE_TYPE is None or self.OPTIONAL_HEADER is None:
             raise PEFormatError("No Optional Header found, invalid PE32 or PE32+ file")
             
+        dll_characteristics_flags = self.retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLL_CHARACTERISTICS_')
+
+        # Set the Dll Characteristics flags according the the DllCharacteristics member
+        self.set_flags(
+            self.OPTIONAL_HEADER,
+            self.OPTIONAL_HEADER.DllCharacteristics,
+            dll_characteristics_flags)
+
 
         self.OPTIONAL_HEADER.DATA_DIRECTORY = []
         #offset = (optional_header_offset + self.FILE_HEADER.SizeOfOptionalHeader)
@@ -1289,6 +1325,9 @@ class PE:
                 self.__IMAGE_DATA_DIRECTORY_format__,
                 data,
                 file_offset = offset)
+                
+            if dir_entry is None:
+                break
 
             # Would fail if missing an entry
             # 1d4937b2fa4d84ad1bce0309857e70ca offending sample
@@ -1337,6 +1376,29 @@ class PE:
             self.header = self.__data__[:offset]
         else:
             self.header = self.__data__[:lowest_section_offset]
+        
+
+        # Check whether the entry point lies within a section
+        #
+        if self.get_section_by_rva(self.OPTIONAL_HEADER.AddressOfEntryPoint) is not None:
+        
+            # Check whether the entry point lies within the file
+            #
+            ep_offset = self.get_offset_from_rva(self.OPTIONAL_HEADER.AddressOfEntryPoint)
+            if ep_offset > len(self.__data__):
+            
+                self.__warnings.append(
+                    'Possibly corrupt file. AddressOfEntryPoint lies outside the file. ' +
+                    'AddressOfEntryPoint: 0x%x' %
+                    self.OPTIONAL_HEADER.AddressOfEntryPoint )
+            
+        else:
+
+            self.__warnings.append(
+                'AddressOfEntryPoint lies outside the sections\' boundaries. ' +
+                'AddressOfEntryPoint: 0x%x' %
+                self.OPTIONAL_HEADER.AddressOfEntryPoint )
+                
         
         if not fast_load:
             self.parse_data_directories()
@@ -1504,7 +1566,7 @@ class PE:
         matching the filter "flag_filter".
         """
         
-        return [(f[0][len(flag_filter):], f[1]) for f in flag_dict.items() if
+        return [(f[0], f[1]) for f in flag_dict.items() if
                 isinstance(f[0], str) and f[0].startswith(flag_filter)]
 
                 
@@ -1617,12 +1679,16 @@ class PE:
             
         elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
             format = self.__IMAGE_TLS_DIRECTORY64_format__
+
+        tls_struct = self.__unpack_data__(
+            format,
+            self.get_data(rva),
+            file_offset = self.get_offset_from_rva(rva))
             
-        return TlsData(
-            struct = self.__unpack_data__(
-                format,
-                self.get_data(rva),
-                file_offset = self.get_offset_from_rva(rva)) )
+        if not tls_struct:
+            return None
+                
+        return TlsData( struct = tls_struct )
     
     
     def parse_relocations_directory(self, rva, size):
@@ -1705,6 +1771,10 @@ class PE:
             dbg = self.__unpack_data__(
                 self.__IMAGE_DEBUG_DIRECTORY_format__,
                 data, file_offset = self.get_offset_from_rva(rva+dbg_size*idx))
+                
+            if not dbg:
+                return None
+                
             debug.append(
                 DebugData(
                     struct = dbg))
@@ -1840,18 +1910,21 @@ class PE:
                         id = entry_id,
                         directory = entry_directory))
             else:
-                entry_data = ResourceDataEntryData(
-                    struct = self.parse_resource_data_entry(
-                        base_rva + res.OffsetToDirectory),
-                    lang = res.Name & 0xff,
-                    sublang = (res.Name>>8) & 0xff)
-                    
-                dir_entries.append(
-                    ResourceDirEntryData(
-                        struct = res,
-                        name = entry_name,
-                        id = entry_id,
-                        data = entry_data))
+                struct = self.parse_resource_data_entry(
+                    base_rva + res.OffsetToDirectory)
+
+                if struct:
+                    entry_data = ResourceDataEntryData(
+                        struct = struct,
+                        lang = res.Name & 0xff,
+                        sublang = (res.Name>>8) & 0xff)
+                        
+                    dir_entries.append(
+                        ResourceDirEntryData(
+                            struct = res,
+                            name = entry_name,
+                            id = entry_id,
+                            data = entry_data))
                     
             rva += res.sizeof()
             
@@ -1998,6 +2071,9 @@ class PE:
             raw_data[fixedfileinfo_offset:], 
             file_offset = start_offset+fixedfileinfo_offset )
 
+        if not fixedfileinfo_struct:
+            return
+
 
         # Set the PE object's VS_FIXEDFILEINFO to this one
         #
@@ -2078,6 +2154,9 @@ class PE:
                             raw_data[stringtable_offset:], 
                             file_offset = start_offset+stringtable_offset )
                             
+                        if not stringtable_struct:
+                            break
+                            
                         ustr_offset = ( version_struct.OffsetToData + stringtable_offset + 
                             stringtable_struct.sizeof() )
                         try:
@@ -2106,6 +2185,9 @@ class PE:
                             string_struct = self.__unpack_data__(
                                 self.__String_format__, raw_data[entry_offset:], 
                                 file_offset = start_offset+entry_offset )
+                                
+                            if not string_struct:
+                                break
                                 
                             ustr_offset = ( version_struct.OffsetToData + entry_offset +
                                 string_struct.sizeof() )
@@ -2184,6 +2266,9 @@ class PE:
                             raw_data[var_offset:], 
                             file_offset = start_offset+var_offset )
                             
+                        if not var_struct:
+                            break
+                            
                         ustr_offset = ( version_struct.OffsetToData + var_offset + 
                             var_struct.sizeof() )
                         try:
@@ -2259,6 +2344,9 @@ class PE:
         except PEFormatError:
             self.__warnings.append(
                 'Error parsing export directory at RVA: 0x%x' % ( rva ) )
+            return
+        
+        if not export_dir:
             return
         
         address_of_names = self.get_data(
@@ -2783,7 +2871,16 @@ class PE:
         if hasattr(self, 'OPTIONAL_HEADER') and self.OPTIONAL_HEADER is not None:
             dump.add_header('OPTIONAL_HEADER')
             dump.add_lines(self.OPTIONAL_HEADER.dump())
-            dump.add_newline()
+
+        dll_characteristics_flags = self.retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLL_CHARACTERISTICS_')
+            
+        dump.add('DllCharacteristics: ')
+        flags = []
+        for flag in dll_characteristics_flags:
+            if getattr(self.OPTIONAL_HEADER, flag[0]):
+                flags.append(flag[0])
+        dump.add_line(', '.join(flags))
+        dump.add_newline()
         
         
         dump.add_header('PE Sections')
