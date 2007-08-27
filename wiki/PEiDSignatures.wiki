@@ -1,4 +1,5 @@
 #summary Using PEiD signatures
+#labels Featured
 
 = Introduction =
 
