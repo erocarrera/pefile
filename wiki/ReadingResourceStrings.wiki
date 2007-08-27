@@ -1,4 +1,5 @@
 #summary How to read strings contained in the PE file's resources
+#labels Featured
 
 = Introduction =
 
@@ -134,4 +135,3 @@ for entry in rt_string_directory.directory.entries:
     strings.append(ustr)
     print 'String of length', ustr_length, 'at offset', offset
 }}}
-
