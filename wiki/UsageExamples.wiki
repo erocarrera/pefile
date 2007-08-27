@@ -1,4 +1,5 @@
 #summary Usage examples of pefile
+#labels Featured
 
 = Introduction =
 
