@@ -41,11 +41,15 @@ IMAGE_OS2_SIGNATURE             = 0x454E
 IMAGE_OS2_SIGNATURE_LE          = 0x454C
 IMAGE_VXD_SIGNATURE             = 0x454C
 IMAGE_NT_SIGNATURE              = 0x00004550
+ARCHIVE_SIGNATURE               = "!<arch>\n"
 IMAGE_NUMBEROF_DIRECTORY_ENTRIES= 16
 IMAGE_ORDINAL_FLAG              = 0x80000000L
 IMAGE_ORDINAL_FLAG64            = 0x8000000000000000L
 OPTIONAL_HEADER_MAGIC_PE        = 0x10b
 OPTIONAL_HEADER_MAGIC_PE_PLUS   = 0x20b
+IMAGE_SYM_UNDEFINED             = 0x0
+IMAGE_SYM_ABSOLUTE              = -0x1
+IMAGE_SYM_DEBUG                 = -0x2
 
 
 directory_entry_types = [
@@ -90,6 +94,67 @@ image_characteristics = [
 IMAGE_CHARACTERISTICS = dict([(e[1], e[0]) for e in
     image_characteristics]+image_characteristics)
 
+image_symbol_types = [
+    ('IMAGE_SYM_TYPE_NULL',         0),
+    ('IMAGE_SYM_TYPE_VOID',         1),
+    ('IMAGE_SYM_TYPE_CHAR',         2),
+    ('IMAGE_SYM_TYPE_SHORT',        3),
+    ('IMAGE_SYM_TYPE_INT',          4),
+    ('IMAGE_SYM_TYPE_LONG',         5),
+    ('IMAGE_SYM_TYPE_FLOAT',        6),
+    ('IMAGE_SYM_TYPE_DOUBLE',       7),
+    ('IMAGE_SYM_TYPE_STRUCT',       8),
+    ('IMAGE_SYM_TYPE_UNION',        9),
+    ('IMAGE_SYM_TYPE_ENUM',         10),
+    ('IMAGE_SYM_TYPE_MOE',          11),
+    ('IMAGE_SYM_TYPE_BYTE',         12),
+    ('IMAGE_SYM_TYPE_WORD',         13),
+    ('IMAGE_SYM_TYPE_UINT',         14),
+    ('IMAGE_SYM_TYPE_DWORD',        15) ]
+
+IMAGE_SYMBOL_TYPES = dict([(e[1], e[0]) for e in
+    image_symbol_types]+image_symbol_types)
+
+image_symbol_dtypes = [
+    ('IMAGE_SYM_DTYPE_NULL',         0),
+    ('IMAGE_SYM_DTYPE_POINTER',      1),
+    ('IMAGE_SYM_DTYPE_FUNCTION',     2),
+    ('IMAGE_SYM_DTYPE_ARRAY',        3) ]
+
+IMAGE_SYMBOL_DTYPES = dict([(e[1], e[0]) for e in
+    image_symbol_dtypes]+image_symbol_dtypes)  
+
+image_symbol_classes = [
+    ('IMAGE_SYM_CLASS_END_OF_FUNCTION',         0xFF),
+    ('IMAGE_SYM_CLASS_NULL',                    0),
+    ('IMAGE_SYM_CLASS_AUTOMATIC',               1),
+    ('IMAGE_SYM_CLASS_EXTERNAL',                2),
+    ('IMAGE_SYM_CLASS_STATIC',                  3),
+    ('IMAGE_SYM_CLASS_REGISTER',                4),
+    ('IMAGE_SYM_CLASS_EXTERNEL_DEF',            5),
+    ('IMAGE_SYM_CLASS_LABEL',                   6),
+    ('IMAGE_SYM_CLASS_UNDEFINED_LABEL',         7),
+    ('IMAGE_SYM_CLASS_MEMBER_OF_STRUCT',        8),
+    ('IMAGE_SYM_CLASS_ARGUMENT',                9),
+    ('IMAGE_SYM_CLASS_STRUCT_TAG',              10),
+    ('IMAGE_SYM_CLASS_MEMBER_OF_UNION',         11),
+    ('IMAGE_SYM_CLASS_UNION_TAG',               12),
+    ('IMAGE_SYM_CLASS_TYPE_DEFINITION',         13),
+    ('IMAGE_SYM_CLASS_UNDEFINED_STATIC',        14),
+    ('IMAGE_SYM_CLASS_ENUM_TAG',                15),
+    ('IMAGE_SYM_CLASS_MEMBER_OF_ENUM',          16),
+    ('IMAGE_SYM_CLASS_REGISTER_PARAM',          17),
+    ('IMAGE_SYM_CLASS_BIT_FIELD',               18),
+    ('IMAGE_SYM_CLASS_BLOCK',                   100),
+    ('IMAGE_SYM_CLASS_FUNCTION',                101),
+    ('IMAGE_SYM_CLASS_END_OF_STRUCT',           102),
+    ('IMAGE_SYM_CLASS_FILE',                    103),
+    ('IMAGE_SYM_CLASS_SECTION',                 104),
+    ('IMAGE_SYM_CLASS_WEAK_EXTERNAL',           105),
+    ('IMAGE_SYM_CLASS_CLR_TOKEN',               107) ]
+
+IMAGE_SYMBOL_CLASSES = dict([(e[1], e[0]) for e in
+    image_symbol_classes]+image_symbol_classes)    
     
 section_characteristics = [
     ('IMAGE_SCN_CNT_CODE',                  0x00000020),
@@ -461,7 +526,55 @@ sublang =  [
 
 SUBLANG = dict(sublang+[(e[1], e[0]) for e in sublang])
 
+def parse_nullterm_string(data):
+    char = None
+    offset = 0
+    result = ""
+    
+    try:
+        char = data[offset]
+    except IndexError:
+        return ''
+   
+    while ord(char):
+        result += char
+        offset += 1
+        try:
+            char = data[offset]
+        except IndexError:
+            break
+    return result
+def parse_nullterm_strings(data):
+    """Get an array of ASCII string from within the data."""
 
+    char = None
+    offset = 0
+    result = []
+    
+    try:
+        char = data[offset]
+    except IndexError:
+        return ''
+    
+    while offset < len(data):
+        s = ''
+        while ord(char):
+            s += char
+            offset += 1
+            try:
+                char = data[offset]
+            except IndexError:
+                break
+        
+        result.append(s)
+        offset += 1
+        try:
+            char = data[offset]
+        except IndexError:
+            break
+    
+    return result
+    
 class UnicodeStringWrapperPostProcessor:
     """This class attemps to help the process of identifying strings
     that might be plain Unicode or Pascal. A list of strings will be
@@ -565,6 +678,11 @@ class UnicodeStringWrapperPostProcessor:
         """"""
 
         self.string = self.pe.get_string_u_at_rva(self.rva_ptr)
+            
+
+
+        return struct.unpack('<H', data)[0]
+
             
 
 class PEFormatError(Exception):
@@ -720,7 +838,7 @@ class Structure:
         # Buggy malware: a29b0118af8b7408444df81701ad5a7f
         #
         elif len(data)<self.__format_length__:
-            raise PEFormatError('Data length less than expected header length.')
+            raise PEFormatError('Data length less than expected structure length.')
 
             
         if data.count(chr(0)) == len(data):
@@ -877,9 +995,67 @@ class SectionStructure(Structure):
 
 
 
+class SymbolStructure(Structure):
+    __SymbolTable_Record_format__ = ('SymbolTable_Record',
+        ('8s,Name', 'L,Value', 'h,SectionNumber',"H,Type","B,StorageClass","B,NumberOfAuxSymbols") )
+    
+    __Aux_FunctionDefinition_format__ = ('SymbolTable_Aux_FunctionDefinition',
+        ('I,TagIndex', 'I,TotalSize', 'I,PointerToLinenumber',"I,PointerToNextFunction","H,Unused") )        
+    
+    def __init__(self, parent):
+        Structure.__init__(self,self.__SymbolTable_Record_format__)
+        self.__parent__ = parent
+
+    
+    def __unpack__(self, data):
+        Structure.__unpack__(self,data)
+        
+        if self.Name[:4] == "\x00\x00\x00\x00":
+            self.NameOffset = int(struct.unpack("<I",self.Name[4:8])[0])
+            try:
+                self.Name = parse_nullterm_string(self.__parent__.COFFStringTable[self.NameOffset:])
+            except:
+                raise
+        
+        if not self.SectionNumber in [IMAGE_SYM_UNDEFINED, IMAGE_SYM_ABSOLUTE, IMAGE_SYM_DEBUG]:
+            self.__section__ = self.__parent__.sections[self.SectionNumber-1]
+        else:
+            self.__section__ = None
+        
+            
+    def __unpack_data__(self, format, data, file_offset):
+        """Apply structure format to raw data.
+        
+        Returns and unpacked structure object if successful, None otherwise.
+        """
+    
+        structure = Structure(format, file_offset=file_offset)
+        if len(data) < structure.sizeof():
+            return None
+    
+        structure.__unpack__(data)
+    
+        return structure
+        
+    def sizeof(self):
+        return self.__format_length__ + self.NumberOfAuxSymbols * self.__format_length__
+    
+    def is_function(self):
+        return (IMAGE_SYMBOL_DTYPES[self.Type >> 4] == "IMAGE_SYM_DTYPE_FUNCTION") and (IMAGE_SYMBOL_CLASSES[self.StorageClass] == "IMAGE_SYM_CLASS_EXTERNAL") and self.__section__
+            
+    def get_function_code(self):
+        if not self.is_function():
+            raise Exception("Symbol is not a function")
+            
+        if IMAGE_SYMBOL_CLASSES[self.StorageClass] == "IMAGE_SYM_CLASS_EXTERNAL":
+            if not self.__section__:
+                raise Exception("This symbol is in 'undefined' section.")
+            
+            return self.__section__.get_data(self.Value)
+    
 class DataContainer:
     """Generic data container."""
-	
+    
     def __init__(self, **args):
         for key, value in args.items():
             setattr(self, key, value)
@@ -1014,8 +1190,42 @@ class BoundImportRefData(DataContainer):
     name:       dll name
     """
 
+class FirstLinkerMemberData(DataContainer):
+    """Holds Linker data from the First Linker Member.
+    
+    Header:       ARCHIVE_MEMBER_HEADER
+    NumberOfSymbols:    the number of symbols
+    Symbols:            array of (offset, symbolName) pairs
+    """
+    
+class SecondLinkerMemberData(DataContainer):
+    """Holds Linker data from the Second Linker Member.
+    
+    Header:       ARCHIVE_MEMBER_HEADER
+    NumberOfMembers:    the number of Members in the archive
+    NumberOfSymbols:    the number of symbols
+    MemberOffsets:      array of offsets to Members
+    Symbols:            list of (symbol name, index) pairs.
+                        The index is a 1-based index into the
+                        MemberOffsets list.
+    """
 
-class PE:
+class LongnamesMemberData(DataContainer):
+    """Holds data from the Longnames archive member.
+    
+    Header:       ARCHIVE_MEMBER_HEADER
+    Names:              array of long names.
+    """
+
+class ObjectMemberData(DataContainer):
+    """Holds data from a COFF object member.
+    
+    Header:       ARCHIVE_MEMBER_HEADER
+    Obj:                the COFF object 'file'
+    """
+
+    
+class COFF:
     """A Portable Executable representation.
     
     This class provides access to most of the information in a PE file.
@@ -1088,14 +1298,7 @@ class PE:
     # Format specifications for PE structures.
     #
     
-    __IMAGE_DOS_HEADER_format__ = ('IMAGE_DOS_HEADER',
-        ('H,e_magic', 'H,e_cblp', 'H,e_cp',
-        'H,e_crlc', 'H,e_cparhdr', 'H,e_minalloc',
-        'H,e_maxalloc', 'H,e_ss', 'H,e_sp', 'H,e_csum',
-        'H,e_ip', 'H,e_cs', 'H,e_lfarlc', 'H,e_ovno', '8s,e_res',
-        'H,e_oemid', 'H,e_oeminfo', '20s,e_res2',
-        'L,e_lfanew'))
-        
+
     __IMAGE_FILE_HEADER_format__ = ('IMAGE_FILE_HEADER',
         ('H,Machine', 'H,NumberOfSections',
         'L,TimeDateStamp', 'L,PointerToSymbolTable',
@@ -1137,8 +1340,6 @@ class PE:
         'Q,SizeOfHeapReserve', 'Q,SizeOfHeapCommit',
         'L,LoaderFlags', 'L,NumberOfRvaAndSizes' ))
 
-        
-    __IMAGE_NT_HEADERS_format__ = ('IMAGE_NT_HEADERS', ('L,Signature',))
         
     __IMAGE_SECTION_HEADER_format__ = ('IMAGE_SECTION_HEADER',
         ('8s,Name', 'L,Misc,Misc_PhysicalAddress,Misc_VirtualSize',
@@ -1221,9 +1422,10 @@ class PE:
 
     __IMAGE_BOUND_FORWARDER_REF_format__ = ('IMAGE_BOUND_FORWARDER_REF',
         ('L,TimeDateStamp', 'H,OffsetModuleName', 'H,Reserved') )
+        
 
 
-    def __init__(self, name=None, data=None, fast_load=None):
+    def __init__(self, data=None):
     
         self.sections = []
         
@@ -1231,17 +1433,17 @@ class PE:
         
         self.PE_TYPE = None
         
-        if  not name and not data:
+        if not data:
             return
             
         # This list will keep track of all the structures created.
         # That will allow for an easy iteration through the list
         # in order to save the modifications made
         self.__structures__ = []
-
-        if not fast_load:
-            fast_load = globals()['fast_load']
-        self.__parse__(name, data, fast_load)
+            
+        self.__data__ = data
+        
+        self.__parse__()
                     
         
     
@@ -1268,56 +1470,21 @@ class PE:
         return structure
         
 
-        
-    def __parse__(self, fname, data, fast_load):
+    def __parse__(self, file_header_offset=0, require_optional_header=None):
         """Parse a Portable Executable file.
         
         Loads a PE file, parsing all its structures and making them available
         through the instance's attributes.
+        
+        @@file_header_offset should only be used for the case of PE which has 
+        headers before the COFF 'file header'.
         """
+        self.__file_header_offset__ = file_header_offset
         
-        if fname:
-            fd = file(fname, 'rb')
-            self.__data__ = fd.read()
-            fd.close()
-        elif data:
-            self.__data__ = data
-        
-
-        self.DOS_HEADER = self.__unpack_data__(
-            self.__IMAGE_DOS_HEADER_format__,
-            self.__data__, file_offset=0)
-            
-        if not self.DOS_HEADER or self.DOS_HEADER.e_magic != IMAGE_DOS_SIGNATURE:
-            raise PEFormatError('DOS Header magic not found.')
-
-        # OC Patch:
-        # Check for sane value in e_lfanew
-        #                
-        if self.DOS_HEADER.e_lfanew > len(self.__data__):
-            raise PEFormatError('Invalid e_lfanew value, probably not a PE file')
-
-        nt_headers_offset = self.DOS_HEADER.e_lfanew
-
-        self.NT_HEADERS = self.__unpack_data__(
-            self.__IMAGE_NT_HEADERS_format__,
-            self.__data__[nt_headers_offset:],
-            file_offset = nt_headers_offset)
-
-        # We better check the signature right here, before the file screws
-        # around with sections:
-        # OC Patch:
-        # Some malware will cause the Signature value to not exist at all
-        if not self.NT_HEADERS or not self.NT_HEADERS.Signature:
-            raise PEFormatError('NT Headers not found.')
-
-        if self.NT_HEADERS.Signature != IMAGE_NT_SIGNATURE:
-            raise PEFormatError('Invalid NT Headers signature.')
-                
         self.FILE_HEADER = self.__unpack_data__(
             self.__IMAGE_FILE_HEADER_format__,
-            self.__data__[nt_headers_offset+4:],
-            file_offset = nt_headers_offset+4)
+            self.__data__[file_header_offset:],
+            file_offset = file_header_offset)
         image_flags = self.retrieve_flags(IMAGE_CHARACTERISTICS, 'IMAGE_FILE_')
         
         if not self.FILE_HEADER:
@@ -1326,11 +1493,80 @@ class PE:
         # Set the image's flags according the the Characteristics member
         self.set_flags(self.FILE_HEADER, self.FILE_HEADER.Characteristics, image_flags)
         
-        optional_header_offset =    \
-            nt_headers_offset+4+self.FILE_HEADER.sizeof()
-
+        optional_header_offset = file_header_offset + self.FILE_HEADER.sizeof()
+        
+        try:
+            self.parse_optional_header(optional_header_offset)
+        except:
+            if require_optional_header:
+                raise
+            self.OPTIONAL_HEADER = None
+        
         # Note: location of sections can be controlled from PE header:
         sections_offset = optional_header_offset + self.FILE_HEADER.SizeOfOptionalHeader
+        
+        offset = self.parse_sections(sections_offset)
+        
+        # OC Patch:
+        # There could be a problem if there are no raw data sections
+        # greater than 0
+        # fc91013eb72529da005110a3403541b6 example
+        # Should this throw an exception in the minimum header offset
+        # can't be found?
+        #
+        rawDataPointers = [
+            s.PointerToRawData for s in self.sections if s.PointerToRawData>0]
+            
+        if len(rawDataPointers) > 0:
+            lowest_section_offset = min(rawDataPointers)
+        else:
+            lowest_section_offset = None
+
+        if not lowest_section_offset or lowest_section_offset<offset:
+            self.header = self.__data__[:offset]
+        else:
+            self.header = self.__data__[:lowest_section_offset]
+        
+        
+        if self.OPTIONAL_HEADER:
+            # Check whether the entry point lies within a section
+            #
+            if self.get_section_by_rva(self.OPTIONAL_HEADER.AddressOfEntryPoint) is not None:
+                # Check whether the entry point lies within the file
+                #
+                ep_offset = self.get_offset_from_rva(self.OPTIONAL_HEADER.AddressOfEntryPoint)
+                if ep_offset > len(self.__data__):
+                
+                    self.__warnings.append(
+                        'Possibly corrupt file. AddressOfEntryPoint lies outside the file. ' +
+                        'AddressOfEntryPoint: 0x%x' %
+                        self.OPTIONAL_HEADER.AddressOfEntryPoint )
+            else:
+                self.__warnings.append(
+                    'AddressOfEntryPoint lies outside the sections\' boundaries. ' +
+                    'AddressOfEntryPoint: 0x%x' %
+                    self.OPTIONAL_HEADER.AddressOfEntryPoint )
+        
+        self.parse_symboltable()
+    
+    def parse_symboltable(self):
+        string_table_offset = self.FILE_HEADER.PointerToSymbolTable + self.FILE_HEADER.NumberOfSymbols * 18
+        self.COFFStringTable = \
+            self.__data__[
+                string_table_offset:
+                string_table_offset + struct.unpack("I",self.__data__[string_table_offset:string_table_offset+4])[0]]
+                
+        self.SymbolTable = []
+        self.SymbolTableByName = {}
+        offset = self.FILE_HEADER.PointerToSymbolTable
+        while offset < string_table_offset:
+            symbol = SymbolStructure(self)
+            symbol.__unpack__(self.__data__[offset:])
+            offset += symbol.sizeof()
+            self.SymbolTable.append(symbol)
+            self.SymbolTableByName[symbol.Name]=symbol
+            
+    def parse_optional_header(self, optional_header_offset):
 
         self.OPTIONAL_HEADER = self.__unpack_data__(
             self.__IMAGE_OPTIONAL_HEADER_format__,
@@ -1404,9 +1640,6 @@ class PE:
                         padded_data,
                         file_offset = optional_header_offset)
         
-        
-        if not self.FILE_HEADER:
-            raise PEFormatError('File Header missing')
 
 
         # OC Patch:
@@ -1428,9 +1661,6 @@ class PE:
         #offset = (optional_header_offset + self.FILE_HEADER.SizeOfOptionalHeader)
         offset = (optional_header_offset + self.OPTIONAL_HEADER.sizeof())
             
-        
-        self.NT_HEADERS.FILE_HEADER = self.FILE_HEADER
-        self.NT_HEADERS.OPTIONAL_HEADER = self.OPTIONAL_HEADER
             
 
         # The NumberOfRvaAndSizes is sanitized to stay within 
@@ -1483,57 +1713,7 @@ class PE:
             if offset >= (optional_header_offset + 
                 self.OPTIONAL_HEADER.sizeof() + 8*16) :
                 
-                break
-                
-                        
-        offset = self.parse_sections(sections_offset)
-        
-        # OC Patch:
-        # There could be a problem if there are no raw data sections
-        # greater than 0
-        # fc91013eb72529da005110a3403541b6 example
-        # Should this throw an exception in the minimum header offset
-        # can't be found?
-        #
-        rawDataPointers = [
-            s.PointerToRawData for s in self.sections if s.PointerToRawData>0]
-            
-        if len(rawDataPointers) > 0:
-            lowest_section_offset = min(rawDataPointers)
-        else:
-            lowest_section_offset = None
-
-        if not lowest_section_offset or lowest_section_offset<offset:
-            self.header = self.__data__[:offset]
-        else:
-            self.header = self.__data__[:lowest_section_offset]
-        
-
-        # Check whether the entry point lies within a section
-        #
-        if self.get_section_by_rva(self.OPTIONAL_HEADER.AddressOfEntryPoint) is not None:
-        
-            # Check whether the entry point lies within the file
-            #
-            ep_offset = self.get_offset_from_rva(self.OPTIONAL_HEADER.AddressOfEntryPoint)
-            if ep_offset > len(self.__data__):
-            
-                self.__warnings.append(
-                    'Possibly corrupt file. AddressOfEntryPoint lies outside the file. ' +
-                    'AddressOfEntryPoint: 0x%x' %
-                    self.OPTIONAL_HEADER.AddressOfEntryPoint )
-            
-        else:
-
-            self.__warnings.append(
-                'AddressOfEntryPoint lies outside the sections\' boundaries. ' +
-                'AddressOfEntryPoint: 0x%x' %
-                self.OPTIONAL_HEADER.AddressOfEntryPoint )
-                
-        
-        if not fast_load:
-            self.parse_data_directories()
-
+                break    
 
     def get_warnings(self):
         """Return the list of warnings.
@@ -1644,26 +1824,27 @@ class PE:
                     ('Suspicious value found parsing section %d. ' % i) +
                     'VirtualAddress is beyond 0x10000000.')
 
-            #
-            # Some packer used a non-aligned PointerToRawData in the sections,
-            # which causes several common tools not to load the section data
-            # properly as they blindly read from the indicated offset.
-            # It seems that Windows will round the offset down to the largest
-            # offset multiple of FileAlignment which is smaller than
-            # PointerToRawData. The following code will do the same.
-            #
-            
-            alignment = self.OPTIONAL_HEADER.FileAlignment
             section_data_start = section.PointerToRawData
-            #section_data_start = int(section_data_start/alignment)*alignment
-            
-            if section.PointerToRawData % self.OPTIONAL_HEADER.FileAlignment != 0:
-                self.__warnings.append(
-                    ('Error parsing section %d. ' % i) +
-                    'Suspicious value for FileAlignment in the Optional Header. ' +
-                    'Normally the PointerToRawData entry of the sections\' structures ' +
-                    'is a multiple of FileAlignment, this might imply the file ' +
-                    'is trying to confuse tools which parse this incorrectly')
+            if self.OPTIONAL_HEADER:
+                #
+                # Some packer used a non-aligned PointerToRawData in the sections,
+                # which causes several common tools not to load the section data
+                # properly as they blindly read from the indicated offset.
+                # It seems that Windows will round the offset down to the largest
+                # offset multiple of FileAlignment which is smaller than
+                # PointerToRawData. The following code will do the same.
+                #
+                
+                alignment = self.OPTIONAL_HEADER.FileAlignment
+                #section_data_start = int(section_data_start/alignment)*alignment
+                
+                if section_data_start % self.OPTIONAL_HEADER.FileAlignment != 0:
+                    self.__warnings.append(
+                        ('Error parsing section %d. ' % i) +
+                        'Suspicious value for FileAlignment in the Optional Header. ' +
+                        'Normally the PointerToRawData entry of the sections\' structures ' +
+                        'is a multiple of FileAlignment, this might imply the file ' +
+                        'is trying to confuse tools which parse this incorrectly')
             
             section_data_end = section_data_start+section.SizeOfRawData
             section.set_data(self.__data__[section_data_start:section_data_end])
@@ -3547,3 +3728,267 @@ class PE:
                     self.set_qword_at_rva(
                         entry.rva,
                         self.get_qword_at_rva(entry.rva) + relocation_difference)
+
+class PE(COFF):                        
+    __IMAGE_DOS_HEADER_format__ = ('IMAGE_DOS_HEADER',
+        ('H,e_magic', 'H,e_cblp', 'H,e_cp',
+        'H,e_crlc', 'H,e_cparhdr', 'H,e_minalloc',
+        'H,e_maxalloc', 'H,e_ss', 'H,e_sp', 'H,e_csum',
+        'H,e_ip', 'H,e_cs', 'H,e_lfarlc', 'H,e_ovno', '8s,e_res',
+        'H,e_oemid', 'H,e_oeminfo', '20s,e_res2',
+        'L,e_lfanew'))
+                
+    __IMAGE_NT_HEADERS_format__ = ('IMAGE_NT_HEADERS', ('L,Signature',))
+
+    def __init__(self, name=None, data=None, fast_load=None):
+        
+        if name:
+            fd = file(name, 'rb')
+            data = fd.read()
+            fd.close()
+        
+        if not fast_load:
+            self.__fast_load__ = globals()["fast_load"]
+            
+        COFF.__init__(self,data)
+    
+    def __parse__(self):
+        self.DOS_HEADER = self.__unpack_data__(
+            self.__IMAGE_DOS_HEADER_format__,
+            self.__data__, file_offset=0)
+            
+        if not self.DOS_HEADER or self.DOS_HEADER.e_magic != IMAGE_DOS_SIGNATURE:
+            raise PEFormatError('DOS Header magic not found.')
+
+        # OC Patch:
+        # Check for sane value in e_lfanew
+        #                
+        if self.DOS_HEADER.e_lfanew > len(self.__data__):
+            raise PEFormatError('Invalid e_lfanew value, probably not a PE file')
+
+        nt_headers_offset = self.DOS_HEADER.e_lfanew
+
+        self.NT_HEADERS = self.__unpack_data__(
+            self.__IMAGE_NT_HEADERS_format__,
+            self.__data__[nt_headers_offset:],
+            file_offset = nt_headers_offset)
+
+        # We better check the signature right here, before the file screws
+        # around with sections:
+        # OC Patch:
+        # Some malware will cause the Signature value to not exist at all
+        if not self.NT_HEADERS or not self.NT_HEADERS.Signature:
+            raise PEFormatError('NT Headers not found.')
+
+        if self.NT_HEADERS.Signature != IMAGE_NT_SIGNATURE:
+            raise PEFormatError('Invalid NT Headers signature.')
+        
+        COFF.__parse__(self,file_header_offset=nt_headers_offset + 4,require_optional_header=True)
+        
+        self.NT_HEADERS.FILE_HEADER = self.FILE_HEADER
+        self.NT_HEADERS.OPTIONAL_HEADER = self.OPTIONAL_HEADER
+        
+        if not self.__fast_load__:
+            self.parse_data_directories()
+        
+
+class OBJ(COFF):
+
+    def __init__(self, name=None, data=None, fast_load=None):
+        if name:
+            fd = file(name, 'rb')
+            data = fd.read()
+            fd.close()
+        
+        COFF.__init__(self,data)
+
+    def __parse__(self):
+        COFF.__parse__(self)
+             
+           
+class LIB:
+
+    __ARCHIVE_MEMBER_HEADER_format__ = ('ARCHIVE_MEMBER_HEADER',
+        ('16s,Name', '12s,Date', '6s,UserID',
+        '6s,GroupID', '8s,Mode', '10s,Size',
+        '2s,EndOfHeader'))
+                
+    __ARCHIVE_SIGNATURE_format__ = ('ARCHIVE_SIGNATURE', ('8s,Signature',))
+
+    def __init__(self, name=None, data=None, fast_load=None):
+        if not name and not data:
+            return
+        
+        if name:
+            fd = file(name, 'rb')
+            data = fd.read()
+            fd.close()
+        
+        self.__warnings = []
+                    
+        # This list will keep track of all the structures created.
+        # That will allow for an easy iteration through the list
+        # in order to save the modifications made
+        self.__structures__ = []
+        
+        self.Objects = {}
+        
+        self.__data__ = data
+        
+        self.__parse__()
+    
+    def __unpack_data__(self, format, data, file_offset):
+        """Apply structure format to raw data.
+        
+        Returns and unpacked structure object if successful, None otherwise.
+        """
+    
+        structure = Structure(format, file_offset=file_offset)
+        if len(data) < structure.sizeof():
+            return None
+    
+        structure.__unpack__(data)
+    
+        return structure
+        
+    def __parse__(self):
+        self.ARCHIVE_SIGNATURE = self.__unpack_data__(
+            self.__ARCHIVE_SIGNATURE_format__,
+            self.__data__, file_offset=0)
+            
+        if not self.ARCHIVE_SIGNATURE or self.ARCHIVE_SIGNATURE.Signature != ARCHIVE_SIGNATURE:
+            raise PEFormatError('Archive file signature not found.')
+        self.__structures__.append(self.ARCHIVE_SIGNATURE)
+        
+        first_linker_member_offset = self.ARCHIVE_SIGNATURE.sizeof()
+        self.FirstLinkerMember = self.parse_first_linker_member(first_linker_member_offset)
+        self.__structures__.append(self.FirstLinkerMember)
+        
+        second_linker_member_offset = first_linker_member_offset + int(self.FirstLinkerMember.Header.Size) + self.FirstLinkerMember.Header.sizeof()
+        if second_linker_member_offset % 2: #must be even!
+            second_linker_member_offset += 1
+        self.SecondLinkerMember = self.parse_second_linker_member(second_linker_member_offset)
+        self.__structures__.append(self.SecondLinkerMember)
+        
+        longnames_member_offset = second_linker_member_offset + int(self.SecondLinkerMember.Header.Size) + self.SecondLinkerMember.Header.sizeof()
+        if longnames_member_offset % 2: #must be even!
+            longnames_member_offset += 1
+        longnames_member_header = self.__unpack_data__(
+            self.__ARCHIVE_MEMBER_HEADER_format__,
+            self.__data__[longnames_member_offset:], file_offset=longnames_member_offset)
+        longnames_data = self.__data__[
+                            longnames_member_offset + longnames_member_header.sizeof() :
+                            longnames_member_offset + longnames_member_header.sizeof() + int(longnames_member_header.Size)]
+        self.Longnames = LongnamesMemberData(
+            Header = longnames_member_header,
+            Data = longnames_data)
+        self.__structures__.append(self.Longnames)
+        
+        offset = longnames_member_offset + longnames_member_header.sizeof() + int(longnames_member_header.Size)
+        if offset % 2: #must be even!
+            offset += 1
+            
+        for i in range(self.SecondLinkerMember.NumberOfMembers):
+            member_header = self.__unpack_data__(
+                self.__ARCHIVE_MEMBER_HEADER_format__,
+                self.__data__[offset:], file_offset=offset)
+
+            #print "'%s'" % member_header.Name, "'%s'" % member_header.Date, "'%s'" % member_header.UserID, "'%s'" % member_header.GroupID, "'%s'" % member_header.Mode,"'%s'" % member_header.Size,  "'%s'" % member_header.EndOfHeader     
+            
+            member_name = member_header.Name
+            if member_name[0] == "/":
+                member_name = parse_nullterm_string(self.Longnames.Data[int(member_name[1:]):])
+            
+            #[c1de0x] TODO: need to deal with short import libraries.
+            
+            print "Parsing %s..." % member_name
+            offset += member_header.sizeof()
+            member_obj = COFF(self.__data__[offset:])
+            
+            object_member = ObjectMemberData(
+                    Header = member_header,
+                    Object = member_obj)
+                
+            self.Objects[offset - member_header.sizeof()] = object_member
+            self.__structures__.append(object_member)
+            
+            offset += int(member_header.Size) 
+            if offset % 2: #must be even!
+                offset += 1
+                
+        self.build_symbol_list()
+        
+    
+    def build_symbol_list(self):
+        self.symbols = []
+        
+        print
+        linker_member = self.SecondLinkerMember
+        for name,index in linker_member.Symbols:
+            # find the obj which contains our symbol:
+            member_offset = linker_member.MemberOffsets[index-1]
+            obj = self.Objects[member_offset].Object
+            
+            # get the symbol record:
+            symbol = obj.SymbolTableByName[name]
+            if not symbol:
+                raise Exception("Couldn't find symbol in COFF object")
+            
+            self.symbols.append(symbol)
+
+    def parse_first_linker_member(self, offset):
+        member_header = self.__unpack_data__(
+            self.__ARCHIVE_MEMBER_HEADER_format__,
+            self.__data__[offset:], file_offset=offset)
+      
+        offset += member_header.sizeof()
+        number_of_symbols = int(struct.unpack(">I",self.__data__[offset:offset+4])[0])
+        
+        strings_offset = offset + 4 + number_of_symbols*4
+        strings = parse_nullterm_strings(self.__data__[strings_offset:offset + int(member_header.Size)])
+        offset += 4
+        symbols = []
+        for i in range(number_of_symbols):
+            symbols.append((int(struct.unpack(">I",self.__data__[offset+4*i:offset+4*i+4])[0]),strings[i]))
+        
+        return FirstLinkerMemberData(
+            Header=member_header,
+            NumberOfSymbols = number_of_symbols,
+            Symbols = symbols)
+                
+    def parse_second_linker_member(self, offset):
+        original_offset = offset
+        member_header = self.__unpack_data__(
+            self.__ARCHIVE_MEMBER_HEADER_format__,
+            self.__data__[offset:], file_offset=offset)
+        
+        #print "'%s'" % member_header.Name, "'%s'" % member_header.Date, "'%s'" % member_header.UserID, "'%s'" % member_header.GroupID, "'%s'" % member_header.Mode,"'%s'" % member_header.Size,  "'%s'" % member_header.EndOfHeader 
+        offset += member_header.sizeof()
+        number_of_members = int(struct.unpack("<I",self.__data__[offset:offset+4])[0])
+        offset += 4
+        
+        member_offsets = []
+        for i in range(number_of_members):
+            member_offsets.append(int(struct.unpack("<I",self.__data__[offset+4*i:offset+4*i+4])[0]))
+        offset += number_of_members * 4
+        
+        number_of_symbols = int(struct.unpack("<I",self.__data__[offset:offset+4])[0])
+        offset += 4
+        
+        strings_offset = offset + number_of_symbols*2
+        
+        strings = parse_nullterm_strings(self.__data__[strings_offset:original_offset + int(member_header.Size) + member_header.sizeof()])
+        
+        symbols = []
+        for i in range(number_of_symbols):
+            symbols.append((strings[i], int(struct.unpack("<H",self.__data__[offset+2*i:offset+2*i+2])[0])))
+        
+        return SecondLinkerMemberData(
+            Header=member_header,
+            NumberOfMembers = number_of_members,
+            MemberOffsets = member_offsets,
+            NumberOfSymbols = number_of_symbols,
+            Symbols = symbols)
+        
+        
+
