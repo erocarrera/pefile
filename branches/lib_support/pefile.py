@@ -2984,7 +2984,7 @@ class COFF:
         The optional argument 'max_virtual_address' provides with means of limiting
         which section are processed.
         Any section with their VirtualAddress beyond this value will be skipped.
-        Normally, sections with values beyond this range are just there to confuse
+        Normally, sections with values beyond this xrange are just there to confuse
         tools. It's a common trick to see in packed executables.
         
         If the 'ImageBase' optional argument is supplied, the file's relocations
@@ -3888,7 +3888,7 @@ class LIB:
         if offset % 2: #must be even!
             offset += 1
             
-        for i in range(self.SecondLinkerMember.NumberOfMembers):
+        for i in xrange(self.SecondLinkerMember.NumberOfMembers):
             member_header = self.__unpack_data__(
                 self.__ARCHIVE_MEMBER_HEADER_format__,
                 self.__data__[offset:], file_offset=offset)
@@ -3948,7 +3948,7 @@ class LIB:
         strings = parse_nullterm_strings(self.__data__[strings_offset:offset + int(member_header.Size)])
         offset += 4
         symbols = []
-        for i in range(number_of_symbols):
+        for i in xrange(number_of_symbols):
             symbols.append((int(struct.unpack(">I",self.__data__[offset+4*i:offset+4*i+4])[0]),strings[i]))
         
         return FirstLinkerMemberData(
@@ -3968,7 +3968,7 @@ class LIB:
         offset += 4
         
         member_offsets = []
-        for i in range(number_of_members):
+        for i in xrange(number_of_members):
             member_offsets.append(int(struct.unpack("<I",self.__data__[offset+4*i:offset+4*i+4])[0]))
         offset += number_of_members * 4
         
@@ -3980,7 +3980,7 @@ class LIB:
         strings = parse_nullterm_strings(self.__data__[strings_offset:original_offset + int(member_header.Size) + member_header.sizeof()])
         
         symbols = []
-        for i in range(number_of_symbols):
+        for i in xrange(number_of_symbols):
             symbols.append((strings[i], int(struct.unpack("<H",self.__data__[offset+2*i:offset+2*i+2])[0])))
         
         return SecondLinkerMemberData(
