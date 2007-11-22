@@ -146,7 +146,7 @@ class SignatureDatabase:
         
     
     
-    def match(self, pe, ep_only=False, section_start_only=False):
+    def match(self, pe, ep_only=True, section_start_only=False):
         """Match and return the exact match(es).
         
         If ep_only is True the result will be a string with
@@ -173,7 +173,7 @@ class SignatureDatabase:
 
 
 
-    def match_all(self, pe, ep_only=False, section_start_only=False):
+    def match_all(self, pe, ep_only=True, section_start_only=False):
         """Match and return the all the likely matches."""
 
         matches = self.__match(pe, ep_only, section_start_only)
