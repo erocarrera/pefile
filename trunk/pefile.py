@@ -21,7 +21,7 @@ the root of the distribution archive.
 """
 
 __author__ = 'Ero Carrera'
-__version__ = '1.2.7'
+__version__ = '1.2.8'
 __contact__ = 'ero@dkbza.org'
 
 import os
@@ -30,6 +30,8 @@ import time
 import math
 import re
 import exceptions
+import string
+import array
 
 
 fast_load = False
@@ -460,6 +462,111 @@ sublang =  [
 SUBLANG = dict(sublang+[(e[1], e[0]) for e in sublang])
 
 
+class UnicodeStringWrapperPostProcessor:
+    """This class attemps to help the process of identifying strings
+    that might be plain Unicode or Pascal. A list of strings will be
+    wrapped on it with the hope the overlappings will help make the 
+    decission about their type."""
+    
+    def __init__(self, pe, rva_ptr):
+        self.pe = pe
+        self.rva_ptr = rva_ptr
+        self.string = None
+        
+        
+    def get_rva(self):
+        """Get the RVA of the string."""
+        
+        return self.rva_ptr
+        
+        
+    def __str__(self):
+        """Return the escaped ASCII representation of the string."""
+    
+        def convert_char(char):
+            if char in string.printable:
+                return char
+            else:
+                return r'\x%02x' % ord(char)
+                
+        if self.string:
+            return ''.join([convert_char(c) for c in self.string])
+            
+        return ''
+        
+    
+    def invalidate(self):
+        """Make this instance None, to express it's no known string type."""
+        
+        self = None
+    
+        
+    def render_pascal_16(self):
+    
+        self.string = self.pe.get_string_u_at_rva(
+            self.rva_ptr+2, 
+            max_length=self.__get_pascal_16_length())
+
+
+    def ask_pascal_16(self, next_rva_ptr):
+        """The next RVA is taken to be the one immediately following this one.
+        
+        Such RVA could indicate the natural end of the string and will be checked
+        with the possible length contained in the first word.
+        """
+        
+        length = self.__get_pascal_16_length()
+        
+        #print 'Length:%d delta:%d' % (length, (next_rva_ptr - (self.rva_ptr+2)) / 2)
+        if length == (next_rva_ptr - (self.rva_ptr+2)) / 2:
+            self.length = length
+            return True
+            
+        return False
+        
+        
+    def __get_pascal_16_length(self):
+    
+        return self.__get_word_value_at_rva(self.rva_ptr)
+        
+    
+    def __get_word_value_at_rva(self, rva):
+
+        try:
+            data = self.pe.get_data(self.rva_ptr, 2)
+        except PEFormatError, e:
+            return False
+
+        if len(data)<2:
+            return False
+
+        return struct.unpack('<H', data)[0]
+
+    
+    #def render_pascal_8(self):
+    #    """"""
+        
+        
+    def ask_unicode_16(self, next_rva_ptr):
+        """The next RVA is taken to be the one immediately following this one.
+        
+        Such RVA could indicate the natural end of the string and will be checked
+        to see if there's a Unicode NULL character there.
+        """
+        
+        if self.__get_word_value_at_rva(next_rva_ptr-2) == 0:
+            self.length = next_rva_ptr - self.rva_ptr
+            return True
+            
+        return False
+        
+
+    def render_unicode_16(self):
+        """"""
+
+        self.string = self.pe.get_string_u_at_rva(self.rva_ptr)
+            
+
 class PEFormatError(Exception):
     """Generic PE format error exception."""
     
@@ -620,7 +727,7 @@ class Structure:
             self._all_zeroes = True
             
         self.__unpacked_data_elms__ = struct.unpack(self.__format__, data)
-        for i in range(len(self.__unpacked_data_elms__)):
+        for i in xrange(len(self.__unpacked_data_elms__)):
             for key in self.__keys__[i]:
 #                self.values[key] = self.__unpacked_data_elms__[i]
                 setattr(self, key, self.__unpacked_data_elms__[i])
@@ -630,7 +737,7 @@ class Structure:
     
         new_values = []
         
-        for i in range(len(self.__unpacked_data_elms__)):
+        for i in xrange(len(self.__unpacked_data_elms__)):
         
             for key in self.__keys__[i]:
                 new_val = getattr(self, key)
@@ -737,18 +844,35 @@ class SectionStructure(Structure):
         return self.contains_rva(rva)
 
 
+    def set_data(self, data):
+        """Set the data belonging to the section."""
+        
+        self.data = data
+        
+        
+    def get_entropy(self):
+        """Calculate and return the entropy for the section."""
+        
+        return self.entropy_H( self.data )
+        
+
     def entropy_H(self, data):
         """Calculate the entropy of a chunk of data."""
 
-        if not data:
-            return 0
-            
+        if len(data) == 0:
+            return 0.0
+    
+        occurences = array.array('L', [0]*256)
+    
+        for x in data:
+            occurences[ord(x)] += 1
+    
         entropy = 0
-        for x in range(256):
-            p_x = float(data.count(chr(x)))/len(data)
-            if p_x > 0:
-              entropy += - p_x*math.log(p_x, 2)
-              
+        for x in occurences:
+            if x:
+                p_x = float(x) / len(data)
+                entropy -= p_x*math.log(p_x, 2)
+    
         return entropy
 
 
@@ -1128,10 +1252,17 @@ class PE:
         """
     
         structure = Structure(format, file_offset=file_offset)
-        if len(data) < structure.sizeof():
-            return None
+        #if len(data) < structure.sizeof():
+        #    return None
     
-        structure.__unpack__(data)
+        try:
+            structure.__unpack__(data)
+        except PEFormatError, err:
+            self.__warnings.append(
+                'Corrupt header "%s" at file offset %d. Exception: %s' % (
+                    format[0], file_offset, str(err))  )
+            return None
+
         self.__structures__.append(structure)
     
         return structure
@@ -1484,7 +1615,7 @@ class PE:
         
         self.sections = []
         
-        for i in range(self.FILE_HEADER.NumberOfSections):
+        for i in xrange(self.FILE_HEADER.NumberOfSections):
             section = SectionStructure(self.__IMAGE_SECTION_HEADER_format__)
             if not section:
                 break
@@ -1535,8 +1666,7 @@ class PE:
                     'is trying to confuse tools which parse this incorrectly')
             
             section_data_end = section_data_start+section.SizeOfRawData
-            section.data = self.__data__[section_data_start:section_data_end]
-            section.entropy = section.entropy_H( section.data )
+            section.set_data(self.__data__[section_data_start:section_data_end])
             
             section_flags = self.retrieve_flags(SECTION_CHARACTERISTICS, 'IMAGE_SCN_')
             
@@ -1643,7 +1773,7 @@ class PE:
             rva += bnd_descr.sizeof()
             
             forwarder_refs = []
-            for idx in range(bnd_descr.NumberOfModuleForwarderRefs):
+            for idx in xrange(bnd_descr.NumberOfModuleForwarderRefs):
                 # Both structures IMAGE_BOUND_IMPORT_DESCRIPTOR and
                 # IMAGE_BOUND_FORWARDER_REF have the same size.
                 bnd_frwd_ref = self.__unpack_data__(
@@ -1740,7 +1870,7 @@ class PE:
         data = self.get_data(data_rva, size)
         
         entries = []
-        for idx in range(len(data)/2):
+        for idx in xrange(len(data)/2):
             word = struct.unpack('<H', data[idx*2:(idx+1)*2])[0]
             reloc_type = (word>>12)
             reloc_offset = (word&0x0fff)
@@ -1759,7 +1889,7 @@ class PE:
         dbg_size = dbg.sizeof()
         
         debug = []
-        for idx in range(size/dbg_size):
+        for idx in xrange(size/dbg_size):
             try:
                 data = self.get_data(rva+dbg_size*idx, dbg_size)
             except PEFormatError, e:
@@ -1848,8 +1978,9 @@ class PE:
             resource_dir.NumberOfNamedEntries +
             resource_dir.NumberOfIdEntries )
         
+        strings_to_postprocess = list()
         
-        for idx in range(number_of_entries):
+        for idx in xrange(number_of_entries):
         
             res = self.parse_resource_entry(rva)
             if res is None:
@@ -1871,7 +2002,10 @@ class PE:
             else:
                 ustr_offset = base_rva+res.NameOffset
                 try:
-                    entry_name = self.get_string_u_at_rva(ustr_offset)
+                    #entry_name = self.get_string_u_at_rva(ustr_offset, max_length=16)
+                    entry_name = UnicodeStringWrapperPostProcessor(self, ustr_offset)
+                    strings_to_postprocess.append(entry_name)
+                    
                 except PEFormatError, excp:
                     self.__warnings.append(
                         'Error parsing the resources directory, ' +
@@ -1944,7 +2078,13 @@ class PE:
                     
                 if rt_version_struct is not None:
                     self.parse_version_information(rt_version_struct)
+                    
+        string_rvas = [s.get_rva() for s in strings_to_postprocess]
+        string_rvas.sort()
 
+        for idx, s in enumerate(strings_to_postprocess):
+            s.render_pascal_16()
+            
         return ResourceDirData(
             struct = resource_dir,
             entries = dir_entries)
@@ -2349,16 +2489,21 @@ class PE:
         if not export_dir:
             return
         
-        address_of_names = self.get_data(
-            export_dir.AddressOfNames, export_dir.NumberOfNames*4)
-        address_of_name_ordinals = self.get_data(
-            export_dir.AddressOfNameOrdinals, export_dir.NumberOfNames*4)
-        address_of_functions = self.get_data(
-            export_dir.AddressOfFunctions, export_dir.NumberOfFunctions*4)
+        try:
+            address_of_names = self.get_data(
+                export_dir.AddressOfNames, export_dir.NumberOfNames*4)
+            address_of_name_ordinals = self.get_data(
+                export_dir.AddressOfNameOrdinals, export_dir.NumberOfNames*4)
+            address_of_functions = self.get_data(
+                export_dir.AddressOfFunctions, export_dir.NumberOfFunctions*4)
+        except PEFormatError:
+            self.__warnings.append(
+                'Error parsing export directory at RVA: 0x%x' % ( rva ) )
+            return
             
         exports = []
         
-        for i in range(export_dir.NumberOfNames):
+        for i in xrange(export_dir.NumberOfNames):
         
                 
             symbol_name = self.get_string_at_rva(
@@ -2395,7 +2540,7 @@ class PE:
                     
         ordinals = [exp.ordinal for exp in exports]
         
-        for idx in range(export_dir.NumberOfFunctions):
+        for idx in xrange(export_dir.NumberOfFunctions):
 
             if not idx+export_dir.Base in ordinals:
                 symbol_address = self.get_dword_from_data(
@@ -2426,13 +2571,6 @@ class PE:
         offset += base
         return (offset+3) - ((offset+3)%4) - base
 
-
-    def get_dword_from_data(self, data, offset):
-        return struct.unpack('<L', data[offset*4:(offset+1)*4])[0]
-        
-        
-    def get_word_from_data(self, data, offset):
-        return struct.unpack('<H', data[offset*2:(offset+1)*2])[0]
 
 
     def parse_delay_import_directory(self, rva, size):
@@ -2550,7 +2688,7 @@ class PE:
         imported_symbols = []
         imports_section = self.get_section_by_rva(first_thunk)
         if not imports_section:
-            raise PEFormatError, 'Invalid/corrupted imports.'
+            raise PEFormatError, 'Invalid/corrupt imports.'
             
         
         # Import Lookup Table. Contains ordinals or pointers to strings.
@@ -2563,18 +2701,23 @@ class PE:
 
         # OC Patch:
         # Would crash if iat or ilt had None type 
+        if not iat and not ilt:
+            raise PEFormatError( 
+                'Invalid Import Table information. ' +
+                'Both ILT and IAT appear to be broken.')
+            
         if not iat and ilt:
             table = ilt
         elif iat and not ilt:
             table = iat
-        elif (len(ilt) and len(iat)==0) or (len(ilt) == len(iat)):
+        elif ilt and ((len(ilt) and len(iat)==0) or (len(ilt) == len(iat))):
             table = ilt
-        elif len(ilt)==0 and len(iat):
+        elif (ilt and len(ilt))==0 and (iat and len(iat)):
             table = iat
         else:
             return None
             
-        for idx in range(len(table)):
+        for idx in xrange(len(table)):
 
             imp_ord = None
             imp_name = None
@@ -2648,7 +2791,7 @@ class PE:
         return table
     
     
-    def get_memory_mapped_image(self, max_virtual_address=0x10000000):
+    def get_memory_mapped_image(self, max_virtual_address=0x10000000, ImageBase=None):
         """Returns the data corresponding to the memory layout of the PE file.
         
         The data includes the PE header and the sections loaded at offsets
@@ -2662,6 +2805,9 @@ class PE:
         Any section with their VirtualAddress beyond this value will be skipped.
         Normally, sections with values beyond this range are just there to confuse
         tools. It's a common trick to see in packed executables.
+        
+        If the 'ImageBase' optional argument is supplied, the file's relocations
+        will be applied to the image by calling the 'relocate_image()' method.
         """
         
         # Collect all sections in one code block    
@@ -2713,7 +2859,7 @@ class PE:
                     end = None
                 return self.header[rva:end]
                 
-            raise PEFormatError, 'data at RVA can\'t be fetched. Corrupted header?'
+            raise PEFormatError, 'data at RVA can\'t be fetched. Corrupt header?'
 
         return s.get_data(rva, length)
 
@@ -2736,7 +2882,7 @@ class PE:
         s = self.get_section_by_rva(rva)
         if not s:
                 
-            raise PEFormatError, 'data at RVA can\'t be fetched. Corrupted header?'
+            raise PEFormatError, 'data at RVA can\'t be fetched. Corrupt header?'
             
         return s.get_offset_from_rva(rva)
         
@@ -2788,8 +2934,8 @@ class PE:
 
         #length = struct.unpack('<H', data)[0]
                 
-        s = ''
-        for idx in range(max_length):
+        s = u''
+        for idx in xrange(max_length):
             try:
                 uchr = struct.unpack('<H', self.get_data(rva+2*idx, 2))[0]
             except struct.error:
@@ -2798,7 +2944,7 @@ class PE:
             if unichr(uchr) == u'\0':
                 break
             s += unichr(uchr)
-          
+            
         return s
 
 
@@ -2895,7 +3041,7 @@ class PE:
                 if getattr(section, flag[0]):
                     flags.append(flag[0])
             dump.add_line(', '.join(flags))
-            dump.add_line('Entropy: %f (Min=0.0, Max=8.0)' % section.entropy )
+            dump.add_line('Entropy: %f (Min=0.0, Max=8.0)' % section.get_entropy() )
             dump.add_newline()
             
             
@@ -2904,7 +3050,7 @@ class PE:
             hasattr(self.OPTIONAL_HEADER, 'DATA_DIRECTORY') ):
             
             dump.add_header('Directories')
-            for idx in range(len(self.OPTIONAL_HEADER.DATA_DIRECTORY)):
+            for idx in xrange(len(self.OPTIONAL_HEADER.DATA_DIRECTORY)):
                 directory = self.OPTIONAL_HEADER.DATA_DIRECTORY[idx]
                 dump.add_lines(directory.dump())
             dump.add_newline()
@@ -3090,3 +3236,314 @@ class PE:
             return self.get_offset_from_rva(rva)
         except Exception:
             return None
+
+
+    ##
+    # Double-Word get/set
+    ##
+
+    def get_data_from_dword(self, dword):
+        """Return a four byte string representing the double word value. (little endian)."""
+        return struct.pack('<L', dword)
+
+
+    def get_dword_from_data(self, data, offset):
+        """Convert four bytes of data to a double word (little endian)
+        
+        'offset' is assumed to index into a dword array. So setting it to
+        N will return a dword out of the data sarting at offset N*4.
+        
+        Returns None if the data can't be turned into a double word.
+        """
+        
+        if (offset+1)*4 > len(data):
+            return None
+        
+        return struct.unpack('<L', data[offset*4:(offset+1)*4])[0]
+        
+        
+    def get_dword_at_rva(self, rva):
+        """Return the double word value at the given RVA.
+        
+        Returns None if the value can't be read, i.e. the RVA can't be mapped
+        to a file offset.
+        """
+        
+        try:
+            return self.get_dword_from_data(self.get_data(rva)[:4], 0)
+        except PEFormatError:
+            return None
+
+
+    def get_dword_from_offset(self, offset):
+        """Return the double word value at the given file offset. (little endian)"""
+        
+        if offset+4 > len(self.__data__):
+            return None
+            
+        return self.get_dword_from_data(self.__data__[offset:offset+4], 0)
+
+
+    def set_dword_at_rva(self, rva, dword):
+        """Set the double word value at the file offset corresponding to the given RVA."""
+        return self.set_bytes_at_rva(rva, self.get_data_from_dword(dword))
+
+
+    def set_dword_at_offset(self, offset, dword):
+        """Set the double word value at the given file offset."""
+        return self.set_bytes_at_offset(offset, self.get_data_from_dword(dword))
+
+
+
+    ##
+    # Word get/set
+    ##
+
+    def get_data_from_word(self, word):
+        """Return a two byte string representing the word value. (little endian)."""
+        return struct.pack('<H', word)
+
+
+    def get_word_from_data(self, data, offset):
+        """Convert two bytes of data to a word (little endian)
+        
+        'offset' is assumed to index into a word array. So setting it to
+        N will return a dword out of the data sarting at offset N*2.
+
+        Returns None if the data can't be turned into a word.
+        """
+
+        if (offset+1)*2 > len(data):
+            return None
+
+        return struct.unpack('<H', data[offset*2:(offset+1)*2])[0]
+
+
+    def get_word_at_rva(self, rva):
+        """Return the word value at the given RVA.
+        
+        Returns None if the value can't be read, i.e. the RVA can't be mapped
+        to a file offset.
+        """
+        
+        try:
+            return self.get_word_from_data(self.get_data(rva)[:2], 0)
+        except PEFormatError:
+            return None
+            
+
+    def get_word_from_offset(self, offset):
+        """Return the word value at the given file offset. (little endian)"""
+        
+        if offset+2 > len(self.__data__):
+            return None
+            
+        return self.get_word_from_data(self.__data__[offset:offset+2], 0)
+
+
+    def set_word_at_rva(self, rva, word):
+        """Set the word value at the file offset corresponding to the given RVA."""
+        return self.set_bytes_at_rva(rva, self.get_data_from_word(word))
+
+
+    def set_word_at_offset(self, offset, word):
+        """Set the word value at the given file offset."""
+        return self.set_bytes_at_offset(offset, self.get_data_from_word(word))
+
+
+    ##
+    # Quad-Word get/set
+    ##
+
+    def get_data_from_qword(self, word):
+        """Return a eight byte string representing the quad-word value. (little endian)."""
+        return struct.pack('<Q', word)
+
+
+    def get_qword_from_data(self, data, offset):
+        """Convert eight bytes of data to a word (little endian)
+        
+        'offset' is assumed to index into a word array. So setting it to
+        N will return a dword out of the data sarting at offset N*8.
+
+        Returns None if the data can't be turned into a quad word.
+        """
+
+        if (offset+1)*8 > len(data):
+            return None
+
+        return struct.unpack('<Q', data[offset*8:(offset+1)*8])[0]
+
+
+    def get_qword_at_rva(self, rva):
+        """Return the quad-word value at the given RVA.
+        
+        Returns None if the value can't be read, i.e. the RVA can't be mapped
+        to a file offset.
+        """
+        
+        try:
+            return self.get_qword_from_data(self.get_data(rva)[:8], 0)
+        except PEFormatError:
+            return None
+            
+
+    def get_qword_from_offset(self, offset):
+        """Return the quad-word value at the given file offset. (little endian)"""
+        
+        if offset+8 > len(self.__data__):
+            return None
+            
+        return self.get_qword_from_data(self.__data__[offset:offset+8], 0)
+
+
+    def set_qword_at_rva(self, rva, qword):
+        """Set the quad-word value at the file offset corresponding to the given RVA."""
+        return self.set_bytes_at_rva(rva, self.get_data_from_qword(qword))
+
+
+    def set_qword_at_offset(self, offset, qword):
+        """Set the quad-word value at the given file offset."""
+        return self.set_bytes_at_offset(offset, self.get_data_from_qword(qword))
+
+
+
+    ##
+    # Set bytes
+    ##
+
+
+    def set_bytes_at_rva(self, rva, data):
+        """Overwrite, with the given string, the bytes at the file offset corresponding to the given RVA.
+        
+        Return True if successful, False otherwise. It can fail if the
+        offset is outside the file's boundaries.
+        """
+
+        offset = self.get_physical_by_rva(rva)
+        if not offset:
+            raise False
+            
+        return self.set_bytes_at_offset(offset, data)
+
+        
+    def set_bytes_at_offset(self, offset, data):
+        """Overwrite the bytes at the given file offset with the given string.
+        
+        Return True if successful, False otherwise. It can fail if the
+        offset is outside the file's boundaries.
+        """
+    
+        if not isinstance(data, str):
+            raise TypeError('data should be of type: str')
+        
+        if offset >= 0 and offset < len(self.__data__):
+            self.__data__ = ( self.__data__[:offset] + 
+                data +
+                self.__data__[offset+len(data):] )
+        else:
+            return False
+            
+        # Refresh the section's data with the modified information
+        #
+        for section in self.sections:
+            section_data_start = section.PointerToRawData
+            section_data_end = section_data_start+section.SizeOfRawData
+            section.data = self.__data__[section_data_start:section_data_end]
+
+        return True
+        
+
+
+    def relocate_image(self, new_ImageBase):
+        """Apply the relocation information to the image using the provided new image base.
+        
+        This method will apply the relocation information to the image. Given the new base,
+        all the relocations will be processed and both the raw data and the section's data
+        will be fixed accordingly.
+        The resulting image can be retrieved as well through the method:
+        
+            get_memory_mapped_image()
+            
+        In order to get something that would more closely match what could be found in memory
+        once the Windows loader finished its work.
+        """
+        
+        relocation_difference = new_ImageBase - self.OPTIONAL_HEADER.ImageBase
+        
+        
+        for reloc in self.DIRECTORY_ENTRY_BASERELOC:
+
+            virtual_address = reloc.struct.VirtualAddress
+            size_of_block = reloc.struct.SizeOfBlock
+            
+            # We iterate with an index because if the relocation is of type
+            # IMAGE_REL_BASED_HIGHADJ we need to also process the next entry
+            # at once and skip it for the next interation
+            # 
+            entry_idx = 0
+            while entry_idx<len(reloc.entries):
+            
+                entry = reloc.entries[entry_idx]
+                entry_idx += 1
+                                
+                if entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_ABSOLUTE']:
+                    # Nothing to do for this type of relocation
+                    pass
+                    
+                elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_HIGH']:
+                    # Fix the high 16bits of a relocation
+                    #
+                    # Add high 16bits of relocation_difference to the
+                    # 16bit value at RVA=entry.rva
+                    
+                    self.set_word_at_rva(
+                        entry.rva,
+                        ( self.get_word_at_rva(entry.rva) + relocation_difference>>16)&0xffff )
+                  
+                elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_LOW']:
+                    # Fix the low 16bits of a relocation
+                    #
+                    # Add low 16 bits of relocation_difference to the 16bit value
+                    # at RVA=entry.rva
+                    
+                    self.set_word_at_rva(
+                        entry.rva,
+                        ( self.get_word_at_rva(entry.rva) + relocation_difference)&0xffff)
+                    
+                elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_HIGHLOW']:
+                    # Handle all high and low parts of a 32bit relocation
+                    #
+                    # Add relocation_difference to the value at RVA=entry.rva
+                    
+                    self.set_dword_at_rva(
+                        entry.rva,
+                        self.get_dword_at_rva(entry.rva)+relocation_difference)
+                  
+                elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_HIGHADJ']:
+                    # Fix the high 16bits of a relocation and adjust
+                    #
+                    # Add high 16bits of relocation_difference to the 32bit value
+                    # composed from the (16bit value at RVA=entry.rva)<<16 plus 
+                    # the 16bit value at the next relocation entry.
+                    #
+                    
+                    # If the next entry is beyond the array's limits,
+                    # abort... the table is corrupt
+                    #
+                    if entry_idx == len(reloc.entries):
+                        break
+                    
+                    next_entry = reloc.entries[entry_idx]
+                    entry_idx += 1
+                    self.set_word_at_rva( entry.rva, 
+                        ((self.get_word_at_rva(entry.rva)<<16) + next_entry.rva +
+                        relocation_difference & 0xffff0000) >> 16 )
+                
+                elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_DIR64']:
+                    # Apply the difference to the 64bit value at the offset
+                    # RVA=entry.rva
+                    
+                    self.set_qword_at_rva(
+                        entry.rva,
+                        self.get_qword_at_rva(entry.rva) + relocation_difference)
