@@ -33,6 +33,26 @@ import exceptions
 import string
 import array
 
+sha1, sha256, sha512, md5 = None, None, None, None
+
+try:
+    import hashlib
+    sha1 = hashlib.sha1
+    sha256 = hashlib.sha256
+    sha512 = hashlib.sha512
+    md5 = hashlib.md5
+except ImportError:    
+    try:
+        import sha
+        sha1 = sha.new
+    except ImportError:
+        pass
+    try:
+        import md5
+        md5 = md5.new
+    except ImportError:
+        pass
+
 
 fast_load = False
 
@@ -855,6 +875,34 @@ class SectionStructure(Structure):
         
         return self.entropy_H( self.data )
         
+
+    def get_hash_sha1(self):
+        """Get the SHA-1 hex-digest of the section's data."""
+        
+        if sha1 is not None:
+            return sha1( self.data ).hexdigest()
+    
+
+    def get_hash_sha256(self):
+        """Get the SHA-256 hex-digest of the section's data."""
+        
+        if sha256 is not None:
+            return sha256( self.data ).hexdigest()
+    
+
+    def get_hash_sha512(self):
+        """Get the SHA-512 hex-digest of the section's data."""
+        
+        if sha512 is not None:
+            return sha512( self.data ).hexdigest()
+    
+
+    def get_hash_md5(self):
+        """Get the MD5 hex-digest of the section's data."""
+        
+        if md5 is not None:
+            return md5( self.data ).hexdigest()
+    
 
     def entropy_H(self, data):
         """Calculate the entropy of a chunk of data."""
@@ -3042,6 +3090,14 @@ class PE:
                     flags.append(flag[0])
             dump.add_line(', '.join(flags))
             dump.add_line('Entropy: %f (Min=0.0, Max=8.0)' % section.get_entropy() )
+            if md5 is not None:
+                dump.add_line('MD5     hash: %s' % section.get_hash_md5() )
+            if sha1 is not None:
+                dump.add_line('SHA-1   hash: %s' % section.get_hash_sha1() )
+            if sha256 is not None:
+                dump.add_line('SHA-256 hash: %s' % section.get_hash_sha256() )
+            if sha512 is not None:
+                dump.add_line('SHA-512 hash: %s' % section.get_hash_sha512() )
             dump.add_newline()
             
             
