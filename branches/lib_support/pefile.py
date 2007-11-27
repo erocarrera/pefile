@@ -544,6 +544,7 @@ def parse_nullterm_string(data):
         except IndexError:
             break
     return result
+    
 def parse_nullterm_strings(data):
     """Get an array of ASCII string from within the data."""
 
@@ -904,6 +905,9 @@ class Structure:
 class SectionStructure(Structure):
     """Convenience section handling class."""
 
+    __Relocation_format__ = ('Relocation',
+        ('I,VirtualAddress', 'I,SymbolTableIndex', 'H,Type') )
+        
     def get_data(self, start, length=None):
         """Get data chunk from a section.
         
@@ -967,6 +971,16 @@ class SectionStructure(Structure):
         
         self.data = data
         
+    def set_relocations(self, data):
+        """Parse the relocations belonging to the section."""
+        
+        offset = 0
+        self.relocations = []
+        while offset < len(data):
+            relocation = Structure(self.__Relocation_format__)
+            relocation.__unpack__(data[offset:])
+            self.relocations.append(relocation)
+            offset += relocation.sizeof()
         
     def get_entropy(self):
         """Calculate and return the entropy for the section."""
@@ -1030,18 +1044,23 @@ class SymbolStructure(Structure):
         """
     
         structure = Structure(format, file_offset=file_offset)
-        if len(data) < structure.sizeof():
+        #if len(data) < structure.sizeof():
+        #    return None
+    
+        try:
+            structure.__unpack__(data)
+        except PEFormatError, err:
+            self.__warnings.append(
+                'Corrupt header "%s" at file offset %d. Exception: %s' % (
+                    format[0], file_offset, str(err))  )
             return None
     
-        structure.__unpack__(data)
-    
         return structure
-        
-    def sizeof(self):
-        return self.__format_length__ + self.NumberOfAuxSymbols * self.__format_length__
     
     def is_function(self):
-        return (IMAGE_SYMBOL_DTYPES[self.Type >> 4] == "IMAGE_SYM_DTYPE_FUNCTION") and (IMAGE_SYMBOL_CLASSES[self.StorageClass] == "IMAGE_SYM_CLASS_EXTERNAL") and self.__section__
+        if (IMAGE_SYMBOL_DTYPES[self.Type >> 4] == "IMAGE_SYM_DTYPE_FUNCTION") and (IMAGE_SYMBOL_CLASSES[self.StorageClass] == "IMAGE_SYM_CLASS_EXTERNAL") and self.__section__:
+            return True
+        return False
             
     def get_function_code(self):
         if not self.is_function():
@@ -1052,6 +1071,9 @@ class SymbolStructure(Structure):
                 raise Exception("This symbol is in 'undefined' section.")
             
             return self.__section__.get_data(self.Value)
+            
+    def get_relocations(self):
+        return self.__section__.relocations
     
 class DataContainer:
     """Generic data container."""
@@ -1564,6 +1586,9 @@ class COFF:
             symbol.__unpack__(self.__data__[offset:])
             offset += symbol.sizeof()
             self.SymbolTable.append(symbol)
+            for i in xrange(symbol.NumberOfAuxSymbols):
+                self.SymbolTable.append(None)
+                offset += symbol.sizeof()
             self.SymbolTableByName[symbol.Name]=symbol
             
     def parse_optional_header(self, optional_header_offset):
@@ -1848,6 +1873,10 @@ class COFF:
             
             section_data_end = section_data_start+section.SizeOfRawData
             section.set_data(self.__data__[section_data_start:section_data_end])
+            
+            section_relocations_start = section.PointerToRelocations
+            section_relocations_end = section_relocations_start + section.NumberOfRelocations * 10
+            section.set_relocations(self.__data__[section_relocations_start:section_relocations_end])
             
             section_flags = self.retrieve_flags(SECTION_CHARACTERISTICS, 'IMAGE_SCN_')
             
@@ -3922,7 +3951,6 @@ class LIB:
     def build_symbol_list(self):
         self.symbols = []
         
-        print
         linker_member = self.SecondLinkerMember
         for name,index in linker_member.Symbols:
             # find the obj which contains our symbol:
@@ -3976,8 +4004,9 @@ class LIB:
         offset += 4
         
         strings_offset = offset + number_of_symbols*2
-        
+        print hex(strings_offset)
         strings = parse_nullterm_strings(self.__data__[strings_offset:original_offset + int(member_header.Size) + member_header.sizeof()])
+        print strings[0]
         
         symbols = []
         for i in xrange(number_of_symbols):
