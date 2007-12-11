@@ -21,7 +21,7 @@ the root of the distribution archive.
 """
 
 __author__ = 'Ero Carrera'
-__version__ = '1.2.8'
+__version__ = '1.2.9a'
 __contact__ = 'ero@dkbza.org'
 
 import os
@@ -537,7 +537,6 @@ class UnicodeStringWrapperPostProcessor:
         
         length = self.__get_pascal_16_length()
         
-        #print 'Length:%d delta:%d' % (length, (next_rva_ptr - (self.rva_ptr+2)) / 2)
         if length == (next_rva_ptr - (self.rva_ptr+2)) / 2:
             self.length = length
             return True
@@ -2768,7 +2767,9 @@ class PE:
         for idx in xrange(len(table)):
 
             imp_ord = None
+            imp_hint = None
             imp_name = None
+            hint_name_table_rva = None
                         
             if table[idx].AddressOfData:
             
@@ -2777,14 +2778,17 @@ class PE:
                 elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
                     ordinal_flag = IMAGE_ORDINAL_FLAG64
             
-                # If imported by ordinal, we will append the ordinal number.
+                # If imported by ordinal, we will append the ordinal number
+                #
                 if table[idx].AddressOfData & ordinal_flag:
                     imp_ord = table[idx].AddressOfData & 0xffff
                     imp_name = None
                 else:
                     try:
-                        data = self.get_data(table[idx].AddressOfData, 2)
-                        imp_ord = self.get_word_from_data(data, 0)
+                        hint_name_table_rva = table[idx].AddressOfData & 0x7fffffff
+                        data = self.get_data(hint_name_table_rva, 2)
+                        # Get the Hint
+                        imp_hint = self.get_word_from_data(data, 0)
                         imp_name = self.get_string_at_rva(table[idx].AddressOfData+2)
                     except PEFormatError, e:
                         pass
@@ -2800,9 +2804,11 @@ class PE:
                 imported_symbols.append(
                     ImportData(
                         ordinal = imp_ord,
+                        hint = imp_hint,
                         name = imp_name,
                         bound = imp_bound,
-                        address = imp_address))
+                        address = imp_address,
+                        hint_name_table_rva = hint_name_table_rva))
             
         return imported_symbols
                 
