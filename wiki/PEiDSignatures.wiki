@@ -5,9 +5,9 @@
 
 Since version 1.2.6 _pefile_ supports parsing PEiD's signatures. Comprehensive signature datbases can be found at:
 
-http://www.secretashell.com/BobSoft/#Other (Look for UserDB.TXT)
+http://www.PEiD.info/BobSoft/Downloads.html (Look for UserDB.TXT)
 
-Thanks to PEiD and BobSoft for the signatures!
+Thanks to [http://www.PEiD.info/ PEiD] and [http://www.PEiD.info/BobSoft/ BobSoft] for the signatures!
 
 
 = Usage =
