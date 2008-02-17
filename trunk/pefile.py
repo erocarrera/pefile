@@ -12,7 +12,7 @@ pefile has been tested against the limits of valid PE headers, that is, malware.
 Lots of packed malware attempt to abuse the format way beyond its standard use.
 To the best of my knowledge most of the abuses are handled gracefully.
 
-Copyright (c) 2005, 2006, 2007 Ero Carrera <ero@dkbza.org>
+Copyright (c) 2005, 2006, 2007, 2008 Ero Carrera <ero@dkbza.org>
 
 All rights reserved.
 
@@ -21,8 +21,9 @@ the root of the distribution archive.
 """
 
 __author__ = 'Ero Carrera'
-__version__ = '1.2.9a'
+__version__ = '1.2.9d'
 __contact__ = 'ero@dkbza.org'
+
 
 import os
 import struct
@@ -177,8 +178,8 @@ subsystem_types = [
     ('IMAGE_SUBSYSTEM_POSIX_CUI',   7),
     ('IMAGE_SUBSYSTEM_WINDOWS_CE_GUI',  9),
     ('IMAGE_SUBSYSTEM_EFI_APPLICATION', 10),
-    ('IMAGE_SUBSYSTEM_EFI_BOOT_ SERVICE_DRIVER', 11),
-    ('IMAGE_SUBSYSTEM_EFI_RUNTIME_ DRIVER',      12),
+    ('IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER', 11),
+    ('IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER',      12),
     ('IMAGE_SUBSYSTEM_EFI_ROM',     13),
     ('IMAGE_SUBSYSTEM_XBOX',        14)]
 
@@ -772,7 +773,13 @@ class Structure:
         return struct.pack(self.__format__, *new_values)
         
                 
+    def __str__(self):
+        return '\n'.join( self.dump() )
 
+    def __repr__(self):
+        return '<Structure: %s>' % (' '.join( [' '.join(s.split()) for s in self.dump()] ))
+        
+        
     def dump(self, indentation=0):
         """Returns a string representation of the structure."""
     
@@ -2024,11 +2031,11 @@ class PE:
         number_of_entries = (
             resource_dir.NumberOfNamedEntries +
             resource_dir.NumberOfIdEntries )
-        
+            
         strings_to_postprocess = list()
         
         for idx in xrange(number_of_entries):
-        
+            
             res = self.parse_resource_entry(rva)
             if res is None:
                 self.__warnings.append(
@@ -2090,6 +2097,7 @@ class PE:
                         name = entry_name,
                         id = entry_id,
                         directory = entry_directory))
+
             else:
                 struct = self.parse_resource_data_entry(
                     base_rva + res.OffsetToDirectory)
@@ -2107,8 +2115,11 @@ class PE:
                             id = entry_id,
                             data = entry_data))
                     
-            rva += res.sizeof()
-            
+                else:
+                    break
+
+
+                
             # Check if this entry contains version information
             #
             if level == 0 and res.Id == RESOURCE_TYPE['RT_VERSION']:
@@ -2125,16 +2136,22 @@ class PE:
                     
                 if rt_version_struct is not None:
                     self.parse_version_information(rt_version_struct)
+    
+            rva += res.sizeof()
+            
                     
         string_rvas = [s.get_rva() for s in strings_to_postprocess]
         string_rvas.sort()
-
+        
         for idx, s in enumerate(strings_to_postprocess):
             s.render_pascal_16()
             
-        return ResourceDirData(
+            
+        resource_directory_data = ResourceDirData(
             struct = resource_dir,
             entries = dir_entries)
+                        
+        return resource_directory_data
         
             
     def parse_resource_data_entry(self, rva):
@@ -2781,9 +2798,11 @@ class PE:
                 # If imported by ordinal, we will append the ordinal number
                 #
                 if table[idx].AddressOfData & ordinal_flag:
+                    import_by_ordinal = True
                     imp_ord = table[idx].AddressOfData & 0xffff
                     imp_name = None
                 else:
+                    import_by_ordinal = False
                     try:
                         hint_name_table_rva = table[idx].AddressOfData & 0x7fffffff
                         data = self.get_data(hint_name_table_rva, 2)
@@ -2803,6 +2822,7 @@ class PE:
             if imp_name != '' and (imp_ord or imp_name):
                 imported_symbols.append(
                     ImportData(
+                        import_by_ordinal = import_by_ordinal,
                         ordinal = imp_ord,
                         hint = imp_hint,
                         name = imp_name,
@@ -3143,8 +3163,12 @@ class PE:
                                 
                     elif hasattr(entry, 'Var'):
                         for var_entry in entry.Var:
-                            [dump.add_line('  '+line) for line in var_entry.dump()]
-                            dump.add_line('    '+var_entry.entry.keys()[0]+': '+var_entry.entry.values()[0])
+                            if hasattr(var_entry, 'entry'):
+                                [dump.add_line('  '+line) for line in var_entry.dump()]
+                                dump.add_line(
+                                    '    ' + var_entry.entry.keys()[0] + 
+                                    ': ' + var_entry.entry.values()[0])
+                                    
                         dump.add_newline()
 
 
@@ -3170,8 +3194,14 @@ class PE:
                 dump.add_lines(module.struct.dump())
                 dump.add_newline()
                 for symbol in module.imports:
-                    dump.add('%s.%s Ord[%s]' % (
-                        module.dll, symbol.name, str(symbol.ordinal)))
+                
+                    if symbol.import_by_ordinal is True:
+                        dump.add('%s Ordinal[%s] (Imported by Ordinal)' % (
+                            module.dll, str(symbol.ordinal)))
+                    else:
+                        dump.add('%s.%s Hint[%s]' % (
+                            module.dll, symbol.name, str(symbol.hint)))
+
                     if symbol.bound:
                         dump.add_line(' Bound: 0x%08X' % (symbol.bound))
                     else:
@@ -3201,8 +3231,12 @@ class PE:
                 dump.add_newline()
                 
                 for symbol in module.imports:
-                    dump.add('%s.%s Ord[%s]' % (
-                        module.dll, symbol.name, str(symbol.ordinal)))
+                    if symbol.import_by_ordinal is True:
+                        dump.add('%s Ordinal[%s] (Imported by Ordinal)' % (
+                            module.dll, str(symbol.ordinal)))
+                    else:
+                        dump.add('%s.%s Hint[%s]' % (
+                            module.dll, symbol.name, str(symbol.hint)))
                     
                     if symbol.bound:
                         dump.add_line(' Bound: 0x%08X' % (symbol.bound))
@@ -3241,15 +3275,16 @@ class PE:
                             
                         dump.add_lines(resource_id.struct.dump(), 6)
     
-                        dump.add_lines(resource_id.directory.struct.dump(), 8)
+                        if hasattr(resource_id, 'directory'):
+                            dump.add_lines(resource_id.directory.struct.dump(), 8)
                             
-                        for resource_lang in resource_id.directory.entries:
-                        #    dump.add_line('\\--- LANG [%d,%d][%s]' % (
-                        #        resource_lang.data.lang,
-                        #        resource_lang.data.sublang,
-                        #        LANG[resource_lang.data.lang]), 8)
-                            dump.add_lines(resource_lang.struct.dump(), 10)
-                            dump.add_lines(resource_lang.data.struct.dump(), 12)
+                            for resource_lang in resource_id.directory.entries:
+                            #    dump.add_line('\\--- LANG [%d,%d][%s]' % (
+                            #        resource_lang.data.lang,
+                            #        resource_lang.data.sublang,
+                            #        LANG[resource_lang.data.lang]), 8)
+                                dump.add_lines(resource_lang.struct.dump(), 10)
+                                dump.add_lines(resource_lang.data.struct.dump(), 12)
                 dump.add_newline()
     
             dump.add_newline()
@@ -3609,3 +3644,35 @@ class PE:
                     self.set_qword_at_rva(
                         entry.rva,
                         self.get_qword_at_rva(entry.rva) + relocation_difference)
+
+
+    def verify_checksum(self):
+    
+        return self.OPTIONAL_HEADER.CheckSum == self.generate_checksum()
+        
+    
+    def generate_checksum(self):
+    
+        # Get the offset to the CheckSum field in the OptionalHeader
+        #
+        checksum_offset = self.OPTIONAL_HEADER.__file_offset__ + 0x40 # 64
+        
+        checksum = 0
+        
+        for i in range( len(self.__data__) / 4 ):
+        
+            # Skip the checksum field
+            #
+            if i == checksum_offset / 4:
+                continue
+
+            dword = struct.unpack('L', self.__data__[ i*4 : i*4+4 ])[0]
+            checksum = (checksum & 0xffffffff) + dword + (checksum>>32)
+            if checksum > 2**32:
+                checksum = (checksum & 0xffffffff) + (checksum >> 32)
+        
+        checksum = (checksum & 0xffff) + (checksum >> 16)
+        checksum = (checksum) + (checksum >> 16)
+        checksum = checksum & 0xffff
+        
+        return checksum + len(self.__data__)
