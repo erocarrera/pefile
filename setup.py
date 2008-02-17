@@ -1,4 +1,8 @@
-from distutils.core import setup, Extension
+try:
+    from setuptools import setup
+except ImportError, excp:
+    from distutils.core import setup
+    
 import pefile
 
 setup(name = 'pefile',
@@ -10,12 +14,12 @@ setup(name = 'pefile',
     download_url = 'http://pefile.googlecode.com/files/pefile-%s.tar.gz' % pefile.__version__,
     platforms = ['any'],
     classifiers = ['Development Status :: 5 - Production/Stable',
-	'Intended Audience :: Developers',
-	'Intended Audience :: Science/Research',
-	'Natural Language :: English',
-	'Operating System :: OS Independent',
-	'Programming Language :: Python',
-	'Topic :: Software Development :: Libraries :: Python Modules'],
+    	'Intended Audience :: Developers',
+    	'Intended Audience :: Science/Research',
+    	'Natural Language :: English',
+    	'Operating System :: OS Independent',
+    	'Programming Language :: Python',
+    	'Topic :: Software Development :: Libraries :: Python Modules'],
     long_description = "\n".join(pefile.__doc__.split('\n')),
     py_modules = ['pefile', 'peutils'] )
 
