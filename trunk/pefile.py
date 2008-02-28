@@ -21,7 +21,7 @@ the root of the distribution archive.
 """
 
 __author__ = 'Ero Carrera'
-__version__ = '1.2.9d'
+__version__ = '1.2.9'
 __contact__ = 'ero@dkbza.org'
 
 
@@ -1642,7 +1642,44 @@ class PE:
             
             file_data[offset:offset+len(struct_data)] = struct_data
             
-        new_file_data = ''.join(file_data)
+        if hasattr(self, 'VS_VERSIONINFO'):
+            if hasattr(self, 'FileInfo'):
+                for entry in self.FileInfo:
+                    if hasattr(entry, 'StringTable'):
+                        for st_entry in entry.StringTable:
+                            for key, entry in st_entry.entries.items():
+                            
+                                offsets = st_entry.entries_offsets[key]
+                                lengths = st_entry.entries_lengths[key]
+                                
+                                if len( entry ) > lengths[1]:
+
+                                    uc = zip(
+                                            list(entry[:lengths[1]]), ['\0'] * lengths[1] )
+                                    l = list()
+                                    map(l.extend, uc)
+
+                                    file_data[ 
+                                        offsets[1] : offsets[1] + lengths[1]*2 ] = l
+                                        
+                                else:
+                                    
+                                    uc = zip(
+                                            list(entry), ['\0'] * len(entry) )
+                                    l = list()
+                                    map(l.extend, uc)
+
+                                    file_data[ 
+                                        offsets[1] : offsets[1] + len(entry)*2 ] = l
+
+                                    remainder = lengths[1] - len(entry)
+                                    file_data[ 
+                                        offsets[1] + len(entry)*2 : 
+                                        offsets[1] + lengths[1]*2 ] = [
+                                            u'\0' ] * remainder*2
+
+        new_file_data = ''.join( [ chr(ord(c)) for c in file_data ] )
+
         if filename:
             f = file(filename, 'wb+')
             f.write(new_file_data)
@@ -2374,6 +2411,8 @@ class PE:
                         
                         stringtable_struct.LangID = stringtable_string
                         stringtable_struct.entries = dict()
+                        stringtable_struct.entries_offsets = dict()
+                        stringtable_struct.entries_lengths = dict()
                         stringfileinfo_struct.StringTable.append(stringtable_struct)
             
                         entry_offset = self.dword_align(
@@ -2397,6 +2436,7 @@ class PE:
                                 string_struct.sizeof() )
                             try:
                                 key = self.get_string_u_at_rva( ustr_offset )
+                                key_offset = self.get_offset_from_rva( ustr_offset )
                             except PEFormatError, excp:
                                 self.__warnings.append(
                                     'Error parsing the version information, ' +
@@ -2412,6 +2452,7 @@ class PE:
                             try:
                                 value = self.get_string_u_at_rva( ustr_offset,
                                     max_length = string_struct.ValueLength )
+                                value_offset = self.get_offset_from_rva( ustr_offset )
                             except PEFormatError, excp:
                                 self.__warnings.append(
                                     'Error parsing the version information, ' +
@@ -2437,6 +2478,8 @@ class PE:
 
                             setattr(stringtable_struct, key_as_char, value)
                             stringtable_struct.entries[key] = value
+                            stringtable_struct.entries_offsets[key] = (key_offset, value_offset)
+                            stringtable_struct.entries_lengths[key] = (len(key), len(value))
                             
                     
                         stringtable_offset = self.dword_align(
