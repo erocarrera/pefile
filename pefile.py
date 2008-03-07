@@ -21,7 +21,7 @@ the root of the distribution archive.
 """
 
 __author__ = 'Ero Carrera'
-__version__ = '1.2.9'
+__version__ = '1.2.9.1'
 __contact__ = 'ero@dkbza.org'
 
 
@@ -1744,11 +1744,11 @@ class PE:
             # PointerToRawData. The following code will do the same.
             #
             
-            alignment = self.OPTIONAL_HEADER.FileAlignment
+            #alignment = self.OPTIONAL_HEADER.FileAlignment
             section_data_start = section.PointerToRawData
-            #section_data_start = int(section_data_start/alignment)*alignment
             
-            if section.PointerToRawData % self.OPTIONAL_HEADER.FileAlignment != 0:
+            if ( self.OPTIONAL_HEADER.FileAlignment != 0 and 
+                (section.PointerToRawData % self.OPTIONAL_HEADER.FileAlignment) != 0):
                 self.__warnings.append(
                     ('Error parsing section %d. ' % i) +
                     'Suspicious value for FileAlignment in the Optional Header. ' +
@@ -1877,16 +1877,24 @@ class PE:
                         "IMAGE_BOUND_FORWARDER_REF cannot be read")
                 rva += bnd_frwd_ref.sizeof()
                 
+                name_str =  self.get_string_from_data(
+                    start+bnd_frwd_ref.OffsetModuleName, self.__data__)
+                    
+                if not name_str:
+                    break
                 forwarder_refs.append(BoundImportRefData(
                     struct = bnd_frwd_ref,
-                    name =  self.get_string_from_data(
-                        start+bnd_frwd_ref.OffsetModuleName, self.__data__)))
+                    name = name_str))
                 
+            name_str = self.get_string_from_data(
+                start+bnd_descr.OffsetModuleName, self.__data__)
+                
+            if not name_str:
+                break
             bound_imports.append(
                 BoundImportDescData(
                     struct = bnd_descr,
-                    name = self.get_string_from_data(
-                        start+bnd_descr.OffsetModuleName, self.__data__),
+                    name = name_str,
                     entries = forwarder_refs))
                     
         return bound_imports
