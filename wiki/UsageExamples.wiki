@@ -37,8 +37,8 @@ Once the PE file is successfully parsed, the data is readily available as attrib
 
 {{{
 pe.OPTIONAL_HEADER.AddressOfEntryPoint
-pe.OPTIONAL_HEADER.NumberOfSections
 pe.OPTIONAL_HEADER.ImageBase
+pe.FILE_HEADER.NumberOfSections
 }}}
 
 All of these values support assignment
@@ -180,4 +180,26 @@ add ecx,eax
 cmp dword [ecx],0x4550
 jnz 0x1006b1d
 movzx eax,[ecx+0x18
+}}}
+
+
+== Dumping all the information ==
+
+Sometimes we might not want to process an entire file if it's very large. Parsing can be time consuming in some cases an we might only be interested in a subset of the information provided by the headers and directories.
+
+It is possible to indicate _pefile_ to only load a minimal set of the headers (up to the NT Headers) with the *fast_load* keyword argument and leave the directories unprocessed. The directories can be parsed later on, on demand.
+
+The following example loads the basic headers and then goes on to parse most of the directories avoiding the relocation information ( the line could have been left out altogether ).
+
+{{{
+pe = pefile.PE(os.sys.argv[1], fast_load=True)
+pe.parse_data_directories( directories=[ 
+    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'],
+    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'],
+    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_RESOURCE'],
+    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_DEBUG'],
+#    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_BASERELOC'], # Do not parse relocations
+    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_TLS'],
+    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT'],
+    pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT'] ] )
 }}}
