@@ -22,7 +22,7 @@ the root of the distribution archive.
 
 __revision__ = "$LastChangedRevision$"
 __author__ = 'Ero Carrera'
-__version__ = '1.2.9.3' + ' %s' % __revision__[21:]
+__version__ = '1.2.9.3-%d' % int( __revision__[21:-2] )
 __contact__ = 'ero@dkbza.org'
 
 
