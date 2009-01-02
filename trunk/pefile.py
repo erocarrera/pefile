@@ -21,7 +21,7 @@ the root of the distribution archive.
 """
 
 __author__ = 'Ero Carrera'
-__version__ = '1.2.9.2'
+__version__ = '1.2.9.3'
 __contact__ = 'ero@dkbza.org'
 
 
@@ -601,7 +601,7 @@ class Dump:
     """Convenience class for dumping the PE information."""
     
     def __init__(self):
-        self.text = ''
+        self.text = list()
         
     
     def add_lines(self, txt, indent=0):
@@ -629,16 +629,19 @@ class Dump:
         """
         
         if isinstance(txt, unicode):
-            s = []
-            for c in txt:
-                try:
-                    s.append(str(c))
-                except UnicodeEncodeError, e:
-                    s.append(repr(c))
-            
-            txt = ''.join(s)
+            try:
+                txt = str(txt)
+            except UnicodeEncodeError:
+                s = []
+                for c in txt:
+                    try:
+                        s.append(str(c))
+                    except UnicodeEncodeError:
+                        s.append(repr(c))
+                
+                txt = ''.join(s)
         
-        self.text += ' '*indent+txt
+        self.text.append( ' '*indent + txt )
         
     
     def add_header(self, txt):
@@ -650,13 +653,13 @@ class Dump:
     def add_newline(self):
         """Adds a newline."""
         
-        self.text += '\n'
+        self.text.append( '\n' )
         
     
     def get_text(self):
         """Get the text in its current state."""
         
-        return self.text
+        return ''.join( self.text )
 
 
 
@@ -675,7 +678,7 @@ class Structure:
         #self.values = {}
         self.__format_length__ = 0
         self.__set_format__(format[1])
-        self._all_zeroes = False
+        self.__all_zeroes__ = False
         self.__unpacked_data_elms__ = None
         self.__file_offset__ = file_offset
         if name:
@@ -697,7 +700,7 @@ class Structure:
     def all_zeroes(self):
         """Returns true is the unpacked data is all zeroes."""
         
-        return self._all_zeroes
+        return self.__all_zeroes__
                 
     
     def __set_format__(self, format):
@@ -731,7 +734,7 @@ class Structure:
     
     def __unpack__(self, data):
         
-        if len(data)>self.__format_length__:
+        if len(data) > self.__format_length__:
             data = data[:self.__format_length__]
         
         # OC Patch:
@@ -744,7 +747,7 @@ class Structure:
             
         
         if data.count(chr(0)) == len(data):
-            self._all_zeroes = True
+            self.__all_zeroes__ = True
         
         self.__unpacked_data_elms__ = struct.unpack(self.__format__, data)
         for i in xrange(len(self.__unpacked_data_elms__)):
@@ -1937,7 +1940,7 @@ class PE:
         
         tls_struct = self.__unpack_data__(
             format,
-            self.get_data(rva),
+            self.get_data( rva, Structure(format).sizeof() ),
             file_offset = self.get_offset_from_rva(rva))
         
         if not tls_struct:
@@ -1949,8 +1952,7 @@ class PE:
     def parse_relocations_directory(self, rva, size):
         """"""
         
-        rlc = Structure(self.__IMAGE_BASE_RELOCATION_format__)
-        rlc_size = rlc.sizeof()
+        rlc_size = Structure(self.__IMAGE_BASE_RELOCATION_format__).sizeof()
         end = rva+size
         
         relocations = []
@@ -2010,8 +2012,7 @@ class PE:
     def parse_debug_directory(self, rva, size):
         """"""
         
-        dbg = Structure(self.__IMAGE_DEBUG_DIRECTORY_format__)
-        dbg_size = dbg.sizeof()
+        dbg_size = Structure(self.__IMAGE_DEBUG_DIRECTORY_format__).sizeof()
         
         debug = []
         for idx in xrange(size/dbg_size):
@@ -2070,7 +2071,7 @@ class PE:
         try:
             # If the RVA is invalid all would blow up. Some EXEs seem to be
             # specially nasty and have an invalid RVA.
-            data = self.get_data(rva)
+            data = self.get_data(rva, Structure(self.__IMAGE_RESOURCE_DIRECTORY_format__).sizeof() )
         except PEFormatError, e:
             self.__warnings.append(
                 'Invalid resources directory. Can\'t read ' +
@@ -2231,7 +2232,7 @@ class PE:
         try:
             # If the RVA is invalid all would blow up. Some EXEs seem to be
             # specially nasty and have an invalid RVA.
-            data = self.get_data(rva)
+            data = self.get_data(rva, Structure(self.__IMAGE_RESOURCE_DATA_ENTRY_format__).sizeof() )
         except PEFormatError, excp:
             self.__warnings.append(
                 'Error parsing a resource directory data entry, ' +
@@ -2249,7 +2250,8 @@ class PE:
         """Parse a directory entry from the resources directory."""
         
         resource = self.__unpack_data__(
-            self.__IMAGE_RESOURCE_DIRECTORY_ENTRY_format__, self.get_data(rva),
+            self.__IMAGE_RESOURCE_DIRECTORY_ENTRY_format__, 
+            self.get_data( rva, Structure(self.__IMAGE_RESOURCE_DIRECTORY_ENTRY_format__).sizeof() ),
             file_offset = self.get_offset_from_rva(rva) )
         
         if resource is None:
@@ -2620,7 +2622,8 @@ class PE:
         
         try:
             export_dir =  self.__unpack_data__(
-                self.__IMAGE_EXPORT_DIRECTORY_format__, self.get_data(rva),
+                self.__IMAGE_EXPORT_DIRECTORY_format__,
+                self.get_data( rva, Structure(self.__IMAGE_EXPORT_DIRECTORY_format__).sizeof() ),
                 file_offset = self.get_offset_from_rva(rva) )
         except PEFormatError:
             self.__warnings.append(
@@ -2721,7 +2724,7 @@ class PE:
             try:
                 # If the RVA is invalid all would blow up. Some PEs seem to be
                 # specially nasty and have an invalid RVA.
-                data = self.get_data(rva)
+                data = self.get_data( rva, Structure(self.__IMAGE_DELAY_IMPORT_DESCRIPTOR_format__).sizeof() )
             except PEFormatError, e:
                 self.__warnings.append(
                     'Error parsing the Delay import directory at RVA: 0x%x' % ( rva ) )
@@ -2774,7 +2777,7 @@ class PE:
             try:
                 # If the RVA is invalid all would blow up. Some EXEs seem to be
                 # specially nasty and have an invalid RVA.
-                data = self.get_data(rva)
+                data = self.get_data(rva, Structure(self.__IMAGE_IMPORT_DESCRIPTOR_format__).sizeof() )
             except PEFormatError, e:
                 self.__warnings.append(
                     'Error parsing the Import directory at RVA: 0x%x' % ( rva ) )
@@ -2913,18 +2916,19 @@ class PE:
         table = []
         
         while True and rva:
-            try:
-                data = self.get_data(rva)
-            except PEFormatError, e:
-                self.__warnings.append(
-                    'Error parsing the import table. ' +
-                    'Invalid data at RVA: 0x%x' % ( rva ) )
-                return None
             
             if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
                 format = self.__IMAGE_THUNK_DATA_format__
             elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
                 format = self.__IMAGE_THUNK_DATA64_format__
+            
+            try:
+                data = self.get_data( rva, Structure(format).sizeof() )
+            except PEFormatError, e:
+                self.__warnings.append(
+                    'Error parsing the import table. ' +
+                    'Invalid data at RVA: 0x%x' % ( rva ) )
+                return None
             
             thunk_data = self.__unpack_data__(
                 format, data, file_offset=self.get_offset_from_rva(rva) )
