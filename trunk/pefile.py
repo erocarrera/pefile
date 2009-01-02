@@ -850,7 +850,7 @@ class SectionStructure(Structure):
            # bss and other sections containing only uninitialized data must have 0
            # and do not take space in the file
            return False
-        return self.PointerToRawData <= offset < self.VirtualAddress + self.SizeOfRawData
+        return self.PointerToRawData <= offset < self.PointerToRawData + self.SizeOfRawData
     
     
     def contains_rva(self, rva):
