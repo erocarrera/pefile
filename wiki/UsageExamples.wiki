@@ -118,21 +118,20 @@ Similarly, the exported symbols can be listed as follows:
 
 {{{
 for exp in pe.DIRECTORY_ENTRY_EXPORT.symbols:
-  print hex(pe.OPTIONAL_HEADER.ImageBase + exp.address), exp.name
+  print hex(pe.OPTIONAL_HEADER.ImageBase + exp.address), exp.name, exp.ordinal
 }}}
 
 
 ==== Output ====
 
 {{{
-0x77e72ada ActivateActCtx
-0x77e682c2 AddAtomA
-0x77e6d39f AddAtomW
-0x77ec5b2d AddConsoleAliasA
-0x77ec5af6 AddConsoleAliasW
-0x77eb2a10 AddLocalAlternateComputerNameA
-0x77eb28fb AddLocalAlternateComputerNameW
-0x77ec0ffa AddRefActCtx
+0x7ca0ab4f SHUpdateRecycleBinIcon 336
+0x7cab44c0 SHValidateUNC 173
+0x7ca7b0aa SheChangeDirA 337
+0x7ca7b665 SheChangeDirExA 338
+0x7ca7b3e1 SheChangeDirExW 339
+0x7ca7aec6 SheChangeDirW 340
+0x7ca8baae SheConvertPathW 341
 }}}
 
 
