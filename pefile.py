@@ -1062,6 +1062,13 @@ class BoundImportDescData(DataContainer):
                 entry in this list.
     """
 
+class LoadConfigData(DataContainer):
+    """Holds Load Config data.
+    
+    struct:     IMAGE_LOAD_CONFIG_DIRECTORY structure
+    name:       dll name
+    """
+
 class BoundImportRefData(DataContainer):
     """Holds bound import forwader reference data.
     
@@ -1273,6 +1280,38 @@ class PE:
         ('Q,StartAddressOfRawData', 'Q,EndAddressOfRawData',
         'Q,AddressOfIndex', 'Q,AddressOfCallBacks',
         'L,SizeOfZeroFill', 'L,Characteristics' ) )
+    
+    __IMAGE_LOAD_CONFIG_DIRECTORY_format__ = ('IMAGE_LOAD_CONFIG_DIRECTORY',
+        ('L,Size', 'L,TimeDateStamp',
+        'H,MajorVersion', 'H,MinorVersion',
+        'L,GlobalFlagsClear', 'L,GlobalFlagsSet',
+        'L,CriticalSectionDefaultTimeout',
+        'L,DeCommitFreeBlockThreshold',
+        'L,DeCommitTotalFreeThreshold',
+        'L,LockPrefixTable',
+        'L,MaximumAllocationSize',
+        'L,VirtualMemoryThreshold',
+        'L,ProcessHeapFlags',
+        'L,ProcessAffinityMask',
+        'H,CSDVersion', 'H,Reserved1',
+        'L,EditList', 'L,SecurityCookie',
+        'L,SEHandlerTable', 'L,SEHandlerCount' ) )
+        
+    __IMAGE_LOAD_CONFIG_DIRECTORY64_format__ = ('IMAGE_LOAD_CONFIG_DIRECTORY',
+        ('L,Size', 'L,TimeDateStamp',
+      'H,MajorVersion', 'H,MinorVersion',
+      'L,GlobalFlagsClear', 'L,GlobalFlagsSet',
+      'L,CriticalSectionDefaultTimeout',
+      'Q,DeCommitFreeBlockThreshold',
+      'Q,DeCommitTotalFreeThreshold',
+      'Q,LockPrefixTable',
+      'Q,MaximumAllocationSize',
+      'Q,VirtualMemoryThreshold',
+      'Q,ProcessAffinityMask',
+      'L,ProcessHeapFlags',
+      'H,CSDVersion', 'H,Reserved1',
+      'Q,EditList', 'Q,SecurityCookie',
+      'Q,SEHandlerTable', 'Q,SEHandlerCount' ) )
     
     __IMAGE_BOUND_IMPORT_DESCRIPTOR_format__ = ('IMAGE_BOUND_IMPORT_DESCRIPTOR',
         ('L,TimeDateStamp', 'H,OffsetModuleName', 'H,NumberOfModuleForwarderRefs'))
@@ -1833,6 +1872,7 @@ class PE:
             ('IMAGE_DIRECTORY_ENTRY_DEBUG', self.parse_debug_directory),
             ('IMAGE_DIRECTORY_ENTRY_BASERELOC', self.parse_relocations_directory),
             ('IMAGE_DIRECTORY_ENTRY_TLS', self.parse_directory_tls),
+            ('IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG', self.parse_directory_load_config),
             ('IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT', self.parse_delay_import_directory),
             ('IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT', self.parse_directory_bound_imports) )
             
@@ -1939,10 +1979,16 @@ class PE:
         elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
             format = self.__IMAGE_TLS_DIRECTORY64_format__
         
-        tls_struct = self.__unpack_data__(
-            format,
-            self.get_data( rva, Structure(format).sizeof() ),
-            file_offset = self.get_offset_from_rva(rva))
+        try:
+            tls_struct = self.__unpack_data__(
+                format,
+                self.get_data( rva, Structure(format).sizeof() ),
+                file_offset = self.get_offset_from_rva(rva))
+        except PEFormatError:
+            self.__warnings.append(
+                'Invalid TLS information. Can\'t read ' +
+                'data at RVA: 0x%x' % rva)
+            tls_struct = None
         
         if not tls_struct:
             return None
@@ -1950,6 +1996,32 @@ class PE:
         return TlsData( struct = tls_struct )
     
     
+    def parse_directory_load_config(self, rva, size):
+        """"""
+        
+        if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
+            format = self.__IMAGE_LOAD_CONFIG_DIRECTORY_format__
+        
+        elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
+            format = self.__IMAGE_LOAD_CONFIG_DIRECTORY64_format__
+        
+        try:
+            load_config_struct = self.__unpack_data__(
+                format,
+                self.get_data( rva, Structure(format).sizeof() ),
+                file_offset = self.get_offset_from_rva(rva))
+        except PEFormatError:
+            self.__warnings.append(
+                'Invalid LOAD_CONFIG information. Can\'t read ' +
+                'data at RVA: 0x%x' % rva)
+            load_config_struct = None
+
+        if not load_config_struct:
+            return None
+        
+        return LoadConfigData( struct = load_config_struct )
+
+
     def parse_relocations_directory(self, rva, size):
         """"""
         
@@ -3405,6 +3477,15 @@ class PE:
             
             dump.add_header('TLS')
             dump.add_lines(self.DIRECTORY_ENTRY_TLS.struct.dump())
+            dump.add_newline()
+        
+        
+        if ( hasattr(self, 'DIRECTORY_ENTRY_LOAD_CONFIG') and
+             self.DIRECTORY_ENTRY_LOAD_CONFIG and
+             self.DIRECTORY_ENTRY_LOAD_CONFIG.struct ):
+             
+            dump.add_header('LOAD_CONFIG')
+            dump.add_lines(self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.dump())
             dump.add_newline()
         
         
