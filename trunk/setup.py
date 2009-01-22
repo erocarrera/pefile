@@ -4,6 +4,10 @@ except ImportError, excp:
     from distutils.core import setup
     
 import pefile
+import os
+os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
+os.environ['COPYFILE_DISABLE'] = 'true'
+
 
 setup(name = 'pefile',
     version = pefile.__version__,
