@@ -1675,10 +1675,10 @@ class PE:
         """
         
         file_data = list(self.__data__)
-        for struct in self.__structures__:
+        for structure in self.__structures__:
             
-            struct_data = list(struct.__pack__())
-            offset = struct.get_file_offset()
+            struct_data = list(structure.__pack__())
+            offset = structure.get_file_offset()
             
             file_data[offset:offset+len(struct_data)] = struct_data
         
@@ -1694,21 +1694,25 @@ class PE:
                                 
                                 if len( entry ) > lengths[1]:
                                     
-                                    uc = zip(
-                                            list(entry[:lengths[1]]), ['\0'] * lengths[1] )
                                     l = list()
-                                    map(l.extend, uc)
+                                    for idx, c in enumerate(entry):
+                                        if ord(c) > 256:
+                                            l.extend( [ chr(ord(c) & 0xff), chr( (ord(c) & 0xff00) >>8) ]  )
+                                        else:
+                                            l.extend( [chr( ord(c) ), '\0'] )
                                     
                                     file_data[
                                         offsets[1] : offsets[1] + lengths[1]*2 ] = l
                                 
                                 else:
                                     
-                                    uc = zip(
-                                            list(entry), ['\0'] * len(entry) )
                                     l = list()
-                                    map(l.extend, uc)
-                                    
+                                    for idx, c in enumerate(entry):
+                                        if ord(c) > 256:
+                                            l.extend( [ chr(ord(c) & 0xff), chr( (ord(c) & 0xff00) >>8) ]  )
+                                        else:
+                                            l.extend( [chr( ord(c) ), '\0'] )
+
                                     file_data[
                                         offsets[1] : offsets[1] + len(entry)*2 ] = l
                                     
@@ -1717,8 +1721,8 @@ class PE:
                                         offsets[1] + len(entry)*2 :
                                         offsets[1] + lengths[1]*2 ] = [
                                             u'\0' ] * remainder*2
-        
-        new_file_data = ''.join( [ chr(ord(c)) for c in file_data ] )
+                
+        new_file_data = ''.join( [ chr(ord(c)) for c in file_data] )
         
         if filename:
             f = file(filename, 'wb+')
