@@ -2451,7 +2451,6 @@ class PE:
         
         while True:
             
-            
             # Process the StringFileInfo/VarFileInfo struct
             #
             stringfileinfo_struct = self.__unpack_data__(
@@ -2503,6 +2502,7 @@ class PE:
                     # Process the String Table entries
                     #
                     while True:
+                        
                         stringtable_struct = self.__unpack_data__(
                             self.__StringTable_format__,
                             raw_data[stringtable_offset:],
@@ -2595,9 +2595,17 @@ class PE:
                             stringtable_struct.entries_lengths[key] = (len(key), len(value))
                         
                         
-                        stringtable_offset = self.dword_align(
+                        new_stringtable_offset = self.dword_align(
                             stringtable_struct.Length + stringtable_offset,
                             version_struct.OffsetToData)
+                            
+                        # check if the entry is crafted in a way that would lead to an infinite
+                        # loop and break if so
+                        #
+                        if new_stringtable_offset == stringtable_offset:
+                            break
+                        stringtable_offset = new_stringtable_offset
+                            
                         if stringtable_offset >= stringfileinfo_struct.Length:
                             break
             
