@@ -1159,92 +1159,92 @@ class PE:
         'H,e_maxalloc', 'H,e_ss', 'H,e_sp', 'H,e_csum',
         'H,e_ip', 'H,e_cs', 'H,e_lfarlc', 'H,e_ovno', '8s,e_res',
         'H,e_oemid', 'H,e_oeminfo', '20s,e_res2',
-        'L,e_lfanew'))
+        'I,e_lfanew'))
     
     __IMAGE_FILE_HEADER_format__ = ('IMAGE_FILE_HEADER',
         ('H,Machine', 'H,NumberOfSections',
-        'L,TimeDateStamp', 'L,PointerToSymbolTable',
-        'L,NumberOfSymbols', 'H,SizeOfOptionalHeader',
+        'I,TimeDateStamp', 'I,PointerToSymbolTable',
+        'I,NumberOfSymbols', 'H,SizeOfOptionalHeader',
         'H,Characteristics'))
     
     __IMAGE_DATA_DIRECTORY_format__ = ('IMAGE_DATA_DIRECTORY',
-        ('L,VirtualAddress', 'L,Size'))
+        ('I,VirtualAddress', 'I,Size'))
     
     
     __IMAGE_OPTIONAL_HEADER_format__ = ('IMAGE_OPTIONAL_HEADER',
         ('H,Magic', 'B,MajorLinkerVersion',
-        'B,MinorLinkerVersion', 'L,SizeOfCode',
-        'L,SizeOfInitializedData', 'L,SizeOfUninitializedData',
-        'L,AddressOfEntryPoint', 'L,BaseOfCode', 'L,BaseOfData',
-        'L,ImageBase', 'L,SectionAlignment', 'L,FileAlignment',
+        'B,MinorLinkerVersion', 'I,SizeOfCode',
+        'I,SizeOfInitializedData', 'I,SizeOfUninitializedData',
+        'I,AddressOfEntryPoint', 'I,BaseOfCode', 'I,BaseOfData',
+        'I,ImageBase', 'I,SectionAlignment', 'I,FileAlignment',
         'H,MajorOperatingSystemVersion', 'H,MinorOperatingSystemVersion',
         'H,MajorImageVersion', 'H,MinorImageVersion',
         'H,MajorSubsystemVersion', 'H,MinorSubsystemVersion',
-        'L,Reserved1', 'L,SizeOfImage', 'L,SizeOfHeaders',
-        'L,CheckSum', 'H,Subsystem', 'H,DllCharacteristics',
-        'L,SizeOfStackReserve', 'L,SizeOfStackCommit',
-        'L,SizeOfHeapReserve', 'L,SizeOfHeapCommit',
-        'L,LoaderFlags', 'L,NumberOfRvaAndSizes' ))
+        'I,Reserved1', 'I,SizeOfImage', 'I,SizeOfHeaders',
+        'I,CheckSum', 'H,Subsystem', 'H,DllCharacteristics',
+        'I,SizeOfStackReserve', 'I,SizeOfStackCommit',
+        'I,SizeOfHeapReserve', 'I,SizeOfHeapCommit',
+        'I,LoaderFlags', 'I,NumberOfRvaAndSizes' ))
     
     
     __IMAGE_OPTIONAL_HEADER64_format__ = ('IMAGE_OPTIONAL_HEADER64',
         ('H,Magic', 'B,MajorLinkerVersion',
-        'B,MinorLinkerVersion', 'L,SizeOfCode',
-        'L,SizeOfInitializedData', 'L,SizeOfUninitializedData',
-        'L,AddressOfEntryPoint', 'L,BaseOfCode',
-        'Q,ImageBase', 'L,SectionAlignment', 'L,FileAlignment',
+        'B,MinorLinkerVersion', 'I,SizeOfCode',
+        'I,SizeOfInitializedData', 'I,SizeOfUninitializedData',
+        'I,AddressOfEntryPoint', 'I,BaseOfCode',
+        'Q,ImageBase', 'I,SectionAlignment', 'I,FileAlignment',
         'H,MajorOperatingSystemVersion', 'H,MinorOperatingSystemVersion',
         'H,MajorImageVersion', 'H,MinorImageVersion',
         'H,MajorSubsystemVersion', 'H,MinorSubsystemVersion',
-        'L,Reserved1', 'L,SizeOfImage', 'L,SizeOfHeaders',
-        'L,CheckSum', 'H,Subsystem', 'H,DllCharacteristics',
+        'I,Reserved1', 'I,SizeOfImage', 'I,SizeOfHeaders',
+        'I,CheckSum', 'H,Subsystem', 'H,DllCharacteristics',
         'Q,SizeOfStackReserve', 'Q,SizeOfStackCommit',
         'Q,SizeOfHeapReserve', 'Q,SizeOfHeapCommit',
-        'L,LoaderFlags', 'L,NumberOfRvaAndSizes' ))
+        'I,LoaderFlags', 'I,NumberOfRvaAndSizes' ))
         
     
-    __IMAGE_NT_HEADERS_format__ = ('IMAGE_NT_HEADERS', ('L,Signature',))
+    __IMAGE_NT_HEADERS_format__ = ('IMAGE_NT_HEADERS', ('I,Signature',))
     
     __IMAGE_SECTION_HEADER_format__ = ('IMAGE_SECTION_HEADER',
-        ('8s,Name', 'L,Misc,Misc_PhysicalAddress,Misc_VirtualSize',
-        'L,VirtualAddress', 'L,SizeOfRawData', 'L,PointerToRawData',
-        'L,PointerToRelocations', 'L,PointerToLinenumbers',
+        ('8s,Name', 'I,Misc,Misc_PhysicalAddress,Misc_VirtualSize',
+        'I,VirtualAddress', 'I,SizeOfRawData', 'I,PointerToRawData',
+        'I,PointerToRelocations', 'I,PointerToLinenumbers',
         'H,NumberOfRelocations', 'H,NumberOfLinenumbers',
-        'L,Characteristics'))
+        'I,Characteristics'))
     
     __IMAGE_DELAY_IMPORT_DESCRIPTOR_format__ = ('IMAGE_DELAY_IMPORT_DESCRIPTOR',
-        ('L,grAttrs', 'L,szName', 'L,phmod', 'L,pIAT', 'L,pINT',
-        'L,pBoundIAT', 'L,pUnloadIAT', 'L,dwTimeStamp'))
+        ('I,grAttrs', 'I,szName', 'I,phmod', 'I,pIAT', 'I,pINT',
+        'I,pBoundIAT', 'I,pUnloadIAT', 'I,dwTimeStamp'))
     
     __IMAGE_IMPORT_DESCRIPTOR_format__ =  ('IMAGE_IMPORT_DESCRIPTOR',
-        ('L,OriginalFirstThunk,Characteristics',
-        'L,TimeDateStamp', 'L,ForwarderChain', 'L,Name', 'L,FirstThunk'))
+        ('I,OriginalFirstThunk,Characteristics',
+        'I,TimeDateStamp', 'I,ForwarderChain', 'I,Name', 'I,FirstThunk'))
     
     __IMAGE_EXPORT_DIRECTORY_format__ =  ('IMAGE_EXPORT_DIRECTORY',
-        ('L,Characteristics',
-        'L,TimeDateStamp', 'H,MajorVersion', 'H,MinorVersion', 'L,Name',
-        'L,Base', 'L,NumberOfFunctions', 'L,NumberOfNames',
-        'L,AddressOfFunctions', 'L,AddressOfNames', 'L,AddressOfNameOrdinals'))
+        ('I,Characteristics',
+        'I,TimeDateStamp', 'H,MajorVersion', 'H,MinorVersion', 'I,Name',
+        'I,Base', 'I,NumberOfFunctions', 'I,NumberOfNames',
+        'I,AddressOfFunctions', 'I,AddressOfNames', 'I,AddressOfNameOrdinals'))
     
     __IMAGE_RESOURCE_DIRECTORY_format__ = ('IMAGE_RESOURCE_DIRECTORY',
-        ('L,Characteristics',
-        'L,TimeDateStamp', 'H,MajorVersion', 'H,MinorVersion',
+        ('I,Characteristics',
+        'I,TimeDateStamp', 'H,MajorVersion', 'H,MinorVersion',
         'H,NumberOfNamedEntries', 'H,NumberOfIdEntries'))
     
     __IMAGE_RESOURCE_DIRECTORY_ENTRY_format__ = ('IMAGE_RESOURCE_DIRECTORY_ENTRY',
-        ('L,Name',
-        'L,OffsetToData'))
+        ('I,Name',
+        'I,OffsetToData'))
     
     __IMAGE_RESOURCE_DATA_ENTRY_format__ = ('IMAGE_RESOURCE_DATA_ENTRY',
-        ('L,OffsetToData', 'L,Size', 'L,CodePage', 'L,Reserved'))
+        ('I,OffsetToData', 'I,Size', 'I,CodePage', 'I,Reserved'))
     
     __VS_VERSIONINFO_format__ = ( 'VS_VERSIONINFO',
         ('H,Length', 'H,ValueLength', 'H,Type' ))
     
     __VS_FIXEDFILEINFO_format__ = ( 'VS_FIXEDFILEINFO',
-        ('L,Signature', 'L,StrucVersion', 'L,FileVersionMS', 'L,FileVersionLS',
-         'L,ProductVersionMS', 'L,ProductVersionLS', 'L,FileFlagsMask', 'L,FileFlags',
-         'L,FileOS', 'L,FileType', 'L,FileSubtype', 'L,FileDateMS', 'L,FileDateLS'))
+        ('I,Signature', 'I,StrucVersion', 'I,FileVersionMS', 'I,FileVersionLS',
+         'I,ProductVersionMS', 'I,ProductVersionLS', 'I,FileFlagsMask', 'I,FileFlags',
+         'I,FileOS', 'I,FileType', 'I,FileSubtype', 'I,FileDateMS', 'I,FileDateLS'))
     
     __StringFileInfo_format__ = ( 'StringFileInfo',
         ('H,Length', 'H,ValueLength', 'H,Type' ))
@@ -1258,66 +1258,66 @@ class PE:
     __Var_format__ = ( 'Var', ('H,Length', 'H,ValueLength', 'H,Type' ))
     
     __IMAGE_THUNK_DATA_format__ = ('IMAGE_THUNK_DATA',
-        ('L,ForwarderString,Function,Ordinal,AddressOfData',))
+        ('I,ForwarderString,Function,Ordinal,AddressOfData',))
     
     __IMAGE_THUNK_DATA64_format__ = ('IMAGE_THUNK_DATA',
         ('Q,ForwarderString,Function,Ordinal,AddressOfData',))
     
     __IMAGE_DEBUG_DIRECTORY_format__ = ('IMAGE_DEBUG_DIRECTORY',
-        ('L,Characteristics', 'L,TimeDateStamp', 'H,MajorVersion',
-        'H,MinorVersion', 'L,Type', 'L,SizeOfData', 'L,AddressOfRawData',
-        'L,PointerToRawData'))
+        ('I,Characteristics', 'I,TimeDateStamp', 'H,MajorVersion',
+        'H,MinorVersion', 'I,Type', 'I,SizeOfData', 'I,AddressOfRawData',
+        'I,PointerToRawData'))
     
     __IMAGE_BASE_RELOCATION_format__ = ('IMAGE_BASE_RELOCATION',
-        ('L,VirtualAddress', 'L,SizeOfBlock') )
+        ('I,VirtualAddress', 'I,SizeOfBlock') )
     
     __IMAGE_TLS_DIRECTORY_format__ = ('IMAGE_TLS_DIRECTORY',
-        ('L,StartAddressOfRawData', 'L,EndAddressOfRawData',
-        'L,AddressOfIndex', 'L,AddressOfCallBacks',
-        'L,SizeOfZeroFill', 'L,Characteristics' ) )
+        ('I,StartAddressOfRawData', 'I,EndAddressOfRawData',
+        'I,AddressOfIndex', 'I,AddressOfCallBacks',
+        'I,SizeOfZeroFill', 'I,Characteristics' ) )
     
     __IMAGE_TLS_DIRECTORY64_format__ = ('IMAGE_TLS_DIRECTORY',
         ('Q,StartAddressOfRawData', 'Q,EndAddressOfRawData',
         'Q,AddressOfIndex', 'Q,AddressOfCallBacks',
-        'L,SizeOfZeroFill', 'L,Characteristics' ) )
+        'I,SizeOfZeroFill', 'I,Characteristics' ) )
     
     __IMAGE_LOAD_CONFIG_DIRECTORY_format__ = ('IMAGE_LOAD_CONFIG_DIRECTORY',
-        ('L,Size', 'L,TimeDateStamp',
+        ('I,Size', 'I,TimeDateStamp',
         'H,MajorVersion', 'H,MinorVersion',
-        'L,GlobalFlagsClear', 'L,GlobalFlagsSet',
-        'L,CriticalSectionDefaultTimeout',
-        'L,DeCommitFreeBlockThreshold',
-        'L,DeCommitTotalFreeThreshold',
-        'L,LockPrefixTable',
-        'L,MaximumAllocationSize',
-        'L,VirtualMemoryThreshold',
-        'L,ProcessHeapFlags',
-        'L,ProcessAffinityMask',
+        'I,GlobalFlagsClear', 'I,GlobalFlagsSet',
+        'I,CriticalSectionDefaultTimeout',
+        'I,DeCommitFreeBlockThreshold',
+        'I,DeCommitTotalFreeThreshold',
+        'I,LockPrefixTable',
+        'I,MaximumAllocationSize',
+        'I,VirtualMemoryThreshold',
+        'I,ProcessHeapFlags',
+        'I,ProcessAffinityMask',
         'H,CSDVersion', 'H,Reserved1',
-        'L,EditList', 'L,SecurityCookie',
-        'L,SEHandlerTable', 'L,SEHandlerCount' ) )
+        'I,EditList', 'I,SecurityCookie',
+        'I,SEHandlerTable', 'I,SEHandlerCount' ) )
         
     __IMAGE_LOAD_CONFIG_DIRECTORY64_format__ = ('IMAGE_LOAD_CONFIG_DIRECTORY',
-        ('L,Size', 'L,TimeDateStamp',
+        ('I,Size', 'I,TimeDateStamp',
       'H,MajorVersion', 'H,MinorVersion',
-      'L,GlobalFlagsClear', 'L,GlobalFlagsSet',
-      'L,CriticalSectionDefaultTimeout',
+      'I,GlobalFlagsClear', 'I,GlobalFlagsSet',
+      'I,CriticalSectionDefaultTimeout',
       'Q,DeCommitFreeBlockThreshold',
       'Q,DeCommitTotalFreeThreshold',
       'Q,LockPrefixTable',
       'Q,MaximumAllocationSize',
       'Q,VirtualMemoryThreshold',
       'Q,ProcessAffinityMask',
-      'L,ProcessHeapFlags',
+      'I,ProcessHeapFlags',
       'H,CSDVersion', 'H,Reserved1',
       'Q,EditList', 'Q,SecurityCookie',
       'Q,SEHandlerTable', 'Q,SEHandlerCount' ) )
     
     __IMAGE_BOUND_IMPORT_DESCRIPTOR_format__ = ('IMAGE_BOUND_IMPORT_DESCRIPTOR',
-        ('L,TimeDateStamp', 'H,OffsetModuleName', 'H,NumberOfModuleForwarderRefs'))
+        ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,NumberOfModuleForwarderRefs'))
     
     __IMAGE_BOUND_FORWARDER_REF_format__ = ('IMAGE_BOUND_FORWARDER_REF',
-        ('L,TimeDateStamp', 'H,OffsetModuleName', 'H,Reserved') )
+        ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,Reserved') )
     
     
     def __init__(self, name=None, data=None, fast_load=None):
@@ -2976,9 +2976,12 @@ class PE:
             
             imp_address = first_thunk+self.OPTIONAL_HEADER.ImageBase+idx*4
             
-            if iat and ilt and ilt[idx].AddressOfData != iat[idx].AddressOfData:
-                imp_bound = iat[idx].AddressOfData
-            else:
+            try:
+                if iat and ilt and ilt[idx].AddressOfData != iat[idx].AddressOfData:
+                    imp_bound = iat[idx].AddressOfData
+                else:
+                    imp_bound = None
+            except IndexError:
                 imp_bound = None
             
             if imp_name != '' and (imp_ord or imp_name):
@@ -3558,7 +3561,7 @@ class PE:
         if (offset+1)*4 > len(data):
             return None
         
-        return struct.unpack('<L', data[offset*4:(offset+1)*4])[0]
+        return struct.unpack('<I', data[offset*4:(offset+1)*4])[0]
         
     
     def get_dword_at_rva(self, rva):
@@ -3894,7 +3897,7 @@ class PE:
             if i == checksum_offset / 4:
                 continue
             
-            dword = struct.unpack('L', self.__data__[ i*4 : i*4+4 ])[0]
+            dword = struct.unpack('I', self.__data__[ i*4 : i*4+4 ])[0]
             checksum = (checksum & 0xffffffff) + dword + (checksum>>32)
             if checksum > 2**32:
                 checksum = (checksum & 0xffffffff) + (checksum >> 32)
