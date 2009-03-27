@@ -3890,14 +3890,19 @@ class PE:
         
         checksum = 0
         
-        for i in range( len(self.__data__) / 4 ):
+        # Verify the data is dword-aligned. Add padding if needed
+        #
+        remainder = len(self.__data__) % 4
+        data = self.__data__ + ( '\0' * ((4-remainder) * ( remainder != 0 )) )
+        
+        for i in range( len( data ) / 4 ):
             
             # Skip the checksum field
             #
             if i == checksum_offset / 4:
                 continue
             
-            dword = struct.unpack('I', self.__data__[ i*4 : i*4+4 ])[0]
+            dword = struct.unpack('I', data[ i*4 : i*4+4 ])[0]
             checksum = (checksum & 0xffffffff) + dword + (checksum>>32)
             if checksum > 2**32:
                 checksum = (checksum & 0xffffffff) + (checksum >> 32)
@@ -3906,6 +3911,8 @@ class PE:
         checksum = (checksum) + (checksum >> 16)
         checksum = checksum & 0xffff
         
+        # The length is the one of the original data, not the padded one
+        #
         return checksum + len(self.__data__)
     
 
