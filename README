@@ -24,7 +24,7 @@ WRITTING SUPPORT
 
 Starting from pefile 1.2 it's possible to write back any changes done to the PE
 file. One has to be careful with this functionality as it will not be very
-inteligent reconstructing the PE file. That is, it will not handle displacing
+intelligent reconstructing the PE file. That is, it will not handle displacing
 structures if that would be needed because a new section has been added.
 The rule of thumb is, if there's room for an additional header/structure to fit
 then there'll be no problem and pefile will write it.
@@ -50,7 +50,7 @@ it's known to work on OS X, Windows, and Linux.
 TODO
 
 There might be some obscure info which is not readily accessible, this may be
-due to my ignorance or lazyness. Patches or suggestions are, as usual, welcomed.
+due to my ignorance or laziness. Patches or suggestions are, as usual, welcomed.
 
 Thinks known to be missing so far:
 
@@ -63,7 +63,7 @@ Given the amount of information embedded in the PE file format it is difficult
 to test all the data retrieved thoroughly. I did my best trying and verifying
 the accuracy of all the parsing. Most of the basic data has been tested by using 
 this module, so no outrageously obvious problems should exist. Any feedback on
-incosistent or faulty behaviour will be welcome.
+inconsistent or faulty behaviour will be welcome.
 
 -------------------------------------------------------------------------
 Copyright (c) 2005,2006 Ero Carrera <ero@dkbza.org>. All rights reserved. 

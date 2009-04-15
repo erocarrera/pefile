@@ -485,10 +485,10 @@ SUBLANG = dict(sublang+[(e[1], e[0]) for e in sublang])
 
 
 class UnicodeStringWrapperPostProcessor:
-    """This class attemps to help the process of identifying strings
+    """This class attempts to help the process of identifying strings
     that might be plain Unicode or Pascal. A list of strings will be
     wrapped on it with the hope the overlappings will help make the
-    decission about their type."""
+    decision about their type."""
     
     def __init__(self, pe, rva_ptr):
         self.pe = pe
@@ -949,7 +949,7 @@ class ImportDescData(DataContainer):
     
     dll:        name of the imported DLL
     imports:    list of imported symbols (ImportData instances)
-    struct:     IMAGE_IMPORT_DESCRIPTOR sctruture
+    struct:     IMAGE_IMPORT_DESCRIPTOR structure
     """
 
 class ImportData(DataContainer):
@@ -995,12 +995,12 @@ class ResourceDirEntryData(DataContainer):
     name:       If the resource is identified by name this
                 attribute will contain the name string. None
                 otherwise. If identified by id, the id is
-                availabe at 'struct.Id'
+                available at 'struct.Id'
     id:         the id, also in struct.Id
     directory:  If this entry has a lower level directory
                 this attribute will point to the
                 ResourceDirData instance representing it.
-    data:       If this entry has no futher lower directories
+    data:       If this entry has no further lower directories
                 and points to the actual resource data, this
                 attribute will reference the corresponding
                 ResourceDataEntryData instance.
@@ -1070,7 +1070,7 @@ class LoadConfigData(DataContainer):
     """
 
 class BoundImportRefData(DataContainer):
-    """Holds bound import forwader reference data.
+    """Holds bound import forwarder reference data.
     
     Contains the same information as the bound descriptor but
     for forwarded DLLs, if any.
@@ -1111,11 +1111,11 @@ class PE:
     FILE_HEADER
     OPTIONAL_HEADER
     
-    All of them will contain among their attrbitues the members of the
+    All of them will contain among their attributes the members of the
     corresponding structures as defined in WINNT.H
     
     The raw data corresponding to the header (from the beginning of the
-    file up to the start of the first section) will be avaiable in the
+    file up to the start of the first section) will be available in the
     instance's attribute 'header' as a string.
     
     The sections will be available as a list in the 'sections' attribute.
@@ -1572,7 +1572,7 @@ class PE:
             #
             # We assume a normally sized optional header, hence that we do
             # a sizeof() instead of reading SizeOfOptionalHeader.
-            # Then we add a default number of drectories times their size,
+            # Then we add a default number of directories times their size,
             # if we go beyond that, we assume the number of directories
             # is wrong and stop processing
             if offset >= (optional_header_offset +
@@ -1656,7 +1656,7 @@ class PE:
     def full_load(self):
         """Process the data directories.
         
-        This mathod will load the data directories which might not have
+        This method will load the data directories which might not have
         been loaded if the "fast_load" option was used.
         """
         
@@ -1835,8 +1835,8 @@ class PE:
     def set_flags(self, obj, flag_field, flags):
         """Will process the flags and set attributes in the object accordingly.
         
-        The object "obj" will gain attritutes named after the flags provided in
-        "flags" and valued True/False, matching the results of applyin each
+        The object "obj" will gain attributes named after the flags provided in
+        "flags" and valued True/False, matching the results of applying each
         flag value from "flags" to flag_field.
         """
         
@@ -1852,7 +1852,7 @@ class PE:
         
         If the optional argument 'directories' is given, only
         the directories at the specified indices will be parsed.
-        Such funcionality allows parsing of areas of interest
+        Such functionality allows parsing of areas of interest
         without the burden of having to parse all others.
         The directories can then be specified as:
         
@@ -2036,7 +2036,7 @@ class PE:
         while rva<end:
             
             # OC Patch:
-            # Malware that has bad rva entries will cause an error.
+            # Malware that has bad RVA entries will cause an error.
             # Just continue on after an exception
             #
             try:
@@ -2118,7 +2118,7 @@ class PE:
     def parse_resources_directory(self, rva, size=0, base_rva = None, level = 0):
         """Parse the resources directory.
         
-        Given the rva of the resources directory, it will process all
+        Given the RVA of the resources directory, it will process all
         its entries.
         
         The root will have the corresponding member of its structure,
@@ -2131,7 +2131,7 @@ class PE:
         representing upper layers of the tree. This one will also have
         an 'entries' attribute, pointing to the 3rd, and last, level.
         Another directory with more entries. Those last entries will
-        have a new atribute (both 'leaf' or 'data_entry' can be used to
+        have a new attribute (both 'leaf' or 'data_entry' can be used to
         access it). This structure finally points to the resource data.
         All the members of this structure, IMAGE_RESOURCE_DATA_ENTRY,
         are available as its attributes.
@@ -2163,7 +2163,7 @@ class PE:
             file_offset = self.get_offset_from_rva(rva) )
         if resource_dir is None:
             # If can't parse resources directory then silently return.
-            # This directory does not necesarily have to be valid to
+            # This directory does not necessarily have to be valid to
             # still have a valid PE file
             self.__warnings.append(
                 'Invalid resources directory. Can\'t parse ' +
@@ -2172,7 +2172,7 @@ class PE:
         
         dir_entries = []
         
-        # Advance the rva to the positon immediately following the directory
+        # Advance the RVA to the positon immediately following the directory
         # table header and pointing to the first entry in the table
         #
         rva += resource_dir.sizeof()
@@ -2689,7 +2689,7 @@ class PE:
     def parse_export_directory(self, rva, size):
         """Parse the export directory.
         
-        Given the rva of the export directory, it will process all
+        Given the RVA of the export directory, it will process all
         its entries.
         
         The exports will be made available through a list "exports"
@@ -2697,7 +2697,7 @@ class PE:
             
             (ordinal, symbol_address, symbol_name)
         
-        And also through a dicionary "exports_by_ordinal" whose keys
+        And also through a dictionary "exports_by_ordinal" whose keys
         will be the ordinals and the values tuples of the from:
             
             (symbol_address, symbol_name)
@@ -2750,7 +2750,7 @@ class PE:
                 # useless, no exports
                 return None
             
-            # If the funcion's rva points within the export directory
+            # If the funcion's RVA points within the export directory
             # it will point to a string with the forwarded symbol's string
             # instead of pointing the the function start address.
             
@@ -2820,7 +2820,7 @@ class PE:
                 data, file_offset = self.get_offset_from_rva(rva) )
             
             
-            # If the structure is all zeores, we reached the end of the list
+            # If the structure is all zeroes, we reached the end of the list
             if not import_desc or import_desc.all_zeroes():
                 break
             
@@ -2872,7 +2872,7 @@ class PE:
                 self.__IMAGE_IMPORT_DESCRIPTOR_format__,
                 data, file_offset = self.get_offset_from_rva(rva) )
             
-            # If the structure is all zeores, we reached the end of the list
+            # If the structure is all zeroes, we reached the end of the list
             if not import_desc or import_desc.all_zeroes():
                 break
             
@@ -2908,7 +2908,7 @@ class PE:
     def parse_imports(self, original_first_thunk, first_thunk, forwarder_chain):
         """Parse the imported symbols.
         
-        It will fill a list, which will be avalable as the dictionary
+        It will fill a list, which will be available as the dictionary
         attribute "imports". Its keys will be the DLL names and the values
         all the symbols imported from that object.
         """
@@ -2928,7 +2928,7 @@ class PE:
         iat = self.get_import_table(first_thunk)
         
         # OC Patch:
-        # Would crash if iat or ilt had None type
+        # Would crash if IAT or ILT had None type
         if not iat and not ilt:
             raise PEFormatError(
                 'Invalid Import Table information. ' +
@@ -3065,7 +3065,7 @@ class PE:
         mapped_data = self.header
         for section in self.sections:
             
-            # Miscellanous integrity tests.
+            # Miscellaneous integrity tests.
             # Some packer will set these to bogus values to
             # make tools go nuts.
             #
@@ -3103,7 +3103,7 @@ class PE:
     def get_data(self, rva, length=None):
         """Get data regardless of the section where it lies on.
         
-        Given a rva and the size of the chunk to retrieve, this method
+        Given a RVA and the size of the chunk to retrieve, this method
         will find the section where the data lies and return the data.
         """
         
@@ -3123,7 +3123,7 @@ class PE:
 
     
     def get_rva_from_offset(self, offset):
-        """Get the rva corresponding to this file offset. """
+        """Get the RVA corresponding to this file offset. """
         
         s = self.get_section_by_offset(offset)
         if not s:
@@ -3131,9 +3131,9 @@ class PE:
         return s.get_rva_from_offset(offset)
     
     def get_offset_from_rva(self, rva):
-        """Get the file offset corresponding to this rva.
+        """Get the file offset corresponding to this RVA.
         
-        Given a rva , this method will find the section where the
+        Given a RVA , this method will find the section where the
         data lies and return the offset within the file.
         """
         
@@ -3553,7 +3553,7 @@ class PE:
         """Convert four bytes of data to a double word (little endian)
         
         'offset' is assumed to index into a dword array. So setting it to
-        N will return a dword out of the data sarting at offset N*4.
+        N will return a dword out of the data starting at offset N*4.
         
         Returns None if the data can't be turned into a double word.
         """
@@ -3610,7 +3610,7 @@ class PE:
         """Convert two bytes of data to a word (little endian)
         
         'offset' is assumed to index into a word array. So setting it to
-        N will return a dword out of the data sarting at offset N*2.
+        N will return a dword out of the data starting at offset N*2.
         
         Returns None if the data can't be turned into a word.
         """
@@ -3666,7 +3666,7 @@ class PE:
         """Convert eight bytes of data to a word (little endian)
         
         'offset' is assumed to index into a word array. So setting it to
-        N will return a dword out of the data sarting at offset N*8.
+        N will return a dword out of the data starting at offset N*8.
         
         Returns None if the data can't be turned into a quad word.
         """
@@ -3800,7 +3800,7 @@ class PE:
             
             # We iterate with an index because if the relocation is of type
             # IMAGE_REL_BASED_HIGHADJ we need to also process the next entry
-            # at once and skip it for the next interation
+            # at once and skip it for the next iteration
             #
             entry_idx = 0
             while entry_idx<len(reloc.entries):

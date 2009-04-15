@@ -24,7 +24,7 @@ __contact__ = 'ero@dkbza.org'
 
 
 class SignatureDatabase:
-    """This class loads and keeps a parsed PEiD signatute database.
+    """This class loads and keeps a parsed PEiD signature database.
     
     Usage:
     
@@ -49,7 +49,7 @@ class SignatureDatabase:
         self.parse_sig = re.compile(
             '\[(.*?)\]\s+?signature\s*=\s*(.*?)ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)', re.S)
 
-        # Singature information
+        # Signature information
         #
         # Signatures are stored as trees using dictionaries
         # The keys are the byte values while the values for
@@ -111,7 +111,7 @@ class SignatureDatabase:
     def generate_ep_signature(self, pe, name, sig_length=512):
         """Generate signatures for the entry point of a PE file.
         
-        Creates a singature whose name will be the parameter 'name'
+        Creates a signature whose name will be the parameter 'name'
         and the section number and its name.
         """
 
@@ -385,7 +385,7 @@ class SignatureDatabase:
             return int (value, 16)
         
         
-        # Parse all the singatures in the file
+        # Parse all the signatures in the file
         #
         matches = self.parse_sig.findall(sig_data)
 
