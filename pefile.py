@@ -1924,7 +1924,7 @@ class PE:
                    file_offset = rva)
             if bnd_descr is None:
                 # If can't parse directory then silently return.
-                # This directory does not necesarily have to be valid to
+                # This directory does not necessarily have to be valid to
                 # still have a valid PE file
                 
                 self.__warnings.append(
@@ -3877,7 +3877,7 @@ class PE:
     
     def generate_checksum(self):
         
-        # This will make sure that the data represeting the PE image
+        # This will make sure that the data representing the PE image
         # is updated with any changes that might have been made by
         # assigning values to header fields as those are not automatically
         # updated upon assignment.

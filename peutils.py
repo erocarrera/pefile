@@ -77,7 +77,7 @@ class SignatureDatabase:
     
     
     def generate_section_signatures(self, pe, name, sig_length=512):
-        """Generate signatures for all the sections in a PE file.
+        """Generates signatures for all the sections in a PE file.
         
         If the section contains any data a signature will be created
         for it. The signature name will be a combination of the 
@@ -147,7 +147,7 @@ class SignatureDatabase:
     
     
     def match(self, pe, ep_only=True, section_start_only=False):
-        """Match and return the exact match(es).
+        """Matches and returns the exact match(es).
         
         If ep_only is True the result will be a string with
         the packer name. Otherwise it will be a list of the
@@ -174,7 +174,7 @@ class SignatureDatabase:
 
 
     def match_all(self, pe, ep_only=True, section_start_only=False):
-        """Match and return the all the likely matches."""
+        """Matches and returns all the likely matches."""
 
         matches = self.__match(pe, ep_only, section_start_only)
 
@@ -259,7 +259,7 @@ class SignatureDatabase:
                 matches.append( (idx, result) )
             
         # Return only the matched items found at the entry point if
-        # ep_only is True (matches will have only one elment in that
+        # ep_only is True (matches will have only one element in that
         # case)
         #
         if ep_only is True:
