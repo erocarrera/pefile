@@ -3915,5 +3915,65 @@ class PE:
         #
         return checksum + len(self.__data__)
     
-
+    
+    def is_exe(self):
+        """Check whether the file is a standard executable.
+        
+        This will return true only if the file has the IMAGE_FILE_EXECUTABLE_IMAGE flag set
+        and the IMAGE_FILE_DLL not set and the file does not appear to be a driver either.
+        """
+        
+        EXE_flag = IMAGE_CHARACTERISTICS['IMAGE_FILE_EXECUTABLE_IMAGE']
+        
+        if (not self.is_dll()) and (not self.is_driver()) and ( 
+                EXE_flag & self.FILE_HEADER.Characteristics) == EXE_flag:
+            return True
+        
+        return False
+    
+    
+    def is_dll(self):
+        """Check whether the file is a standard DLL.
+        
+        This will return true only if the image has the IMAGE_FILE_DLL flag set.
+        """
+        
+        DLL_flag = IMAGE_CHARACTERISTICS['IMAGE_FILE_DLL']
+        
+        if ( DLL_flag & self.FILE_HEADER.Characteristics) == DLL_flag:
+            return True
+            
+        return False
+    
+    
+    def is_driver(self):
+        """Check whether the file is a Windows driver.
+        
+        This will return true only if the ImageBase field of the OptionalHeader
+        is above or equal to 0x80000000 (that is, whether it lies in the upper
+        2GB of the address space, normally belonging to the kernel) and if it
+        imports symbols from "ntoskrnl.exe".
+        """
+        
+        if self.OPTIONAL_HEADER.ImageBase >= 0x80000000L:
+            return True
+            
+        if hasattr(self, 'DIRECTORY_ENTRY_IMPORT'):
+            
+            # If it imports from "ntoskrnl.exe" it will be a driver
+            #
+            if 'ntoskrnl' in [ imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT ]:
+                return True
+                
+        return False
+    
+    
+    def is_valid(self):
+        """"""
+        pass
+    
+    
+    def is_suspicious(self):
+        """"""
+        pass
     
