@@ -1037,6 +1037,30 @@ class RelocationData(DataContainer):
                 RELOCATION_TYPE[type]
     rva:        RVA of the relocation
     """
+    def __setattr__(self, name, val):
+
+        # If the instance doesn't yet have a struct attribute
+        # it's not fully initialized so can't do any of the
+        # following
+        #
+        if hasattr(self, 'struct'):
+            # Get the word containing the type and data
+            #
+            word = self.struct.Data
+        
+            if name == 'type':
+                word = (val << 12) | (word & 0xfff)
+            elif name == 'rva':
+                offset = val-self.base_rva
+                if offset < 0:
+                    offset = 0
+                word = ( word & 0xf000) | ( offset & 0xfff)
+
+            # Store the modified data
+            #
+            self.struct.Data = word
+
+        self.__dict__[name] = val
 
 class TlsData(DataContainer):
     """Holds TLS information.
@@ -1271,6 +1295,9 @@ class PE:
     __IMAGE_BASE_RELOCATION_format__ = ('IMAGE_BASE_RELOCATION',
         ('I,VirtualAddress', 'I,SizeOfBlock') )
     
+    __IMAGE_BASE_RELOCATION_ENTRY_format__ = ('IMAGE_BASE_RELOCATION_ENTRY',
+        ('H,Data',) )
+
     __IMAGE_TLS_DIRECTORY_format__ = ('IMAGE_TLS_DIRECTORY',
         ('I,StartAddressOfRawData', 'I,EndAddressOfRawData',
         'I,AddressOfIndex', 'I,AddressOfCallBacks',
@@ -1348,8 +1375,6 @@ class PE:
         """
         
         structure = Structure(format, file_offset=file_offset)
-        #if len(data) < structure.sizeof():
-        #    return None
         
         try:
             structure.__unpack__(data)
@@ -2033,7 +2058,7 @@ class PE:
         end = rva+size
         
         relocations = []
-        while rva<end:
+        while rva < end:
             
             # OC Patch:
             # Malware that has bad RVA entries will cause an error.
@@ -2054,7 +2079,7 @@ class PE:
                 break
             
             reloc_entries = self.parse_relocations(
-                rva+rlc_size, rlc.VirtualAddress, rlc.SizeOfBlock-rlc_size)
+                rva+rlc_size, rlc.VirtualAddress, rlc.SizeOfBlock-rlc_size )
             
             relocations.append(
                 BaseRelocationData(
@@ -2072,16 +2097,29 @@ class PE:
         """"""
         
         data = self.get_data(data_rva, size)
+        file_offset = self.get_offset_from_rva(data_rva)
         
         entries = []
-        for idx in xrange(len(data)/2):
-            word = struct.unpack('<H', data[idx*2:(idx+1)*2])[0]
+        for idx in xrange( len(data) / 2 ):
+            
+            entry = self.__unpack_data__(
+                self.__IMAGE_BASE_RELOCATION_ENTRY_format__,
+                data[idx*2:(idx+1)*2],
+                file_offset = file_offset )
+                
+            if not entry:
+                break
+            word = entry.Data
+            
             reloc_type = (word>>12)
-            reloc_offset = (word&0x0fff)
+            reloc_offset = (word & 0x0fff)
             entries.append(
                 RelocationData(
+                    struct = entry,
                     type = reloc_type,
+                    base_rva = rva,
                     rva = reloc_offset+rva))
+            file_offset += entry.sizeof()
         
         return entries
         
