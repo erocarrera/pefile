@@ -1810,7 +1810,7 @@ class PE:
                 
                 self.__warnings.append(
                     ('Suspicious flags set for section %d. ' % i) +
-                    'Both IMAGE_SCN_MEM_WRITE and IMAGE_SCN_MEM_EXECUTE are set.' +
+                    'Both IMAGE_SCN_MEM_WRITE and IMAGE_SCN_MEM_EXECUTE are set. ' +
                     'This might indicate a packed executable.')
             
             self.sections.append(section)
@@ -2742,23 +2742,25 @@ class PE:
                 address_of_name_ordinals, i)
             
             
-            if symbol_ordinal*4<len(address_of_functions):
+            if symbol_ordinal*4 < len(address_of_functions):
                 symbol_address = self.get_dword_from_data(
                     address_of_functions, symbol_ordinal)
             else:
                 # Corrupt? a bad pointer... we assume it's all
                 # useless, no exports
                 return None
+
+            if symbol_address is None or symbol_address == 0:
+                continue
             
             # If the funcion's RVA points within the export directory
             # it will point to a string with the forwarded symbol's string
             # instead of pointing the the function start address.
             
-            if symbol_address>=rva and symbol_address<rva+size:
+            if symbol_address >= rva and symbol_address < rva+size:
                 forwarder_str = self.get_string_at_rva(symbol_address)
             else:
                 forwarder_str = None
-            
             
             exports.append(
                 ExportData(
@@ -2776,10 +2778,12 @@ class PE:
                     address_of_functions,
                     idx)
                 
+                if symbol_address is None or symbol_address == 0:
+                    continue
                 #
                 # Checking for forwarder again.
                 #
-                if symbol_address>=rva and symbol_address<rva+size:
+                if symbol_address >= rva and symbol_address < rva+size:
                     forwarder_str = self.get_string_at_rva(symbol_address)
                 else:
                     forwarder_str = None
@@ -2918,7 +2922,6 @@ class PE:
         if not imports_section:
             raise PEFormatError, 'Invalid/corrupt imports.'
         
-        
         # Import Lookup Table. Contains ordinals or pointers to strings.
         ilt = self.get_import_table(original_first_thunk)
         # Import Address Table. May have identical content to ILT if
@@ -2926,10 +2929,10 @@ class PE:
         # imported symbols once the binary is loaded or if it is already
         # bound.
         iat = self.get_import_table(first_thunk)
-        
+
         # OC Patch:
         # Would crash if IAT or ILT had None type
-        if not iat and not ilt:
+        if (not iat or len(iat)==0) and (not ilt or len(ilt)==0):
             raise PEFormatError(
                 'Invalid Import Table information. ' +
                 'Both ILT and IAT appear to be broken.')
@@ -2984,6 +2987,20 @@ class PE:
             except IndexError:
                 imp_bound = None
             
+            # The file with hashes:
+            #
+            # MD5: bfe97192e8107d52dd7b4010d12b2924
+            # SHA256: 3d22f8b001423cb460811ab4f4789f277b35838d45c62ec0454c877e7c82c7f5
+            #
+            # has an invalid table built in a way that it's parseable but contains invalid
+            # entries that lead pefile to take extremely long amounts of time to
+            # parse. It also leads to extreme memory consumption.
+            # To prevent similar cases, if invalid entries are found in the middle of a
+            # table the parsing will be aborted
+            #
+            if imp_ord == None and imp_name == None:
+                raise PEFormatError( 'Invalid entries in the Import Table. Aboring parsing.' )
+                    
             if imp_name != '' and (imp_ord or imp_name):
                 imported_symbols.append(
                     ImportData(
@@ -3949,20 +3966,27 @@ class PE:
     def is_driver(self):
         """Check whether the file is a Windows driver.
         
-        This will return true only if the ImageBase field of the OptionalHeader
-        is above or equal to 0x80000000 (that is, whether it lies in the upper
-        2GB of the address space, normally belonging to the kernel) and if it
-        imports symbols from "ntoskrnl.exe".
+        This will return true only if there are reliable indicators of the image
+        being a driver.
         """
-        
-        if self.OPTIONAL_HEADER.ImageBase >= 0x80000000L:
-            return True
+
+        # Checking that the ImageBase field of the OptionalHeader is above or
+        # equal to 0x80000000 (that is, whether it lies in the upper 2GB of
+        # the address space, normally belonging to the kernel) is not a
+        # reliable enough indicator.  For instance, PEs that play the invalid
+        # ImageBase trick to get relocated could be incorrectly assumed to be
+        # drivers.
+         
+        # This is not reliable either...
+        #   
+        # if any( (section.Characteristics & SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_NOT_PAGED']) for section in self.sections ):
+        #    return True
             
         if hasattr(self, 'DIRECTORY_ENTRY_IMPORT'):
             
-            # If it imports from "ntoskrnl.exe" it will be a driver
+            # If it imports from "ntoskrnl.exe" or other kernel components it should be a driver
             #
-            if 'ntoskrnl' in [ imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT ]:
+            if set( ('ntoskrnl.exe', 'hal.dll', 'ndis.sys', 'bootvid.dll', 'kdcom.dll' ) ).intersection( [ imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT ] ):
                 return True
                 
         return False
