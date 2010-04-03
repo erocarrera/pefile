@@ -980,6 +980,33 @@ class ExportData(DataContainer):
                 None otherwise.
     """
 
+    def __setattr__(self, name, val):
+
+        # If the instance doesn't yet have an ordinal attribute
+        # it's not fully initialized so can't do any of the
+        # following
+        #
+        if hasattr(self, 'ordinal') and hasattr(self, 'address') and hasattr(self, 'forwarder') and hasattr(self, 'name'):
+        
+            if name == 'ordinal':
+                self.pe.set_word_at_offset( self.ordinal_offset, val )
+            elif name == 'address':
+                self.pe.set_dword_at_offset( self.address_offset, val )
+            elif name == 'name':
+                # Complain if the length of the new name is longer than the existing one
+                if len(val) > len(self.name):
+                    #raise Exception('The export name provided is longer than the existing one.')
+                    pass
+                self.pe.set_bytes_at_offset( self.name_offset, val )
+            elif name == 'forwarder':
+                # Complain if the length of the new name is longer than the existing one
+                if len(val) > len(self.forwarder):
+                    #raise Exception('The forwarder name provided is longer than the existing one.')
+                    pass
+                self.pe.set_bytes_at_offset( self.forwarder_offset, val )
+
+        self.__dict__[name] = val
+
 
 class ResourceDirData(DataContainer):
     """Holds resource directory information.
@@ -2772,9 +2799,8 @@ class PE:
         
         for i in xrange(export_dir.NumberOfNames):
                 
-            
-            symbol_name = self.get_string_at_rva(
-                self.get_dword_from_data(address_of_names, i))
+            symbol_name_address = self.get_dword_from_data(address_of_names, i)
+            symbol_name = self.get_string_at_rva( symbol_name_address )
             
             symbol_ordinal = self.get_word_from_data(
                 address_of_name_ordinals, i)
@@ -2802,10 +2828,15 @@ class PE:
             
             exports.append(
                 ExportData(
+                    pe = self,
                     ordinal = export_dir.Base+symbol_ordinal,
+                    ordinal_offset = self.get_offset_from_rva( export_dir.AddressOfNameOrdinals + 2*i ),
                     address = symbol_address,
+                    address_offset = self.get_offset_from_rva( export_dir.AddressOfFunctions + 4*symbol_ordinal ),
                     name = symbol_name,
-                    forwarder = forwarder_str))
+                    name_offset = self.get_offset_from_rva( symbol_name_address ),
+                    forwarder = forwarder_str,
+                    forwarder_offset = self.get_offset_from_rva( symbol_address ) ))
         
         ordinals = [exp.ordinal for exp in exports]
         
