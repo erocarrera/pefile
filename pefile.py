@@ -846,7 +846,7 @@ class SectionStructure(Structure):
     def contains_offset(self, offset):
         """Check whether the section contains the file offset provided."""
         
-        if not self.PointerToRawData:
+        if self.PointerToRawData is None:
            # bss and other sections containing only uninitialized data must have 0
            # and do not take space in the file
            return False
@@ -961,6 +961,54 @@ class ImportData(DataContainer):
                 the address.
     """
 
+    
+    def __setattr__(self, name, val):
+
+        # If the instance doesn't yet have an ordinal attribute
+        # it's not fully initialized so can't do any of the
+        # following
+        #
+        if hasattr(self, 'ordinal') and hasattr(self, 'bound') and hasattr(self, 'name'):
+        
+            if name == 'ordinal':
+
+                if self.pe.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
+                    ordinal_flag = IMAGE_ORDINAL_FLAG
+                elif self.pe.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
+                    ordinal_flag = IMAGE_ORDINAL_FLAG64
+
+                # Set the ordinal and flag the entry as imporing by ordinal
+                self.struct_table.Ordinal = ordinal_flag | (val & 0xffff)
+                self.struct_table.AddressOfData = self.struct_table.Ordinal
+                self.struct_table.Function = self.struct_table.Ordinal
+                self.struct_table.ForwarderString = self.struct_table.Ordinal
+            elif name == 'bound':
+                if self.struct_iat is not None:
+                    self.struct_iat.AddressOfData = val
+                    self.struct_iat.AddressOfData = self.struct_iat.AddressOfData
+                    self.struct_iat.Function = self.struct_iat.AddressOfData
+                    self.struct_iat.ForwarderString = self.struct_iat.AddressOfData
+            elif name == 'address':
+                self.struct_table.AddressOfData = val
+                self.struct_table.Ordinal = self.struct_table.AddressOfData
+                self.struct_table.Function = self.struct_table.AddressOfData
+                self.struct_table.ForwarderString = self.struct_table.AddressOfData
+            elif name == 'name':
+                # Make sure we reset the entry in case the import had been set to import by ordinal
+                if self.name_offset:
+
+                    name_rva = self.pe.get_rva_from_offset( self.name_offset )
+                    self.pe.set_dword_at_offset( self.ordinal_offset, (0<<31) | name_rva )
+                
+                    # Complain if the length of the new name is longer than the existing one
+                    if len(val) > len(self.name):
+                        #raise Exception('The export name provided is longer than the existing one.')
+                        pass
+                    self.pe.set_bytes_at_offset( self.name_offset, val )
+
+        self.__dict__[name] = val
+        
+        
 class ExportDirData(DataContainer):
     """Holds export directory information.
     
@@ -2959,7 +3007,7 @@ class PE:
             except PEFormatError, excp:
                 self.__warnings.append(
                     'Error parsing the Import directory. ' +
-                    'Invalid Import data at RVA: 0x%x' % ( rva ) )
+                    'Invalid Import data at RVA: 0x%x (%s)' % ( rva, str(excp) ) )
                 break
                 #raise excp
             
@@ -3014,6 +3062,11 @@ class PE:
         else:
             return None
         
+        if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
+            ordinal_flag = IMAGE_ORDINAL_FLAG
+        elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
+            ordinal_flag = IMAGE_ORDINAL_FLAG64
+        
         
         for idx in xrange(len(table)):
             
@@ -3024,17 +3077,13 @@ class PE:
             
             if table[idx].AddressOfData:
                 
-                if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
-                    ordinal_flag = IMAGE_ORDINAL_FLAG
-                elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
-                    ordinal_flag = IMAGE_ORDINAL_FLAG64
-                
                 # If imported by ordinal, we will append the ordinal number
                 #
                 if table[idx].AddressOfData & ordinal_flag:
                     import_by_ordinal = True
                     imp_ord = table[idx].AddressOfData & 0xffff
                     imp_name = None
+                    name_offset = None
                 else:
                     import_by_ordinal = False
                     try:
@@ -3043,14 +3092,17 @@ class PE:
                         # Get the Hint
                         imp_hint = self.get_word_from_data(data, 0)
                         imp_name = self.get_string_at_rva(table[idx].AddressOfData+2)
+                        name_offset = self.get_offset_from_rva(table[idx].AddressOfData+2)
                     except PEFormatError, e:
                         pass
             
-            imp_address = first_thunk+self.OPTIONAL_HEADER.ImageBase+idx*4
+            imp_address = first_thunk + self.OPTIONAL_HEADER.ImageBase + idx * 4
             
+            struct_iat = None
             try:
                 if iat and ilt and ilt[idx].AddressOfData != iat[idx].AddressOfData:
                     imp_bound = iat[idx].AddressOfData
+                    struct_iat = iat[idx]
                 else:
                     imp_bound = None
             except IndexError:
@@ -3069,14 +3121,19 @@ class PE:
             #
             if imp_ord == None and imp_name == None:
                 raise PEFormatError( 'Invalid entries in the Import Table. Aboring parsing.' )
-                    
+            
             if imp_name != '' and (imp_ord or imp_name):
                 imported_symbols.append(
                     ImportData(
+                    pe = self,
+                        struct_table = table[idx],
+                        struct_iat = struct_iat, # for bound imports if any
                         import_by_ordinal = import_by_ordinal,
                         ordinal = imp_ord,
+                        ordinal_offset = table[idx].get_file_offset(),
                         hint = imp_hint,
                         name = imp_name,
+                        name_offset = name_offset,
                         bound = imp_bound,
                         address = imp_address,
                         hint_name_table_rva = hint_name_table_rva))
@@ -3826,9 +3883,7 @@ class PE:
             raise TypeError('data should be of type: str')
         
         if offset >= 0 and offset < len(self.__data__):
-            self.__data__ = ( self.__data__[:offset] +
-                data +
-                self.__data__[offset+len(data):] )
+            self.__data__ = ( self.__data__[:offset] + data + self.__data__[offset+len(data):] )
         else:
             return False
         
