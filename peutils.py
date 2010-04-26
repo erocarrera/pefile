@@ -46,7 +46,7 @@ class SignatureDatabase:
         # RegExp to match a signature block
         #
         self.parse_sig = re.compile(
-            '\[(.*?)\]\s+?signature\s*=\s*(.*?)ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)', re.S)
+            '\[(.*?)\]\s+?signature\s*=\s*(.*?)(\s+\?\?)*\s*ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)', re.S)
         
         # Signature information
         #
@@ -376,7 +376,7 @@ class SignatureDatabase:
         # For each signature, get the details and load it into the
         # signature tree
         #
-        for packer_name, signature, ep_only, section_start_only in matches:
+        for packer_name, signature, superfluous_wildcards, ep_only, section_start_only in matches:
             
             ep_only = ep_only.strip().lower()
             
