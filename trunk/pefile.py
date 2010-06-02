@@ -663,6 +663,12 @@ class Dump:
         return ''.join( self.text )
 
 
+STRUCT_SIZEOF_TYPES = {
+    'x': 1, 'c': 1, 'b': 1, 'B': 1, 
+    'h': 2, 'H': 2, 
+    'i': 4, 'I': 4, 'l': 4, 'L': 4, 'f': 4,
+    'q': 8, 'Q': 8, 'd': 8,
+    's': 1 }
 
 class Structure:
     """Prepare structure object to extract members from data.
@@ -678,6 +684,7 @@ class Structure:
         self.__keys__ = []
         #self.values = {}
         self.__format_length__ = 0
+        self.__field_offsets__ = dict()
         self.__set_format__(format[1])
         self.__all_zeroes__ = False
         self.__unpacked_data_elms__ = None
@@ -691,6 +698,13 @@ class Structure:
     def __get_format__(self):
         return self.__format__
         
+    def get_field_absolute_offset(self, field_name):
+        """Return the offset within the field for the requested field in the structure."""
+        return self.__file_offset__ + self.__field_offsets__[field_name]
+
+    def get_field_relative_offset(self, field_name):
+        """Return the offset within the structure for the requested field."""
+        return self.__field_offsets__[field_name]
     
     def get_file_offset(self):
         return self.__file_offset__
@@ -703,9 +717,18 @@ class Structure:
         
         return self.__all_zeroes__
                 
+    def sizeof_type(self, t):
+        count = 1
+        _t = t
+        if t[0] in string.digits:
+            # extract the count
+            count = int( ''.join([d for d in t if d in string.digits]) )
+            _t = ''.join([d for d in t if d not in string.digits])
+        return STRUCT_SIZEOF_TYPES[_t] * count
     
     def __set_format__(self, format):
         
+        offset = 0
         for elm in format:
             if ',' in elm:
                 elm_type, elm_name = elm.split(',', 1)
@@ -719,6 +742,10 @@ class Structure:
                         occ_count = search_list.count(elm_name)
                         elm_name = elm_name+'_'+str(occ_count)
                     names.append(elm_name)
+                    self.__field_offsets__[elm_name] = offset
+
+                offset += self.sizeof_type(elm_type)
+
                 # Some PE header structures have unions on them, so a certain
                 # value might have different names, so each key has a list of
                 # all the possible members referring to the data.
@@ -807,7 +834,9 @@ class Structure:
                 else:
                     val_str = ''.join(filter(lambda c:c != '\0', str(val)))
                 
-                dump.append('%-30s %s' % (key+':', val_str))
+                dump.append('0x%-8X 0x%-3X %-30s %s' % (
+                    self.__field_offsets__[key] + self.__file_offset__, 
+                    self.__field_offsets__[key], key+':', val_str))
         
         return dump
 
@@ -3022,6 +3051,22 @@ class PE:
                         imports = import_data,
                         dll = dll))
         
+        suspicious_imports = set([ 'LoadLibrary', 'GetProcAddress' ])
+        suspicious_imports_count = 0
+        total_symbols = 0
+        for imp_dll in import_descs:
+            for symbol in imp_dll.imports:
+                for suspicious_symbol in suspicious_imports:
+                    if symbol and symbol.name and symbol.name.startswith( suspicious_symbol ):
+                        suspicious_imports_count += 1
+                        break
+                total_symbols += 1
+        if suspicious_imports_count == len(suspicious_imports) and total_symbols < 20:
+            self.__warnings.append(
+                'Imported symbols contain entries typical of packed executables.' )
+            
+            
+        
         return import_descs
 
     
@@ -3073,6 +3118,7 @@ class PE:
             imp_ord = None
             imp_hint = None
             imp_name = None
+            name_offset = None
             hint_name_table_rva = None
             
             if table[idx].AddressOfData:
