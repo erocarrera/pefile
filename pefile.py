@@ -2860,13 +2860,20 @@ class PE:
         if not export_dir:
             return
         
+        # We keep track of the bytes left in the file and use it to set a upper
+        # bound in the number of items that can be read from the different
+        # arrays
+        #
+        def length_until_eof(rva):
+            return len(self.__data__) - self.get_offset_from_rva(rva)
+        
         try:
             address_of_names = self.get_data(
-                export_dir.AddressOfNames, export_dir.NumberOfNames*4)
+                export_dir.AddressOfNames, min( length_until_eof(export_dir.AddressOfNames), export_dir.NumberOfNames*4))
             address_of_name_ordinals = self.get_data(
-                export_dir.AddressOfNameOrdinals, export_dir.NumberOfNames*4)
+                export_dir.AddressOfNameOrdinals, min( length_until_eof(export_dir.AddressOfNameOrdinals), export_dir.NumberOfNames*4) )
             address_of_functions = self.get_data(
-                export_dir.AddressOfFunctions, export_dir.NumberOfFunctions*4)
+                export_dir.AddressOfFunctions, min( length_until_eof(export_dir.AddressOfFunctions), export_dir.NumberOfFunctions*4) )
         except PEFormatError:
             self.__warnings.append(
                 'Error parsing export directory at RVA: 0x%x' % ( rva ) )
@@ -2874,7 +2881,7 @@ class PE:
         
         exports = []
         
-        for i in xrange(export_dir.NumberOfNames):
+        for i in xrange( min( export_dir.NumberOfNames, length_until_eof(export_dir.AddressOfNames)/4) ):
                 
             symbol_name_address = self.get_dword_from_data(address_of_names, i)
             symbol_name = self.get_string_at_rva( symbol_name_address )
@@ -2917,7 +2924,7 @@ class PE:
         
         ordinals = [exp.ordinal for exp in exports]
         
-        for idx in xrange(export_dir.NumberOfFunctions):
+        for idx in xrange( min(export_dir.NumberOfFunctions, length_until_eof(export_dir.AddressOfFunctions)/4) ):
             
             if not idx+export_dir.Base in ordinals:
                 symbol_address = self.get_dword_from_data(
@@ -3166,7 +3173,7 @@ class PE:
             # table the parsing will be aborted
             #
             if imp_ord == None and imp_name == None:
-                raise PEFormatError( 'Invalid entries in the Import Table. Aboring parsing.' )
+                raise PEFormatError( 'Invalid entries in the Import Table. Aborting parsing.' )
             
             if imp_name != '' and (imp_ord or imp_name):
                 imported_symbols.append(
