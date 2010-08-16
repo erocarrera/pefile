@@ -495,14 +495,14 @@ for sublang_name, sublang_value in sublang:
 # Resolve a sublang name given the main lang name
 #
 def get_sublang_name_for_lang( lang_value, sublang_value ):
-    lang_name = LANG[lang_value]
-    for sublang_name in SUBLANG[sublang_value]:
+    lang_name = LANG.get(lang_value, '*unknown*')
+    for sublang_name in SUBLANG.get(sublang_value, list()):
         # if the main language is a substring of sublang's name, then 
         # return that
         if lang_name in sublang_name:
             return sublang_name
     # otherwise return the first sublang name
-    return SUBLANG[sublang_value][0]
+    return SUBLANG.get(sublang_value, ['*unknown*'])[0]
 
 
 class UnicodeStringWrapperPostProcessor:
@@ -2679,7 +2679,7 @@ class PE:
             
             # Parse a StringFileInfo entry
             #
-            if stringfileinfo_string.startswith(u'StringFileInfo'):
+            if stringfileinfo_string and stringfileinfo_string.startswith(u'StringFileInfo'):
                 
                 if stringfileinfo_struct.Type == 1 and stringfileinfo_struct.ValueLength == 0:
                     
@@ -2802,7 +2802,7 @@ class PE:
             
             # Parse a VarFileInfo entry
             #
-            elif stringfileinfo_string.startswith( u'VarFileInfo' ):
+            elif stringfileinfo_string and stringfileinfo_string.startswith( u'VarFileInfo' ):
                 
                 varfileinfo_struct = stringfileinfo_struct
                 varfileinfo_struct.name = 'VarFileInfo'
@@ -3748,7 +3748,8 @@ class PE:
                                 dump.add_line('\\--- LANG [%d,%d][%s,%s]' % (
                                     resource_lang.data.lang,
                                     resource_lang.data.sublang,
-                                    LANG[resource_lang.data.lang], get_sublang_name_for_lang( resource_lang.data.lang, resource_lang.data.sublang ) ), 8)
+                                    LANG.get(resource_lang.data.lang, '*unknown*'), 
+                                    get_sublang_name_for_lang( resource_lang.data.lang, resource_lang.data.sublang ) ), 8)
                                 dump.add_lines(resource_lang.struct.dump(), 10)
                                 dump.add_lines(resource_lang.data.struct.dump(), 12)
                 dump.add_newline()
