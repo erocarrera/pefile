@@ -483,6 +483,27 @@ sublang =  [
 
 SUBLANG = dict(sublang+[(e[1], e[0]) for e in sublang])
 
+# Initialize the dictionary with all the name->value pairs
+SUBLANG = dict( sublang )
+# Now add all the value->name information, handling duplicates appropriately
+for sublang_name, sublang_value in sublang:
+    if SUBLANG.has_key( sublang_value ):
+        SUBLANG[ sublang_value ].append( sublang_name )
+    else:
+        SUBLANG[ sublang_value ] = [ sublang_name ]
+        
+# Resolve a sublang name given the main lang name
+#
+def get_sublang_name_for_lang( lang_value, sublang_value ):
+    lang_name = LANG[lang_value]
+    for sublang_name in SUBLANG[sublang_value]:
+        # if the main language is a substring of sublang's name, then 
+        # return that
+        if lang_name in sublang_name:
+            return sublang_name
+    # otherwise return the first sublang name
+    return SUBLANG[sublang_value][0]
+
 
 class UnicodeStringWrapperPostProcessor:
     """This class attempts to help the process of identifying strings
@@ -1206,6 +1227,34 @@ class BoundImportRefData(DataContainer):
     struct:     IMAGE_BOUND_FORWARDER_REF structure
     name:       dll name
     """
+
+
+# Valid FAT32 8.3 short filename characters according to:
+#  http://en.wikipedia.org/wiki/8.3_filename
+# This will help decide whether DLL ASCII names are likely
+# to be valid of otherwise corruted data
+#
+# The flename length is not checked because the DLLs filename
+# can be longer that the 8.3
+allowed_filename = string.lowercase + string.uppercase + string.digits + "!#$%&'()-@^_`{}~+,.;=[]" + ''.join( [chr(i) for i in range(128, 256)] )
+def is_valid_dos_filename(s):
+    for c in s:
+        if c not in allowed_filename:
+            return False
+    return True
+
+
+# Check if a imported name uses the valid accepted characters expected in mangled
+# function names. If the symbol's characters don't fall within this charset
+# we will assume the name is invalid
+#
+allowed_function_name = string.lowercase + string.uppercase + string.digits + '_?@$()'
+def is_valid_function_name(s):
+    for c in s:
+        if c not in allowed_function_name:
+            return False
+    return True
+
 
 
 class PE:
@@ -2396,8 +2445,8 @@ class PE:
                 if struct:
                     entry_data = ResourceDataEntryData(
                         struct = struct,
-                        lang = res.Name & 0xff,
-                        sublang = (res.Name>>8) & 0xff)
+                        lang = res.Name & 0x3ff,
+                        sublang = res.Name >> 10 )
                     
                     dir_entries.append(
                         ResourceDirEntryData(
@@ -3000,6 +3049,9 @@ class PE:
             
             
             dll = self.get_string_at_rva(import_desc.szName)
+            if not is_valid_dos_filename(dll):
+                dll = '*invalid*'
+
             if dll:
                 import_descs.append(
                     ImportDescData(
@@ -3051,6 +3103,9 @@ class PE:
                 continue
             
             dll = self.get_string_at_rva(import_desc.Name)
+            if not is_valid_dos_filename(dll):
+                dll = '*invalid*'
+                
             if dll:
                 import_descs.append(
                     ImportDescData(
@@ -3119,7 +3174,6 @@ class PE:
         elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
             ordinal_flag = IMAGE_ORDINAL_FLAG64
         
-        
         for idx in xrange(len(table)):
             
             imp_ord = None
@@ -3145,6 +3199,9 @@ class PE:
                         # Get the Hint
                         imp_hint = self.get_word_from_data(data, 0)
                         imp_name = self.get_string_at_rva(table[idx].AddressOfData+2)
+                        if not is_valid_function_name(imp_name):
+                            imp_name = '*invalid*'
+                        
                         name_offset = self.get_offset_from_rva(table[idx].AddressOfData+2)
                     except PEFormatError, e:
                         pass
@@ -3153,6 +3210,7 @@ class PE:
             
             struct_iat = None
             try:
+                
                 if iat and ilt and ilt[idx].AddressOfData != iat[idx].AddressOfData:
                     imp_bound = iat[idx].AddressOfData
                     struct_iat = iat[idx]
@@ -3198,9 +3256,17 @@ class PE:
     def get_import_table(self, rva):
         
         table = []
-        
+
+        # We need the ordinal flag for a simple heuristic
+        # we're implementing within the loop
+        #
+        if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
+            ordinal_flag = IMAGE_ORDINAL_FLAG
+        elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
+            ordinal_flag = IMAGE_ORDINAL_FLAG64
+
         while True and rva:
-            
+
             if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
                 format = self.__IMAGE_THUNK_DATA_format__
             elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
@@ -3216,7 +3282,15 @@ class PE:
             
             thunk_data = self.__unpack_data__(
                 format, data, file_offset=self.get_offset_from_rva(rva) )
-            
+
+            if thunk_data and thunk_data.AddressOfData:
+                # If the entry looks like could be an ordinal...
+                if thunk_data.AddressOfData & ordinal_flag:
+                    # But its value is beyond 2^16, we will assume it's a
+                    # corrupted and ignore it altogether
+                    if thunk_data.AddressOfData & 0x7fffffff > 0xffff:
+                        return []
+
             if not thunk_data or thunk_data.all_zeroes():
                 break
             
@@ -3671,10 +3745,10 @@ class PE:
                             dump.add_lines(resource_id.directory.struct.dump(), 8)
                             
                             for resource_lang in resource_id.directory.entries:
-                            #    dump.add_line('\\--- LANG [%d,%d][%s]' % (
-                            #        resource_lang.data.lang,
-                            #        resource_lang.data.sublang,
-                            #        LANG[resource_lang.data.lang]), 8)
+                                dump.add_line('\\--- LANG [%d,%d][%s,%s]' % (
+                                    resource_lang.data.lang,
+                                    resource_lang.data.sublang,
+                                    LANG[resource_lang.data.lang], get_sublang_name_for_lang( resource_lang.data.lang, resource_lang.data.sublang ) ), 8)
                                 dump.add_lines(resource_lang.struct.dump(), 10)
                                 dump.add_lines(resource_lang.data.struct.dump(), 12)
                 dump.add_newline()
