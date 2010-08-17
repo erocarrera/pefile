@@ -1806,7 +1806,73 @@ class PE:
         
         if not fast_load:
             self.parse_data_directories()
-    
+            
+            class RichHeader:
+                pass
+            rich_header = self.parse_rich_header()
+            if rich_header:
+                self.RICH_HEADER = RichHeader()
+                self.RICH_HEADER.checksum = rich_header.get('checksum', None)
+                self.RICH_HEADER.values = rich_header.get('values', None)
+            else:
+                self.RICH_HEADER = None
+
+
+    def parse_rich_header(self):
+        """Parses the rich header
+        see http://www.ntcore.com/files/richsign.htm for more information
+        
+        Structure:
+        00 DanS ^ checksum, checksum, checksum, checksum
+        10 Symbol RVA ^ checksum, Symbol size ^ checksum...
+        ...
+        XX Rich, checksum, 0, 0,...
+        """
+        
+        # Rich Header constants
+        #
+        DANS = 0x536E6144 # 'DanS' as dword
+        RICH = 0x68636952 # 'Rich' as dword
+        
+        # Read a block of data
+        #
+        try:
+            data = list(struct.unpack("<32I", self.get_data(0x80, 0x80)))
+        except:
+            # In the cases where there's not enough data to contain the Rich header
+            # we abort its parsing
+            return None
+
+        # the checksum should be present 3 times after the DanS signature
+        #
+        checksum = data[1]
+        if (data[0] ^ checksum != DANS
+            or data[2] != checksum
+            or data[3] != checksum):
+            return None
+
+        result = {"checksum": checksum}
+        headervalues = []
+        result ["values"] = headervalues
+
+        data = data[4:] 
+        for i in xrange(len(data) / 2):
+            
+            # Stop until the Rich footer signature is found
+            #
+            if data[2 * i] == RICH:
+                
+                # it should be followed by the checksum
+                #
+                if data[2 * i + 1] != checksum:
+                    self.__warnings.append('Rich Header corrupted')
+                break
+            
+            # header values come by pairs
+            #
+            headervalues += [data[2 * i] ^ checksum, data[2 * i + 1] ^ checksum]
+        return result
+        
     
     def get_warnings(self):
         """Return the list of warnings.
