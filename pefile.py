@@ -3271,7 +3271,11 @@ class PE:
                         name_offset = self.get_offset_from_rva(table[idx].AddressOfData+2)
                     except PEFormatError, e:
                         pass
-            
+
+                # by nriva: we want the ThunkRVA and ThunkOffset
+                thunk_offset = table[idx].get_file_offset()
+                thunk_rva = self.get_rva_from_offset(thunk_offset)
+                
             imp_address = first_thunk + self.OPTIONAL_HEADER.ImageBase + idx * 4
             
             struct_iat = None
@@ -3313,7 +3317,9 @@ class PE:
                         name_offset = name_offset,
                         bound = imp_bound,
                         address = imp_address,
-                        hint_name_table_rva = hint_name_table_rva))
+                        hint_name_table_rva = hint_name_table_rva,
+                        thunk_offset = thunk_offset,
+                        thunk_rva = thunk_rva ))
         
         return imported_symbols
 
