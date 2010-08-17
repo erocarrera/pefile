@@ -3404,7 +3404,8 @@ class PE:
             self.relocate_image(ImageBase)
             
         # Collect all sections in one code block
-        mapped_data = self.header
+        #mapped_data = self.header
+        mapped_data = ''+self.__data__
         for section in self.sections:
             
             # Miscellaneous integrity tests.
