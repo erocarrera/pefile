@@ -3451,13 +3451,26 @@ class PE:
         
         s = self.get_section_by_rva(rva)
         
+        if length:
+            end = rva + length
+        else:
+            end = None
+
         if not s:
             if rva<len(self.header):
-                if length:
-                    end = rva+length
-                else:
-                    end = None
                 return self.header[rva:end]
+            
+            # Before we give up we check whether the file might
+            # contain the data anyway. There are cases of PE files
+            # without sections that rely on windows loading the first
+            # 8291 bytes into memory and assume the data will be
+            # there
+            # A functional file with these characteristics is:
+            # MD5: 0008892cdfbc3bda5ce047c565e52295
+            # SHA-1: c7116b9ff950f86af256defb95b5d4859d4752a9
+            #
+            if rva < len(self.__data__):
+                return self.__data__[rva:end]
             
             raise PEFormatError, 'data at RVA can\'t be fetched. Corrupt header?'
         
@@ -3481,7 +3494,14 @@ class PE:
         
         s = self.get_section_by_rva(rva)
         if not s:
-            
+
+            # If not found within a section assume it might
+            # point to overlay data or otherwise data present
+            # but not contained in any section. In those
+            # cases the RVA should equal the offset
+            if rva<len(self.__data__):
+                return rva
+                
             raise PEFormatError, 'data at RVA can\'t be fetched. Corrupt header?'
         
         return s.get_offset_from_rva(rva)
