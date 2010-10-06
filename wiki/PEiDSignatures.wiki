@@ -37,7 +37,9 @@ signatures = peutils.SignatureDatabase('http://url.to/signature/file.txt')
   * And finally, directly from data (for instance, if we have already read and loaded the contents of a database)
 
 {{{
-signatures = peutils.SignatureDatabase(data='/path/to/signature/file.txt')
+with file('/path/to/signature/file.txt', 'rt') as f: 
+    sig_data = f.read()
+signatures = peutils.SignatureDatabase(data=sig_data)
 }}}
 
 It's also possible to aggregate more signatures to an already created instance by just using the _load()_ method:
