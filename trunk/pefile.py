@@ -12,7 +12,7 @@ pefile has been tested against the limits of valid PE headers, that is, malware.
 Lots of packed malware attempt to abuse the format way beyond its standard use.
 To the best of my knowledge most of the abuses are handled gracefully.
 
-Copyright (c) 2005, 2006, 2007, 2008, 2009 Ero Carrera <ero@dkbza.org>
+Copyright (c) 2005-2010 Ero Carrera <ero@dkbza.org>
 
 All rights reserved.
 
@@ -34,6 +34,7 @@ import re
 import exceptions
 import string
 import array
+import mmap
 
 sha1, sha256, sha512, md5 = None, None, None, None
 
@@ -55,8 +56,20 @@ except ImportError:
     except ImportError:
         pass
 
+try:
+    enumerate
+except NameError:
+    def enumerate(iter):
+        L = list(iter)
+        return zip(range(0, len(L)), L)
+
 
 fast_load = False
+
+# This will set a maximum length of a string to be retrieved from the file.
+# It's there to prevent loading massive amounts of data from memory mapped
+# files. Strings longer than 1MB should be rather rare.
+MAX_STRING_LENGTH = 0x100000 # 2^20 
 
 IMAGE_DOS_SIGNATURE             = 0x5A4D
 IMAGE_OS2_SIGNATURE             = 0x454E
@@ -505,6 +518,36 @@ def get_sublang_name_for_lang( lang_value, sublang_value ):
     return SUBLANG.get(sublang_value, ['*unknown*'])[0]
 
 
+
+def retrieve_flags(flag_dict, flag_filter):
+    """Read the flags from a dictionary and return them in a usable form.
+    
+    Will return a list of (flag, value) for all flags in "flag_dict"
+    matching the filter "flag_filter".
+    """
+    
+    return [(f[0], f[1]) for f in flag_dict.items() if
+            isinstance(f[0], str) and f[0].startswith(flag_filter)]
+
+
+def set_flags(obj, flag_field, flags):
+    """Will process the flags and set attributes in the object accordingly.
+
+    The object "obj" will gain attributes named after the flags provided in
+    "flags" and valued True/False, matching the results of applying each
+    flag value from "flags" to flag_field.
+    """
+
+    for flag in flags:
+        if flag[1] & flag_field:
+            #setattr(obj, flag[0], True)
+            obj.__dict__[flag[0]] = True
+        else:
+            #setattr(obj, flag[0], False)
+            obj.__dict__[flag[0]] = False
+
+
+
 class UnicodeStringWrapperPostProcessor:
     """This class attempts to help the process of identifying strings
     that might be plain Unicode or Pascal. A list of strings will be
@@ -791,7 +834,7 @@ class Structure:
         # Fail gracefully if this occurs
         # Buggy malware: a29b0118af8b7408444df81701ad5a7f
         #
-        elif len(data)<self.__format_length__:
+        elif len(data) < self.__format_length__:
             raise PEFormatError('Data length less than expected header length.')
             
         
@@ -866,7 +909,14 @@ class Structure:
 class SectionStructure(Structure):
     """Convenience section handling class."""
     
-    def get_data(self, start, length=None):
+    def __init__(self, *argl, **argd):
+        if 'pe' in argd:
+            self.pe = argd['pe']
+            del argd['pe']
+            
+        Structure.__init__(self, *argl, **argd)
+        
+    def get_data(self, start=None, length=None):
         """Get data chunk from a section.
         
         Allows to query data from the section by passing the
@@ -875,14 +925,38 @@ class SectionStructure(Structure):
         addresses as it would be if loaded.
         """
         
-        offset = start - self.VirtualAddress
-        
-        if length:
-            end = offset+length
+        if start is None:
+            offset = self.PointerToRawData
         else:
-            end = len(self.data)
+            #offset = start - self.VirtualAddress
+            offset = ( start - self.VirtualAddress) + self.PointerToRawData
         
-        return self.data[offset:end]
+        if length is not None:
+            end = offset + length
+        else:
+            end = offset + self.SizeOfRawData
+            
+        if end > self.PointerToRawData + self.SizeOfRawData:
+            end = self.PointerToRawData + self.SizeOfRawData
+        
+        return self.pe.__data__[offset:end]
+    
+    
+    def __setattr__(self, name, val):
+    
+        if name == 'Characteristics':
+            section_flags = retrieve_flags(SECTION_CHARACTERISTICS, 'IMAGE_SCN_')
+            
+            # Set the section's flags according the the Characteristics member
+            set_flags(self, val, section_flags)
+            
+        elif 'IMAGE_SCN_' in name and hasattr(self, name):
+            if val:
+                self.__dict__['Characteristics'] |= SECTION_CHARACTERISTICS[name]
+            else:
+                self.__dict__['Characteristics'] ^= SECTION_CHARACTERISTICS[name]
+                
+        self.__dict__[name] = val
     
     
     def get_rva_from_offset(self, offset):
@@ -912,56 +986,63 @@ class SectionStructure(Structure):
         # This field is valid only for executable images and should be set to zero
         # for object files.
         
-        if len(self.data) < self.SizeOfRawData:
+        
+        # Check if the SizeOfRawData is realistic. If it's bigger than the size of
+        # the whole PE file minus the start address of the section it could be
+        # either truncated or the SizeOfRawData contain a misleading value.
+        # In either of those cases we take the VirtualSize
+        #
+        if len(self.pe.__data__) - self.PointerToRawData < self.SizeOfRawData:
             size = self.Misc_VirtualSize
         else:
             size = max(self.SizeOfRawData, self.Misc_VirtualSize)
         
         return self.VirtualAddress <= rva < self.VirtualAddress + size
     
+    
     def contains(self, rva):
         #print "DEPRECATION WARNING: you should use contains_rva() instead of contains()"
         return self.contains_rva(rva)
     
     
-    def set_data(self, data):
-        """Set the data belonging to the section."""
-        
-        self.data = data
+    #def set_data(self, data):
+    #    """Set the data belonging to the section."""
+    #    
+    #    self.data = data
         
     
     def get_entropy(self):
         """Calculate and return the entropy for the section."""
         
-        return self.entropy_H( self.data )
+        return self.entropy_H( self.get_data() )
     
     
     def get_hash_sha1(self):
         """Get the SHA-1 hex-digest of the section's data."""
         
         if sha1 is not None:
-            return sha1( self.data ).hexdigest()
+            return sha1( self.get_data() ).hexdigest()
     
     
     def get_hash_sha256(self):
         """Get the SHA-256 hex-digest of the section's data."""
         
         if sha256 is not None:
-            return sha256( self.data ).hexdigest()
+            return sha256( self.get_data() ).hexdigest()
     
     
     def get_hash_sha512(self):
         """Get the SHA-512 hex-digest of the section's data."""
         
         if sha512 is not None:
-            return sha512( self.data ).hexdigest()
+            return sha512( self.get_data() ).hexdigest()
     
     
     def get_hash_md5(self):
         """Get the MD5 hex-digest of the section's data."""
         
         if md5 is not None:
-            return md5( self.data ).hexdigest()
+            return md5( self.get_data() ).hexdigest()
     
     
     def entropy_H(self, data):
@@ -1521,6 +1602,7 @@ class PE:
         self.__parse__(name, data, fast_load)
         
     
+    
     def __unpack_data__(self, format, data, file_offset):
         """Apply structure format to raw data.
         
@@ -1551,7 +1633,8 @@ class PE:
         
         if fname:
             fd = file(fname, 'rb')
-            self.__data__ = fd.read()
+            self.fileno = fd.fileno()
+            self.__data__ = mmap.mmap( self.fileno, 0, access = mmap.ACCESS_READ  )
             fd.close()
         elif data:
             self.__data__ = data
@@ -1574,7 +1657,7 @@ class PE:
         
         self.NT_HEADERS = self.__unpack_data__(
             self.__IMAGE_NT_HEADERS_format__,
-            self.__data__[nt_headers_offset:],
+            self.__data__[nt_headers_offset:nt_headers_offset+8],
             file_offset = nt_headers_offset)
         
         # We better check the signature right here, before the file screws
@@ -1589,15 +1672,15 @@ class PE:
         
         self.FILE_HEADER = self.__unpack_data__(
             self.__IMAGE_FILE_HEADER_format__,
-            self.__data__[nt_headers_offset+4:],
+            self.__data__[nt_headers_offset+4:nt_headers_offset+4+32],
             file_offset = nt_headers_offset+4)
-        image_flags = self.retrieve_flags(IMAGE_CHARACTERISTICS, 'IMAGE_FILE_')
+        image_flags = retrieve_flags(IMAGE_CHARACTERISTICS, 'IMAGE_FILE_')
         
         if not self.FILE_HEADER:
             raise PEFormatError('File Header missing')
         
         # Set the image's flags according the the Characteristics member
-        self.set_flags(self.FILE_HEADER, self.FILE_HEADER.Characteristics, image_flags)
+        set_flags(self.FILE_HEADER, self.FILE_HEADER.Characteristics, image_flags)
         
         optional_header_offset =    \
             nt_headers_offset+4+self.FILE_HEADER.sizeof()
@@ -1622,7 +1705,7 @@ class PE:
         MINIMUM_VALID_OPTIONAL_HEADER_RAW_SIZE = 69
         
         if ( self.OPTIONAL_HEADER is None and
-            len(self.__data__[optional_header_offset:])
+            len(self.__data__[optional_header_offset:optional_header_offset+0x200])
                 >= MINIMUM_VALID_OPTIONAL_HEADER_RAW_SIZE ):
             
             # Add enough zeroes to make up for the unused fields
@@ -1631,7 +1714,7 @@ class PE:
             
             # Create padding
             #
-            padded_data = self.__data__[optional_header_offset:] + (
+            padded_data = self.__data__[optional_header_offset:optional_header_offset+0x200] + (
                 '\0' * padding_length)
             
             self.OPTIONAL_HEADER = self.__unpack_data__(
@@ -1655,7 +1738,7 @@ class PE:
                 
                 self.OPTIONAL_HEADER = self.__unpack_data__(
                     self.__IMAGE_OPTIONAL_HEADER64_format__,
-                    self.__data__[optional_header_offset:],
+                    self.__data__[optional_header_offset:optional_header_offset+0x200],
                     file_offset = optional_header_offset)
                 
                 # Again, as explained above, we try to parse
@@ -1666,11 +1749,11 @@ class PE:
                 MINIMUM_VALID_OPTIONAL_HEADER_RAW_SIZE = 69+4
                 
                 if ( self.OPTIONAL_HEADER is None and
-                    len(self.__data__[optional_header_offset:])
+                    len(self.__data__[optional_header_offset:optional_header_offset+0x200])
                         >= MINIMUM_VALID_OPTIONAL_HEADER_RAW_SIZE ):
                     
                     padding_length = 128
-                    padded_data = self.__data__[optional_header_offset:] + (
+                    padded_data = self.__data__[optional_header_offset:optional_header_offset+0x200] + (
                         '\0' * padding_length)
                     self.OPTIONAL_HEADER = self.__unpack_data__(
                         self.__IMAGE_OPTIONAL_HEADER64_format__,
@@ -1688,10 +1771,10 @@ class PE:
         if self.PE_TYPE is None or self.OPTIONAL_HEADER is None:
             raise PEFormatError("No Optional Header found, invalid PE32 or PE32+ file")
         
-        dll_characteristics_flags = self.retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLL_CHARACTERISTICS_')
+        dll_characteristics_flags = retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLL_CHARACTERISTICS_')
         
         # Set the Dll Characteristics flags according the the DllCharacteristics member
-        self.set_flags(
+        set_flags(
             self.OPTIONAL_HEADER,
             self.OPTIONAL_HEADER.DllCharacteristics,
             dll_characteristics_flags)
@@ -1715,15 +1798,16 @@ class PE:
                 'Normal values are never larger than 0x10, the value is: 0x%x' %
                 self.OPTIONAL_HEADER.NumberOfRvaAndSizes )
         
+        MAX_ASSUMED_VALID_NUMBER_OF_RVA_AND_SIZES = 0x100
         for i in xrange(int(0x7fffffffL & self.OPTIONAL_HEADER.NumberOfRvaAndSizes)):
             
-            if len(self.__data__[offset:]) == 0:
+            if len(self.__data__) - offset == 0:
                 break
             
-            if len(self.__data__[offset:]) < 8:
-                data = self.__data__[offset:]+'\0'*8
+            if len(self.__data__) - offset < 8:
+                data = self.__data__[offset:] + '\0'*8
             else:
-                data = self.__data__[offset:]
+                data = self.__data__[offset:offset+MAX_ASSUMED_VALID_NUMBER_OF_RVA_AND_SIZES]
             
             dir_entry = self.__unpack_data__(
                 self.__IMAGE_DATA_DIRECTORY_format__,
@@ -1994,12 +2078,12 @@ class PE:
         self.sections = []
         
         for i in xrange(self.FILE_HEADER.NumberOfSections):
-            section = SectionStructure(self.__IMAGE_SECTION_HEADER_format__)
+            section = SectionStructure( self.__IMAGE_SECTION_HEADER_format__, pe=self )
             if not section:
                 break
             section_offset = offset + section.sizeof() * i
             section.set_file_offset(section_offset)
-            section.__unpack__(self.__data__[section_offset:])
+            section.__unpack__(self.__data__[section_offset : section_offset + section.sizeof()])
             self.__structures__.append(section)
             
             if section.SizeOfRawData > len(self.__data__):
@@ -2032,7 +2116,7 @@ class PE:
             #
             
             #alignment = self.OPTIONAL_HEADER.FileAlignment
-            self.update_section_data(section)
+            #self.update_section_data(section)
             
             if ( self.OPTIONAL_HEADER.FileAlignment != 0 and
                 (section.PointerToRawData % self.OPTIONAL_HEADER.FileAlignment) != 0):
@@ -2044,10 +2128,10 @@ class PE:
                     'is trying to confuse tools which parse this incorrectly')
             
             
-            section_flags = self.retrieve_flags(SECTION_CHARACTERISTICS, 'IMAGE_SCN_')
+            section_flags = retrieve_flags(SECTION_CHARACTERISTICS, 'IMAGE_SCN_')
             
             # Set the section's flags according the the Characteristics member
-            self.set_flags(section, section.Characteristics, section_flags)
+            set_flags(section, section.Characteristics, section_flags)
             
             if ( section.__dict__.get('IMAGE_SCN_MEM_WRITE', False)  and
                 section.__dict__.get('IMAGE_SCN_MEM_EXECUTE', False) ):
@@ -2064,31 +2148,6 @@ class PE:
         else:
             return offset
         
-    
-    def retrieve_flags(self, flag_dict, flag_filter):
-        """Read the flags from a dictionary and return them in a usable form.
-        
-        Will return a list of (flag, value) for all flags in "flag_dict"
-        matching the filter "flag_filter".
-        """
-        
-        return [(f[0], f[1]) for f in flag_dict.items() if
-                isinstance(f[0], str) and f[0].startswith(flag_filter)]
-                
-    
-    def set_flags(self, obj, flag_field, flags):
-        """Will process the flags and set attributes in the object accordingly.
-        
-        The object "obj" will gain attributes named after the flags provided in
-        "flags" and valued True/False, matching the results of applying each
-        flag value from "flags" to flag_field.
-        """
-        
-        for flag in flags:
-            if flag[1] & flag_field:
-                setattr(obj, flag[0], True)
-            else:
-                setattr(obj, flag[0], False)
     
     
     def parse_data_directories(self, directories=None):
@@ -2195,17 +2254,19 @@ class PE:
                         "IMAGE_BOUND_FORWARDER_REF cannot be read")
                 rva += bnd_frwd_ref.sizeof()
                 
+                offset = start+bnd_frwd_ref.OffsetModuleName
                 name_str =  self.get_string_from_data(
-                    start+bnd_frwd_ref.OffsetModuleName, self.__data__)
+                    0, self.__data__[offset : offset + MAX_STRING_LENGTH])
                 
                 if not name_str:
                     break
                 forwarder_refs.append(BoundImportRefData(
                     struct = bnd_frwd_ref,
                     name = name_str))
-            
+                    
+            offset = start+bnd_descr.OffsetModuleName
             name_str = self.get_string_from_data(
-                start+bnd_descr.OffsetModuleName, self.__data__)
+                0, self.__data__[offset : offset + MAX_STRING_LENGTH])
             
             if not name_str:
                 break
@@ -2582,10 +2643,15 @@ class PE:
     
     def parse_resource_entry(self, rva):
         """Parse a directory entry from the resources directory."""
-        
+
+        try:
+            data = self.get_data( rva, Structure(self.__IMAGE_RESOURCE_DIRECTORY_ENTRY_format__).sizeof() )
+        except PEFormatError, excp:
+            # A warning will be added by the caller if this method returns None
+            return None
+
         resource = self.__unpack_data__(
-            self.__IMAGE_RESOURCE_DIRECTORY_ENTRY_format__, 
-            self.get_data( rva, Structure(self.__IMAGE_RESOURCE_DIRECTORY_ENTRY_format__).sizeof() ),
+            self.__IMAGE_RESOURCE_DIRECTORY_ENTRY_format__, data,
             file_offset = self.get_offset_from_rva(rva) )
         
         if resource is None:
@@ -3431,7 +3497,7 @@ class PE:
             elif padding_length<0:
                 mapped_data = mapped_data[:padding_length]
             
-            mapped_data += section.data
+            mapped_data += section.get_data()
             
         # If the image was rebased, restore it to its original form
         #
@@ -3517,7 +3583,7 @@ class PE:
                 return self.get_string_from_data(rva, self.header)
             return None
         
-        return self.get_string_from_data(rva-s.VirtualAddress, s.data)
+        return self.get_string_from_data( 0, s.get_data(rva, length=MAX_STRING_LENGTH) )
         
     
     def get_string_from_data(self, offset, data):
@@ -3625,7 +3691,7 @@ class PE:
         dump.add_header('FILE_HEADER')
         dump.add_lines(self.FILE_HEADER.dump())
         
-        image_flags = self.retrieve_flags(IMAGE_CHARACTERISTICS, 'IMAGE_FILE_')
+        image_flags = retrieve_flags(IMAGE_CHARACTERISTICS, 'IMAGE_FILE_')
         
         dump.add('Flags: ')
         flags = []
@@ -3639,7 +3705,7 @@ class PE:
             dump.add_header('OPTIONAL_HEADER')
             dump.add_lines(self.OPTIONAL_HEADER.dump())
         
-        dll_characteristics_flags = self.retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLL_CHARACTERISTICS_')
+        dll_characteristics_flags = retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLL_CHARACTERISTICS_')
         
         dump.add('DllCharacteristics: ')
         flags = []
@@ -3652,7 +3718,7 @@ class PE:
         
         dump.add_header('PE Sections')
         
-        section_flags = self.retrieve_flags(SECTION_CHARACTERISTICS, 'IMAGE_SCN_')
+        section_flags = retrieve_flags(SECTION_CHARACTERISTICS, 'IMAGE_SCN_')
         
         for section in self.sections:
             dump.add_lines(section.dump())
@@ -4112,31 +4178,16 @@ class PE:
         
         return True
     
-    
-    def update_all_section_data(self):
-        """Refresh the data of all section in the file.
-        
-        Will call update_section_data() for each section in the file.
-        """
+
+    def merge_modified_section_data(self):
+        """Update the PE image content with any individual section data that has been modified."""
         
         for section in self.sections:
-            self.update_section_data(section)
-    
-    
-    def update_section_data(self, section):
-        """Update the section data with any data updated in the file.
+            section_data_start = section.PointerToRawData
+            section_data_end = section_data_start+section.SizeOfRawData
+            if section_data_start < len(self.__data__) and section_data_end < len(self.__data__):
+                self.__data__ = self.__data__[:section_data_start] + section.get_data() + self.__data__[section_data_end:]
         
-        If the file's data is modified, the section's data can be refreshed
-        by invoking this method.
-        """
-        
-        # Refresh the section's data with the modified information
-        #
-        section_data_start = section.PointerToRawData
-        section_data_end = section_data_start+section.SizeOfRawData
-        section.set_data(self.__data__[section_data_start:section_data_end])
-        
-    
     
     def relocate_image(self, new_ImageBase):
         """Apply the relocation information to the image using the provided new image base.
@@ -4337,12 +4388,11 @@ class PE:
         return False
     
     
-    def is_valid(self):
-        """"""
-        pass
+    def get_overlay(self):
+        """Get data not contained within the areas described in the headers."""
+        
     
+    def trim(self):
+        """Return the just data defined by the PE headers, removing any overlayed data."""
     
-    def is_suspicious(self):
-        """"""
-        pass
-    
+        
