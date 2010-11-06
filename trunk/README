@@ -63,9 +63,9 @@ Given the amount of information embedded in the PE file format it is difficult
 to test all the data retrieved thoroughly. I did my best trying and verifying
 the accuracy of all the parsing. Most of the basic data has been tested by using 
 this module, so no outrageously obvious problems should exist. Any feedback on
-inconsistent or faulty behaviour will be welcome.
+inconsistent or faulty behavior will be welcome.
 
 -------------------------------------------------------------------------
-Copyright (c) 2005,2006 Ero Carrera <ero@dkbza.org>. All rights reserved. 
+Copyright (c) 2005-2010 Ero Carrera <ero@dkbza.org>. All rights reserved. 
 -------------------------------------------------------------------------
 
