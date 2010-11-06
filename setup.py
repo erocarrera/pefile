@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 try:
     from setuptools import setup
 except ImportError, excp:
@@ -5,6 +7,7 @@ except ImportError, excp:
     
 import pefile
 import os
+
 os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
 os.environ['COPYFILE_DISABLE'] = 'true'
 
