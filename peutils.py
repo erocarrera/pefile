@@ -2,7 +2,7 @@
 """peutils, Portable Executable utilities module
 
 
-Copyright (c) 2005, 2006, 2007 Ero Carrera <ero@dkbza.org>
+Copyright (c) 2005-2010 Ero Carrera <ero@dkbza.org>
 
 All rights reserved.
 
@@ -355,12 +355,22 @@ class SignatureDatabase:
             else:
                 # Get the data for a file
                 #
-                sig_f = file( filename, 'rt' )
-                sig_data = sig_f.read()
-                sig_f.close()
+                try:
+                    sig_f = file( filename, 'rt' )
+                    sig_data = sig_f.read()
+                    sig_f.close()
+                except IOError:
+                    # Let this be raised back to the user...
+                    raise
         else:
             sig_data = data
         
+        # If the file/URL could not be read or no "raw" data
+        # was provided there's nothing else to do
+        #
+        if not sig_data:
+            return
+            
         # Helper function to parse the signature bytes
         #
         def to_byte(value) :
@@ -427,4 +437,3 @@ class SignatureDatabase:
             if depth > self.max_depth:
                 self.max_depth = depth
 
-    
