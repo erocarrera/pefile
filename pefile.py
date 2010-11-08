@@ -1344,6 +1344,8 @@ class BoundImportRefData(DataContainer):
 # can be longer that the 8.3
 allowed_filename = string.lowercase + string.uppercase + string.digits + "!#$%&'()-@^_`{}~+,.;=[]" + ''.join( [chr(i) for i in range(128, 256)] )
 def is_valid_dos_filename(s):
+    if s is None or not isinstance(s, str):
+        return False
     for c in s:
         if c not in allowed_filename:
             return False
@@ -1356,6 +1358,8 @@ def is_valid_dos_filename(s):
 #
 allowed_function_name = string.lowercase + string.uppercase + string.digits + '_?@$()'
 def is_valid_function_name(s):
+    if s is None or not isinstance(s, str):
+        return False
     for c in s:
         if c not in allowed_function_name:
             return False
@@ -3621,9 +3625,7 @@ class PE:
 
         s = self.get_section_by_rva(rva)
         if not s:
-            if rva < len(self.header):
-                return self.get_string_from_data(0, self.__data__[rva:rva+MAX_STRING_LENGTH])
-            return None
+            return self.get_string_from_data(0, self.__data__[rva:rva+MAX_STRING_LENGTH])
         
         return self.get_string_from_data( 0, s.get_data(rva, length=MAX_STRING_LENGTH) )
         
