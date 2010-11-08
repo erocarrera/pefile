@@ -547,6 +547,23 @@ def set_flags(obj, flag_field, flags):
             obj.__dict__[flag[0]] = False
 
 
+# According to http://corkami.blogspot.com/2010/01/parce-que-la-planche-aura-brule.html
+# if PointerToRawData is less that 0x200 it's rounded to zero. Loading the test file
+# in a debugger it's easy to verify that the PointerToRawData value of 1 is rounded
+# to zero. Hence we reproduce the behabior
+def adjust_PointerToRawData( val ):
+    if val < 0x200:
+        return 0
+    return val
+
+def adjust_VirtualAddress( val, alignment ):
+    # Alignment should, at least, be page-sized
+    if alignment < 0x1000:
+        alignment = 0x1000
+    if val % alignment:
+        return alignment * ( val / alignment )
+    return val
+
 
 class UnicodeStringWrapperPostProcessor:
     """This class attempts to help the process of identifying strings
@@ -925,17 +942,22 @@ class SectionStructure(Structure):
         addresses as it would be if loaded.
         """
         
+        PointerToRawData_adj = adjust_PointerToRawData( self.PointerToRawData )
+        VirtualAddress_adj = adjust_VirtualAddress( self.VirtualAddress, self.pe.OPTIONAL_HEADER.SectionAlignment )
+
         if start is None:
-            offset = self.PointerToRawData
+            offset = PointerToRawData_adj
         else:
-            #offset = start - self.VirtualAddress
-            offset = ( start - self.VirtualAddress) + self.PointerToRawData
+            offset = ( start - VirtualAddress_adj ) + PointerToRawData_adj
         
         if length is not None:
             end = offset + length
         else:
             end = offset + self.SizeOfRawData
             
+        # PointerToRawData is not adjusted here as we might want to read any possible extra bytes
+        # that might get cut off by aligning the start (and hence cutting something off the end)
+        #
         if end > self.PointerToRawData + self.SizeOfRawData:
             end = self.PointerToRawData + self.SizeOfRawData
         
@@ -960,11 +982,11 @@ class SectionStructure(Structure):
     
     
     def get_rva_from_offset(self, offset):
-        return offset - self.PointerToRawData + self.VirtualAddress
+        return offset - adjust_PointerToRawData( self.PointerToRawData ) + adjust_VirtualAddress( self.VirtualAddress, self.pe.OPTIONAL_HEADER.SectionAlignment )
     
     
     def get_offset_from_rva(self, rva):
-        return (rva - self.VirtualAddress) + self.PointerToRawData
+        return (rva - adjust_VirtualAddress( self.VirtualAddress, self.pe.OPTIONAL_HEADER.SectionAlignment )) + adjust_PointerToRawData( self.PointerToRawData )
     
     
     def contains_offset(self, offset):
@@ -974,30 +996,33 @@ class SectionStructure(Structure):
            # bss and other sections containing only uninitialized data must have 0
            # and do not take space in the file
            return False
-        return self.PointerToRawData <= offset < self.PointerToRawData + self.SizeOfRawData
+        return ( adjust_PointerToRawData( self.PointerToRawData ) <= 
+                    offset < 
+                        adjust_PointerToRawData( self.PointerToRawData ) + self.SizeOfRawData )
     
     
     def contains_rva(self, rva):
         """Check whether the section contains the address provided."""
-        
-        # PECOFF documentation v8 says:
-        # The total size of the section when loaded into memory.
-        # If this value is greater than SizeOfRawData, the section is zero-padded.
-        # This field is valid only for executable images and should be set to zero
-        # for object files.
-        
         
         # Check if the SizeOfRawData is realistic. If it's bigger than the size of
         # the whole PE file minus the start address of the section it could be
         # either truncated or the SizeOfRawData contain a misleading value.
         # In either of those cases we take the VirtualSize
         #
-        if len(self.pe.__data__) - self.PointerToRawData < self.SizeOfRawData:
+        if len(self.pe.__data__) - adjust_PointerToRawData( self.PointerToRawData ) < self.SizeOfRawData:
+            # PECOFF documentation v8 says:
+            # VirtualSize: The total size of the section when loaded into memory.
+            # If this value is greater than SizeOfRawData, the section is zero-padded.
+            # This field is valid only for executable images and should be set to zero
+            # for object files.
+            #
             size = self.Misc_VirtualSize
         else:
             size = max(self.SizeOfRawData, self.Misc_VirtualSize)
         
-        return self.VirtualAddress <= rva < self.VirtualAddress + size
+        VirtualAddress_adj = adjust_VirtualAddress( self.VirtualAddress, self.pe.OPTIONAL_HEADER.SectionAlignment )
+        
+        return VirtualAddress_adj <= rva < VirtualAddress_adj + size
     
     
     def contains(self, rva):
@@ -1853,14 +1878,14 @@ class PE:
         # can't be found?
         #
         rawDataPointers = [
-            s.PointerToRawData for s in self.sections if s.PointerToRawData>0]
+            adjust_PointerToRawData( s.PointerToRawData ) for s in self.sections if s.PointerToRawData>0]
         
         if len(rawDataPointers) > 0:
             lowest_section_offset = min(rawDataPointers)
         else:
             lowest_section_offset = None
         
-        if not lowest_section_offset or lowest_section_offset<offset:
+        if not lowest_section_offset or lowest_section_offset < offset:
             self.header = self.__data__[:offset]
         else:
             self.header = self.__data__[:lowest_section_offset]
@@ -2091,7 +2116,7 @@ class PE:
                     ('Error parsing section %d. ' % i) +
                     'SizeOfRawData is larger than file.')
             
-            if section.PointerToRawData > len(self.__data__):
+            if adjust_PointerToRawData( section.PointerToRawData ) > len(self.__data__):
                 self.__warnings.append(
                     ('Error parsing section %d. ' % i) +
                     'PointerToRawData points beyond the end of the file.')
@@ -2101,7 +2126,7 @@ class PE:
                     ('Suspicious value found parsing section %d. ' % i) +
                     'VirtualSize is extremely large > 256MiB.')
             
-            if section.VirtualAddress > 0x10000000:
+            if adjust_VirtualAddress( section.VirtualAddress, self.OPTIONAL_HEADER.SectionAlignment ) > 0x10000000:
                 self.__warnings.append(
                     ('Suspicious value found parsing section %d. ' % i) +
                     'VirtualAddress is beyond 0x10000000.')
@@ -2119,7 +2144,7 @@ class PE:
             #self.update_section_data(section)
             
             if ( self.OPTIONAL_HEADER.FileAlignment != 0 and
-                (section.PointerToRawData % self.OPTIONAL_HEADER.FileAlignment) != 0):
+                ( section.PointerToRawData % self.OPTIONAL_HEADER.FileAlignment) != 0):
                 self.__warnings.append(
                     ('Error parsing section %d. ' % i) +
                     'Suspicious value for FileAlignment in the Optional Header. ' +
@@ -3206,7 +3231,7 @@ class PE:
                 data = self.get_data(rva, Structure(self.__IMAGE_IMPORT_DESCRIPTOR_format__).sizeof() )
             except PEFormatError, e:
                 self.__warnings.append(
-                    'Error parsing the Import directory at RVA: 0x%x' % ( rva ) )
+                    'Error parsing the import directory at RVA: 0x%x' % ( rva ) )
                 break
             
             import_desc =  self.__unpack_data__(
@@ -3226,7 +3251,7 @@ class PE:
                     import_desc.ForwarderChain)
             except PEFormatError, excp:
                 self.__warnings.append(
-                    'Error parsing the Import directory. ' +
+                    'Error parsing the import directory. ' +
                     'Invalid Import data at RVA: 0x%x (%s)' % ( rva, str(excp) ) )
                 break
                 #raise excp
@@ -3274,9 +3299,15 @@ class PE:
         """
         
         imported_symbols = []
-        imports_section = self.get_section_by_rva(first_thunk)
-        if not imports_section:
-            raise PEFormatError, 'Invalid/corrupt imports.'
+        
+        # The following has been commented as a PE does not
+        # need to have the import data necessarily witin
+        # a section, it can keep it in gaps between sections
+        # or overlapping other data.
+        #
+        #imports_section = self.get_section_by_rva(first_thunk)
+        #if not imports_section:
+        #    raise PEFormatError, 'Invalid/corrupt imports.'
         
         # Import Lookup Table. Contains ordinals or pointers to strings.
         ilt = self.get_import_table(original_first_thunk)
@@ -3400,15 +3431,12 @@ class PE:
         #
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
             ordinal_flag = IMAGE_ORDINAL_FLAG
+            format = self.__IMAGE_THUNK_DATA_format__
         elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
             ordinal_flag = IMAGE_ORDINAL_FLAG64
+            format = self.__IMAGE_THUNK_DATA64_format__
 
         while True and rva:
-
-            if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
-                format = self.__IMAGE_THUNK_DATA_format__
-            elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
-                format = self.__IMAGE_THUNK_DATA64_format__
             
             try:
                 data = self.get_data( rva, Structure(format).sizeof() )
@@ -3471,7 +3499,7 @@ class PE:
             
         # Collect all sections in one code block
         #mapped_data = self.header
-        mapped_data = ''+self.__data__
+        mapped_data = ''+ self.__data__[:]
         for section in self.sections:
             
             # Miscellaneous integrity tests.
@@ -3484,13 +3512,15 @@ class PE:
             if section.SizeOfRawData > len(self.__data__):
                 continue
             
-            if section.PointerToRawData > len(self.__data__):
+            if adjust_PointerToRawData( section.PointerToRawData ) > len(self.__data__):
                 continue
             
-            if section.VirtualAddress >= max_virtual_address:
+            VirtualAddress_adj = adjust_VirtualAddress( section.VirtualAddress, self.OPTIONAL_HEADER.SectionAlignment )
+            
+            if VirtualAddress_adj >= max_virtual_address:
                 continue
             
-            padding_length = section.VirtualAddress - len(mapped_data)
+            padding_length = VirtualAddress_adj - len(mapped_data)
             
             if padding_length>0:
                 mapped_data += '\0'*padding_length
@@ -3504,8 +3534,6 @@ class PE:
         if ImageBase is not None:
             self.__data__ = original_data
             
-            self.update_all_section_data()
-        
         return mapped_data
             
     
@@ -3524,7 +3552,7 @@ class PE:
             end = None
 
         if not s:
-            if rva<len(self.header):
+            if rva < len(self.header):
                 return self.header[rva:end]
             
             # Before we give up we check whether the file might
@@ -3549,7 +3577,21 @@ class PE:
         
         s = self.get_section_by_offset(offset)
         if not s:
-            raise PEFormatError("specified offset (0x%x) doesn't belong to any section." % offset)
+            if self.sections:
+                lowest_rva = min( [adjust_VirtualAddress( s.VirtualAddress, self.OPTIONAL_HEADER.SectionAlignment ) for s in self.sections] )
+                if offset < lowest_rva:
+                    # We will assume that the offset lies within the headers, or
+                    # at least points before where the earliest section starts
+                    # and we will simply return the offset as the RVA
+                    #
+                    # The case illustrating this behavior can be found at:
+                    # http://corkami.blogspot.com/2010/01/hey-hey-hey-whats-in-your-head.html
+                    # where the import table is not contained by any section
+                    # hence the RVA needs to be resolved to a raw offset
+                    return offset
+            else:
+                return offset
+            #raise PEFormatError("specified offset (0x%x) doesn't belong to any section." % offset)
         return s.get_rva_from_offset(offset)
     
     def get_offset_from_rva(self, rva):
@@ -3576,11 +3618,11 @@ class PE:
     
     def get_string_at_rva(self, rva):
         """Get an ASCII string located at the given address."""
-        
+
         s = self.get_section_by_rva(rva)
         if not s:
-            if rva<len(self.header):
-                return self.get_string_from_data(rva, self.header)
+            if rva < len(self.header):
+                return self.get_string_from_data(0, self.__data__[rva:rva+MAX_STRING_LENGTH])
             return None
         
         return self.get_string_from_data( 0, s.get_data(rva, length=MAX_STRING_LENGTH) )
@@ -4174,8 +4216,6 @@ class PE:
         else:
             return False
         
-        self.update_all_section_data()
-        
         return True
     
 
@@ -4183,7 +4223,7 @@ class PE:
         """Update the PE image content with any individual section data that has been modified."""
         
         for section in self.sections:
-            section_data_start = section.PointerToRawData
+            section_data_start = adjust_PointerToRawData( section.PointerToRawData )
             section_data_end = section_data_start+section.SizeOfRawData
             if section_data_start < len(self.__data__) and section_data_end < len(self.__data__):
                 self.__data__ = self.__data__[:section_data_start] + section.get_data() + self.__data__[section_data_end:]
