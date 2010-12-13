@@ -1668,10 +1668,13 @@ class PE:
         elif data:
             self.__data__ = data
         
-        
+        dos_header_data = self.__data__[:64]
+        if len(dos_header_data) != 64:
+            raise PEFormatError('Unable to read the DOS Header, possibly a truncated file.')
+            
         self.DOS_HEADER = self.__unpack_data__(
             self.__IMAGE_DOS_HEADER_format__,
-            self.__data__, file_offset=0)
+            dos_header_data, file_offset=0)
         
         if not self.DOS_HEADER or self.DOS_HEADER.e_magic != IMAGE_DOS_SIGNATURE:
             raise PEFormatError('DOS Header magic not found.')
@@ -2404,7 +2407,7 @@ class PE:
     
     def parse_relocations(self, data_rva, rva, size):
         """"""
-        
+
         data = self.get_data(data_rva, size)
         file_offset = self.get_offset_from_rva(data_rva)
         
@@ -3091,14 +3094,24 @@ class PE:
         
         exports = []
         
+        max_failed_entries_before_giving_up = 10
+        
         for i in xrange( min( export_dir.NumberOfNames, length_until_eof(export_dir.AddressOfNames)/4) ):
-                
+            
             symbol_name_address = self.get_dword_from_data(address_of_names, i)
+
             symbol_name = self.get_string_at_rva( symbol_name_address )
+            try:
+                symbol_name_offset = self.get_offset_from_rva( symbol_name_address )
+            except PEFormatError:
+                max_failed_entries_before_giving_up -= 1
+                if max_failed_entries_before_giving_up <= 0:
+                    break
+                continue
             
             symbol_ordinal = self.get_word_from_data(
                 address_of_name_ordinals, i)
-            
+
             
             if symbol_ordinal*4 < len(address_of_functions):
                 symbol_address = self.get_dword_from_data(
@@ -3117,8 +3130,13 @@ class PE:
             
             if symbol_address >= rva and symbol_address < rva+size:
                 forwarder_str = self.get_string_at_rva(symbol_address)
+                try:
+                    forwarder_offset = self.get_offset_from_rva( symbol_address )
+                except PEFormatError:
+                    continue
             else:
                 forwarder_str = None
+                forwarder_offset = None
             
             exports.append(
                 ExportData(
@@ -3128,20 +3146,29 @@ class PE:
                     address = symbol_address,
                     address_offset = self.get_offset_from_rva( export_dir.AddressOfFunctions + 4*symbol_ordinal ),
                     name = symbol_name,
-                    name_offset = self.get_offset_from_rva( symbol_name_address ),
+                    name_offset = symbol_name_offset,
                     forwarder = forwarder_str,
-                    forwarder_offset = self.get_offset_from_rva( symbol_address ) ))
+                    forwarder_offset = forwarder_offset ))
         
         ordinals = [exp.ordinal for exp in exports]
+        
+        max_failed_entries_before_giving_up = 10
         
         for idx in xrange( min(export_dir.NumberOfFunctions, length_until_eof(export_dir.AddressOfFunctions)/4) ):
             
             if not idx+export_dir.Base in ordinals:
-                symbol_address = self.get_dword_from_data(
-                    address_of_functions,
-                    idx)
+                try:
+                    symbol_address = self.get_dword_from_data(
+                        address_of_functions, idx)
+                except PEFormatError:
+                    symbol_address = None
                 
-                if symbol_address is None or symbol_address == 0:
+                if symbol_address is None:
+                    max_failed_entries_before_giving_up -= 1
+                    if max_failed_entries_before_giving_up <= 0:
+                        break
+                
+                if symbol_address == 0:
                     continue
                 #
                 # Checking for forwarder again.
@@ -3150,7 +3177,7 @@ class PE:
                     forwarder_str = self.get_string_at_rva(symbol_address)
                 else:
                     forwarder_str = None
-                
+
                 exports.append(
                     ExportData(
                         ordinal = export_dir.Base+idx,
@@ -3541,7 +3568,7 @@ class PE:
         return mapped_data
             
     
-    def get_data(self, rva, length=None):
+    def get_data(self, rva=0, length=None):
         """Get data regardless of the section where it lies on.
         
         Given a RVA and the size of the chunk to retrieve, this method
@@ -3848,12 +3875,13 @@ class PE:
             dump.add_newline()
             dump.add_line('%-10s   %-10s  %s' % ('Ordinal', 'RVA', 'Name'))
             for export in self.DIRECTORY_ENTRY_EXPORT.symbols:
-                dump.add('%-10d 0x%08Xh    %s' % (
-                    export.ordinal, export.address, export.name))
-                if export.forwarder:
-                    dump.add_line(' forwarder: %s' % export.forwarder)
-                else:
-                    dump.add_newline()
+                if export.address is not None:
+                    dump.add('%-10d 0x%08Xh    %s' % (
+                        export.ordinal, export.address, export.name))
+                    if export.forwarder:
+                        dump.add_line(' forwarder: %s' % export.forwarder)
+                    else:
+                        dump.add_newline()
             
             dump.add_newline()
         
@@ -4429,12 +4457,48 @@ class PE:
                 
         return False
     
+
+    def get_overlay_data_start_offset(self):
+        """Get the offset of data appended to the file and not contained within the area described in the headers."""
+
+        highest_PointerToRawData = 0
+        highest_SizeOfRawData = 0
+        for section in self.sections:
+            
+            # If a section seems to fall outside the boundaries of the file we assume it's either
+            # because of intentionally misleading values or because the file is truncated
+            # In either case we skip it
+            if section.PointerToRawData + section.SizeOfRawData > len(self.__data__):
+                continue
+                
+            if section.PointerToRawData + section.SizeOfRawData > highest_PointerToRawData + highest_SizeOfRawData:
+                highest_PointerToRawData = section.PointerToRawData
+                highest_SizeOfRawData = section.SizeOfRawData
+                
+        if len(self.__data__) > highest_PointerToRawData + highest_SizeOfRawData:
+            return highest_PointerToRawData + highest_SizeOfRawData
+            
+        return None
+    
     
     def get_overlay(self):
-        """Get data not contained within the areas described in the headers."""
+        """Get the data appended to the file and not contained within the area described in the headers."""
+
+        overlay_data_offset = self.get_overlay_data_start_offset()
+                
+        if overlay_data_offset is not None:
+            return self.__data__[ overlay_data_offset : ]
+            
+        return None
         
     
     def trim(self):
         """Return the just data defined by the PE headers, removing any overlayed data."""
     
+        overlay_data_offset = self.get_overlay_data_start_offset()
+                
+        if overlay_data_offset is not None:
+            return self.__data__[ : overlay_data_offset ]
+            
+        return self.__data__[:]
         
