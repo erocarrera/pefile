@@ -1,0 +1,162 @@
+Thu Aug  9 01:27:18 CEST 2007  ero@dkbza.org
+  * Fixed two bugs parsing OffensiveComputing files
+  
+  layne@elsenot.com reported errors when doing a dump_info() on two files from OffensiveComputing with hashes:
+  
+  88ca1747f5242c852b26f73fd90dad6f
+  eb274d67e89fad0fcc9dfad5aeb06dd360ff7f17
+  
+  The errors were easy to fix with some additional safety checks.
+  
+
+Wed Jul 25 17:43:11 CEST 2007  ero@dkbza.org
+  * Included peutils in the installation
+
+Wed Jul 25 17:42:01 CEST 2007  ero@dkbza.org
+  * Various enhancements
+  
+  -peutils can now download signatures from a URL or process them directly from data
+  -Added signature generation. Now signatures can be created for the sections in a pefile or at the entry point.
+  
+
+Wed Jul 25 17:32:53 CEST 2007  ero@dkbza.org
+  * Small fixes
+  
+  -Fixed small bug retrieving section data
+  -Sections now have an attribute named "entropy" which contains a float value between 0.0 and 8.0
+  
+
+Wed Jul 25 01:07:49 CEST 2007  ero@dkbza.org
+  * Changes for pefile 1.2.6
+  
+  -Added extra warnings for suspicious values in the PE header
+  -Fixed minor bugs
+  -Merged Gera's enhancements
+  -Added reporting of the section's entropy
+  -Bumped version number
+  
+
+Wed Jul 25 01:01:01 CEST 2007  ero@dkbza.org
+  * Added initial version of peutils
+
+Thu May 17 19:30:41 CEST 2007  ero@dkbza.org
+  * Added parsing error functionality and fixed some parsing issues
+  
+  -Version bumped to 1.2.5
+  -Added parsing error reporting "get_warnings()" and "show_warnings()"
+  -Fixed issues parsing version information that led to infinite loops
+  
+
+Tue Mar 13 11:51:30 CET 2007  ero@dkbza.org
+  * Added length check to escape an infinite loop when parsing the version information
+
+Wed Mar  7 21:04:01 CET 2007  ero@dkbza.org
+  * Increased version number
+
+Wed Mar  7 21:01:19 CET 2007  ero@dkbza.org
+  * Fixed issue writing PE files
+  
+  Fixed issue with the "writer". A previous enhancement triggered a bug that generates wrong data if the PE file is written back to disk (only in the case that the file had version information in the resources directory)
+  
+
+Wed Feb 28 00:35:52 CET 2007  ero@dkbza.org
+  * Increased version number
+
+Wed Feb 28 00:35:04 CET 2007  ero@dkbza.org
+  * Fixed bug with large NumberOfRvaAndSizes values that could not be converted to int
+
+Thu Feb 22 13:25:39 CET 2007  ero@dkbza.org
+  * Parsing enhancements
+  
+  -pefile-1.2.2 can now correctly parse the files from the Tiny PE challenge (http://www.phreedom.org/solar/code/tinype/), which push the limits of valid parsing
+  -Improved parsing of basic headers and data directories
+  
+
+Tue Feb 20 00:24:19 CET 2007  ero@dkbza.org
+  * Small cosmetic changes
+
+Tue Feb 13 19:22:06 CET 2007  ero@dkbza.org
+  * New features and bugfixes for version 1.2.2
+  
+  -Added support for parsing the version information structures in the resources directory
+  -Fixed bug in writing mode in Windows
+  -The display of hexadecimal number is now explicit, all hex numbers have the prefix '0x'
+  -Increased version number to 1.2.2
+  
+
+Sat Jan 20 20:56:21 CET 2007  ero@dkbza.org
+  * Improved processing of unicode strings
+
+Wed Nov  1 21:39:31 CET 2006  ero@dkbza.org
+  * Updated README
+
+Wed Nov  1 18:17:04 CET 2006  ero@dkbza.org
+  * Multiple bugfixes and enhancements
+  
+  -Added more machine types
+  -Added support for the PE32+ format
+  -Fixed bugs handling unicode data when dumping the PE file information in text mode
+  -Improved handling of malformed directories in the Optional Header. Large values of NumberOfRvaAndSizes should finally have no effect and the file should still be successfully parsed
+  -Improved handling of section names
+  -Improved handling of the resources directory hierarchy
+  
+
+Tue Oct 24 12:47:57 CEST 2006  ero@dkbza.org
+  * Added notes about the writing support
+
+Tue Oct 24 12:33:22 CEST 2006  ero@dkbza.org
+  * Merged OC patch and other bugfixes
+  
+  -Merged all the changes made by the Offensive Computing people. Fixing miscellaneous bugs when parsing files bordering the malformed.
+  -Fixed bug when appending unicode strings from the resources to the plain ascii ones generated when dumping the file information. As everything was converted to unicode in order to be appended, sometimes non-printable characters got converted to unicode that could not be mapped back later to a printable char, hence 'print' was failing. Now all the unicode strings are str()'d before they are appended to the rest of the output.
+  
+
+Sun Oct 22 15:39:33 CEST 2006  ero@dkbza.org
+  * Added support for writing changes to the PE file
+
+Tue May 30 03:16:50 CEST 2006  ero@dkbza.org
+  * Updated copyright strings
+
+Tue May 30 03:10:54 CEST 2006  ero@dkbza.org
+  * Bumped version number to 1.1 and added a new method
+  
+  Added the method 'get_memory_mapped_image' to retrieve the PE image data layouted as it
+  would exist once laded in memory.
+
+Wed May 17 14:14:57 CEST 2006  ero@dkbza.org
+  * Fixed bug parsing sections
+  
+  Both Jarkko Turkulainen and Nicolas Falliere had noticed that there was a bug when parsing the section headers. pefile made the assumption that they always start right after the Optional Header end and used a default size for it. In fact, the correct way of reaching the section headers is by adding the SizeOfOptionalHeader to the its start offset.
+  Jarkko's patch, besides fixing that issue, also checks earlier for a correct PE signature.
+  
+
+Mon Dec 26 23:40:51 CET 2005  ero@dkbza.org
+  * Changed name from pype to pefile and bumped up version
+
+Mon Dec 26 23:25:50 CET 2005  ero@dkbza.org
+  * Added more fields to the setup file
+
+Mon Dec 26 23:10:54 CET 2005  ero@dkbza.org
+  * Multiple enhancements
+  
+  -Added support for delayed imports provided by Adam Morrison
+  -Fixed a bug parsing corrupted imports table
+  
+
+Mon Nov 14 23:59:55 CET 2005  ero@dkbza.org
+  * Improvements and bug fixes
+  
+  -Added handling of invalind timestamp values in some fields in the header
+  -Fixed file opening mode for Windows, now files are always opened in binary mode.
+  -Fixed loading of mischievous PE files where the sections are not properly aligned according to the FileAligment field contents. (Jarkko bumped into a packer that used this trick.
+  -Fixed printing of unrecorgnized RESOURCE_TYPE IDs when dumping the resources directory.
+  -Bumped version up to 0.9.1
+
+Mon Nov 14 23:59:24 CET 2005  ero@dkbza.org
+  * Small fixes
+
+Mon Aug 29 10:16:42 CEST 2005  ero@dkbza.org
+  * Fixed reading of PE files with non-standard number of directories
+
+Tue Jul 19 00:24:10 CEST 2005  ero@dkbza.org
+  * Initial import
