@@ -518,6 +518,26 @@ def get_sublang_name_for_lang( lang_value, sublang_value ):
     return SUBLANG.get(sublang_value, ['*unknown*'])[0]
 
 
+# Ange Albertini's code to process resources' strings
+#
+def parse_strings(data, counter, l):
+    i = 0
+    while i < len(data):
+        
+        data_slice = data[i:i + 2]
+        if len(data_slice) < 2:
+            break
+        
+        len_ = struct.unpack("<h", data_slice)[0]
+        i += 2
+        if len_ != 0 and len_ <= len(data):
+            try:
+                l[counter] = data[i: i + len_ * 2].decode('utf-16')
+            except UnicodeDecodeError:
+                pass
+            i += len_ * 2
+        counter += 1
+
 
 def retrieve_flags(flag_dict, flag_filter):
     """Read the flags from a dictionary and return them in a usable form.
@@ -2465,7 +2485,7 @@ class PE:
         return debug
                         
     
-    def parse_resources_directory(self, rva, size=0, base_rva = None, level = 0):
+    def parse_resources_directory(self, rva, size=0, base_rva = None, level = 0, dirs=None):
         """Parse the resources directory.
         
         Given the RVA of the resources directory, it will process all
@@ -2488,7 +2508,8 @@ class PE:
         """
         
         # OC Patch:
-        original_rva = rva
+        if dirs is None:
+            dirs = [rva]
         
         if base_rva is None:
             base_rva = rva
@@ -2579,17 +2600,40 @@ class PE:
                 # reasonable data so we just break.
                 #
                 # 9ee4d0a0caf095314fd7041a3e4404dc is the offending sample
-                if original_rva == (base_rva + res.OffsetToDirectory):
+                if (base_rva + res.OffsetToDirectory) in dirs:
                     
                     break
                 
                 else:
                     entry_directory = self.parse_resources_directory(
                         base_rva+res.OffsetToDirectory,
-                        base_rva=base_rva, level = level+1)
+                        base_rva=base_rva, level = level+1,
+                        dirs=dirs + [base_rva + res.OffsetToDirectory])
                 
                 if not entry_directory:
                     break
+                    
+                # Ange Albertini's code to process resources' strings
+                #
+                strings = None
+                if entry_id == RESOURCE_TYPE['RT_STRING']:
+                    strings = dict()
+                    for resource_id in entry_directory.entries:
+                        if hasattr(resource_id, 'directory'):
+                            for resource_lang in resource_id.directory.entries:
+                                
+                                resource_strings = dict()
+                                
+                                string_entry_rva = resource_lang.data.struct.OffsetToData
+                                string_entry_size = resource_lang.data.struct.Size
+                                string_entry_id = resource_id.id
+                                
+                                string_entry_data = self.get_data(string_entry_rva, string_entry_size)
+                                parse_strings( string_entry_data, (int(string_entry_id) - 1) * 16, resource_strings )
+                                strings.update(resource_strings)
+                                
+                            resource_id.directory.strings = resource_strings
+                                
                 dir_entries.append(
                     ResourceDirEntryData(
                         struct = res,
@@ -3566,8 +3610,32 @@ class PE:
             self.__data__ = original_data
             
         return mapped_data
+
+
+    def get_resources_strings(self):
+        """Returns a list of all the strings found withing the resources (if any).
+        
+        This method will scan all entries in the resources directory of the PE, if
+        there is one, and will return a list() with the strings.
+        
+        An empty list will be returned otherwise.
+        """
+        
+        resources_strings = list()
+        
+        if hasattr(self, 'DIRECTORY_ENTRY_RESOURCE'):
             
-    
+            for resource_type in self.DIRECTORY_ENTRY_RESOURCE.entries:
+                if hasattr(resource_type, 'directory'):
+                    for resource_id in resource_type.directory.entries:
+                        if hasattr(resource_id, 'directory'):
+                            if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
+                                for res_string in resource_id.directory.strings.values():
+                                    resources_strings.append( res_string )
+                                    
+        return resources_strings
+
+
     def get_data(self, rva=0, length=None):
         """Get data regardless of the section where it lies on.
         
@@ -3976,13 +4044,19 @@ class PE:
                             dump.add_lines(resource_id.directory.struct.dump(), 8)
                             
                             for resource_lang in resource_id.directory.entries:
-                                dump.add_line('\\--- LANG [%d,%d][%s,%s]' % (
-                                    resource_lang.data.lang,
-                                    resource_lang.data.sublang,
-                                    LANG.get(resource_lang.data.lang, '*unknown*'), 
-                                    get_sublang_name_for_lang( resource_lang.data.lang, resource_lang.data.sublang ) ), 8)
-                                dump.add_lines(resource_lang.struct.dump(), 10)
-                                dump.add_lines(resource_lang.data.struct.dump(), 12)
+                                if hasattr(resource_lang, 'data'):
+                                    dump.add_line('\\--- LANG [%d,%d][%s,%s]' % (
+                                        resource_lang.data.lang,
+                                        resource_lang.data.sublang,
+                                        LANG.get(resource_lang.data.lang, '*unknown*'), 
+                                        get_sublang_name_for_lang( resource_lang.data.lang, resource_lang.data.sublang ) ), 8)
+                                    dump.add_lines(resource_lang.struct.dump(), 10)
+                                    dump.add_lines(resource_lang.data.struct.dump(), 12)
+                            if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
+                                dump.add_line( '[STRINGS]' , 10 )
+                                for idx, res_string in resource_id.directory.strings.items():
+                                    dump.add_line( '%6d: %s' % (idx, convert_to_printable(res_string) ), 12 )
+                                        
                 dump.add_newline()
             
             dump.add_newline()
