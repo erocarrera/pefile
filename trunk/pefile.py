@@ -571,17 +571,37 @@ def set_flags(obj, flag_field, flags):
 # if PointerToRawData is less that 0x200 it's rounded to zero. Loading the test file
 # in a debugger it's easy to verify that the PointerToRawData value of 1 is rounded
 # to zero. Hence we reproduce the behabior
-def adjust_PointerToRawData( val ):
+#
+# According to the document: 
+# [ Microsoft Portable Executable and Common Object File Format Specification ]
+# "The alignment factor (in bytes) that is used to align the raw data of sections in
+#  the image file. The value should be a power of 2 between 512 and 64 K, inclusive.
+#  The default is 512. If the SectionAlignment is less than the architecture’s page
+#  size, then FileAlignment must match SectionAlignment."
+#
+def adjust_FileAlignment( val ):
     if val < 0x200:
         return 0
     return val
 
-def adjust_VirtualAddress( val, alignment ):
-    # Alignment should, at least, be page-sized
-    if alignment < 0x1000:
-        alignment = 0x1000
-    if val % alignment:
-        return alignment * ( val / alignment )
+# According to the document: 
+# [ Microsoft Portable Executable and Common Object File Format Specification ]
+# "The alignment (in bytes) of sections when they are loaded into memory. It must be
+#  greater than or equal to FileAlignment. The default is the page size for the
+#  architecture."
+#
+def adjust_SectionAlignment( val, section_alignment, file_aligment ):
+
+    file_aligment = adjust_FileAlignment(file_aligment)
+
+    if section_alignment < file_aligment:
+        section_alignment = file_aligment
+        
+    if section_alignment < 0x200: # 0x200 is the minimum valid FileAlignment
+        section_alignment = 0x200 # page size
+        
+    if val % section_alignment:
+        return section_alignment * ( val / section_alignment )
     return val
 
 
@@ -962,8 +982,9 @@ class SectionStructure(Structure):
         addresses as it would be if loaded.
         """
         
-        PointerToRawData_adj = adjust_PointerToRawData( self.PointerToRawData )
-        VirtualAddress_adj = adjust_VirtualAddress( self.VirtualAddress, self.pe.OPTIONAL_HEADER.SectionAlignment )
+        PointerToRawData_adj = adjust_FileAlignment( self.PointerToRawData )
+        VirtualAddress_adj = adjust_SectionAlignment( self.VirtualAddress, 
+            self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
 
         if start is None:
             offset = PointerToRawData_adj
@@ -1002,11 +1023,17 @@ class SectionStructure(Structure):
     
     
     def get_rva_from_offset(self, offset):
-        return offset - adjust_PointerToRawData( self.PointerToRawData ) + adjust_VirtualAddress( self.VirtualAddress, self.pe.OPTIONAL_HEADER.SectionAlignment )
+        return offset - adjust_FileAlignment( self.PointerToRawData ) + adjust_SectionAlignment( self.VirtualAddress, 
+            self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
     
     
     def get_offset_from_rva(self, rva):
-        return (rva - adjust_VirtualAddress( self.VirtualAddress, self.pe.OPTIONAL_HEADER.SectionAlignment )) + adjust_PointerToRawData( self.PointerToRawData )
+        return (rva - 
+            adjust_SectionAlignment( 
+                self.VirtualAddress, 
+                self.pe.OPTIONAL_HEADER.SectionAlignment, 
+                self.pe.OPTIONAL_HEADER.FileAlignment )
+            ) + adjust_FileAlignment( self.PointerToRawData )
     
     
     def contains_offset(self, offset):
@@ -1016,9 +1043,9 @@ class SectionStructure(Structure):
            # bss and other sections containing only uninitialized data must have 0
            # and do not take space in the file
            return False
-        return ( adjust_PointerToRawData( self.PointerToRawData ) <= 
+        return ( adjust_FileAlignment( self.PointerToRawData ) <= 
                     offset < 
-                        adjust_PointerToRawData( self.PointerToRawData ) + self.SizeOfRawData )
+                        adjust_FileAlignment( self.PointerToRawData ) + self.SizeOfRawData )
     
     
     def contains_rva(self, rva):
@@ -1029,7 +1056,7 @@ class SectionStructure(Structure):
         # either truncated or the SizeOfRawData contain a misleading value.
         # In either of those cases we take the VirtualSize
         #
-        if len(self.pe.__data__) - adjust_PointerToRawData( self.PointerToRawData ) < self.SizeOfRawData:
+        if len(self.pe.__data__) - adjust_FileAlignment( self.PointerToRawData ) < self.SizeOfRawData:
             # PECOFF documentation v8 says:
             # VirtualSize: The total size of the section when loaded into memory.
             # If this value is greater than SizeOfRawData, the section is zero-padded.
@@ -1040,7 +1067,8 @@ class SectionStructure(Structure):
         else:
             size = max(self.SizeOfRawData, self.Misc_VirtualSize)
         
-        VirtualAddress_adj = adjust_VirtualAddress( self.VirtualAddress, self.pe.OPTIONAL_HEADER.SectionAlignment )
+        VirtualAddress_adj = adjust_SectionAlignment( self.VirtualAddress, 
+            self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
         
         return VirtualAddress_adj <= rva < VirtualAddress_adj + size
     
@@ -1905,7 +1933,7 @@ class PE:
         # can't be found?
         #
         rawDataPointers = [
-            adjust_PointerToRawData( s.PointerToRawData ) for s in self.sections if s.PointerToRawData>0]
+            adjust_FileAlignment( s.PointerToRawData ) for s in self.sections if s.PointerToRawData>0]
         
         if len(rawDataPointers) > 0:
             lowest_section_offset = min(rawDataPointers)
@@ -2143,7 +2171,7 @@ class PE:
                     ('Error parsing section %d. ' % i) +
                     'SizeOfRawData is larger than file.')
             
-            if adjust_PointerToRawData( section.PointerToRawData ) > len(self.__data__):
+            if adjust_FileAlignment( section.PointerToRawData ) > len(self.__data__):
                 self.__warnings.append(
                     ('Error parsing section %d. ' % i) +
                     'PointerToRawData points beyond the end of the file.')
@@ -2153,7 +2181,8 @@ class PE:
                     ('Suspicious value found parsing section %d. ' % i) +
                     'VirtualSize is extremely large > 256MiB.')
             
-            if adjust_VirtualAddress( section.VirtualAddress, self.OPTIONAL_HEADER.SectionAlignment ) > 0x10000000:
+            if adjust_SectionAlignment( section.VirtualAddress, 
+                self.OPTIONAL_HEADER.SectionAlignment, self.OPTIONAL_HEADER.FileAlignment ) > 0x10000000:
                 self.__warnings.append(
                     ('Suspicious value found parsing section %d. ' % i) +
                     'VirtualAddress is beyond 0x10000000.')
@@ -3587,10 +3616,11 @@ class PE:
             if section.SizeOfRawData > len(self.__data__):
                 continue
             
-            if adjust_PointerToRawData( section.PointerToRawData ) > len(self.__data__):
+            if adjust_FileAlignment( section.PointerToRawData ) > len(self.__data__):
                 continue
             
-            VirtualAddress_adj = adjust_VirtualAddress( section.VirtualAddress, self.OPTIONAL_HEADER.SectionAlignment )
+            VirtualAddress_adj = adjust_SectionAlignment( section.VirtualAddress, 
+                self.OPTIONAL_HEADER.SectionAlignment, self.OPTIONAL_HEADER.FileAlignment )
             
             if VirtualAddress_adj >= max_virtual_address:
                 continue
@@ -3677,7 +3707,8 @@ class PE:
         s = self.get_section_by_offset(offset)
         if not s:
             if self.sections:
-                lowest_rva = min( [adjust_VirtualAddress( s.VirtualAddress, self.OPTIONAL_HEADER.SectionAlignment ) for s in self.sections] )
+                lowest_rva = min( [ adjust_SectionAlignment( s.VirtualAddress, 
+                    self.OPTIONAL_HEADER.SectionAlignment, self.OPTIONAL_HEADER.FileAlignment ) for s in self.sections] )
                 if offset < lowest_rva:
                     # We will assume that the offset lies within the headers, or
                     # at least points before where the earliest section starts
@@ -4327,7 +4358,7 @@ class PE:
         """Update the PE image content with any individual section data that has been modified."""
         
         for section in self.sections:
-            section_data_start = adjust_PointerToRawData( section.PointerToRawData )
+            section_data_start = adjust_FileAlignment( section.PointerToRawData )
             section_data_end = section_data_start+section.SizeOfRawData
             if section_data_start < len(self.__data__) and section_data_end < len(self.__data__):
                 self.__data__ = self.__data__[:section_data_start] + section.get_data() + self.__data__[section_data_end:]
