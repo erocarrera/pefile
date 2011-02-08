@@ -579,10 +579,12 @@ def set_flags(obj, flag_field, flags):
 #  The default is 512. If the SectionAlignment is less than the architecture’s page
 #  size, then FileAlignment must match SectionAlignment."
 #
-def adjust_FileAlignment( val ):
-    if val < 0x200:
-        return 0
+def adjust_FileAlignment( val, file_aligment ):
+
+    #if file_aligment and val % file_aligment:
+    #    return file_aligment * ( val / file_aligment )
     return val
+
 
 # According to the document: 
 # [ Microsoft Portable Executable and Common Object File Format Specification ]
@@ -592,15 +594,16 @@ def adjust_FileAlignment( val ):
 #
 def adjust_SectionAlignment( val, section_alignment, file_aligment ):
 
-    file_aligment = adjust_FileAlignment(file_aligment)
-
-    if section_alignment < file_aligment:
+    if section_alignment < 0x1000: # page size
         section_alignment = file_aligment
         
-    if section_alignment < 0x200: # 0x200 is the minimum valid FileAlignment
-        section_alignment = 0x200 # page size
+    # 0x200 is the minimum valid FileAlignment according to the documentation
+    # although ntoskrnl.exe has an alignment of 0x80 in some Windows versions
+    #
+    #elif section_alignment < 0x80: 
+    #    section_alignment = 0x80
         
-    if val % section_alignment:
+    if section_alignment and val % section_alignment:
         return section_alignment * ( val / section_alignment )
     return val
 
@@ -982,7 +985,8 @@ class SectionStructure(Structure):
         addresses as it would be if loaded.
         """
         
-        PointerToRawData_adj = adjust_FileAlignment( self.PointerToRawData )
+        PointerToRawData_adj = adjust_FileAlignment( self.PointerToRawData,
+            self.pe.OPTIONAL_HEADER.FileAlignment )
         VirtualAddress_adj = adjust_SectionAlignment( self.VirtualAddress, 
             self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
 
@@ -1023,7 +1027,8 @@ class SectionStructure(Structure):
     
     
     def get_rva_from_offset(self, offset):
-        return offset - adjust_FileAlignment( self.PointerToRawData ) + adjust_SectionAlignment( self.VirtualAddress, 
+        return offset - adjust_FileAlignment( self.PointerToRawData,
+            self.pe.OPTIONAL_HEADER.FileAlignment ) + adjust_SectionAlignment( self.VirtualAddress, 
             self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
     
     
@@ -1033,7 +1038,9 @@ class SectionStructure(Structure):
                 self.VirtualAddress, 
                 self.pe.OPTIONAL_HEADER.SectionAlignment, 
                 self.pe.OPTIONAL_HEADER.FileAlignment )
-            ) + adjust_FileAlignment( self.PointerToRawData )
+            ) + adjust_FileAlignment( 
+                self.PointerToRawData,
+                self.pe.OPTIONAL_HEADER.FileAlignment )
     
     
     def contains_offset(self, offset):
@@ -1043,9 +1050,12 @@ class SectionStructure(Structure):
            # bss and other sections containing only uninitialized data must have 0
            # and do not take space in the file
            return False
-        return ( adjust_FileAlignment( self.PointerToRawData ) <= 
+        return ( adjust_FileAlignment( self.PointerToRawData, 
+                self.pe.OPTIONAL_HEADER.FileAlignment ) <= 
                     offset < 
-                        adjust_FileAlignment( self.PointerToRawData ) + self.SizeOfRawData )
+                        adjust_FileAlignment( self.PointerToRawData,
+                            self.pe.OPTIONAL_HEADER.FileAlignment ) + 
+                                self.SizeOfRawData )
     
     
     def contains_rva(self, rva):
@@ -1056,7 +1066,8 @@ class SectionStructure(Structure):
         # either truncated or the SizeOfRawData contain a misleading value.
         # In either of those cases we take the VirtualSize
         #
-        if len(self.pe.__data__) - adjust_FileAlignment( self.PointerToRawData ) < self.SizeOfRawData:
+        if len(self.pe.__data__) - adjust_FileAlignment( self.PointerToRawData,
+            self.pe.OPTIONAL_HEADER.FileAlignment ) < self.SizeOfRawData:
             # PECOFF documentation v8 says:
             # VirtualSize: The total size of the section when loaded into memory.
             # If this value is greater than SizeOfRawData, the section is zero-padded.
@@ -1933,7 +1944,9 @@ class PE:
         # can't be found?
         #
         rawDataPointers = [
-            adjust_FileAlignment( s.PointerToRawData ) for s in self.sections if s.PointerToRawData>0]
+            adjust_FileAlignment( s.PointerToRawData,
+                self.OPTIONAL_HEADER.FileAlignment ) 
+            for s in self.sections if s.PointerToRawData>0 ]
         
         if len(rawDataPointers) > 0:
             lowest_section_offset = min(rawDataPointers)
@@ -2171,7 +2184,9 @@ class PE:
                     ('Error parsing section %d. ' % i) +
                     'SizeOfRawData is larger than file.')
             
-            if adjust_FileAlignment( section.PointerToRawData ) > len(self.__data__):
+            if adjust_FileAlignment( section.PointerToRawData,
+                self.OPTIONAL_HEADER.FileAlignment ) > len(self.__data__):
+                
                 self.__warnings.append(
                     ('Error parsing section %d. ' % i) +
                     'PointerToRawData points beyond the end of the file.')
@@ -3616,7 +3631,9 @@ class PE:
             if section.SizeOfRawData > len(self.__data__):
                 continue
             
-            if adjust_FileAlignment( section.PointerToRawData ) > len(self.__data__):
+            if adjust_FileAlignment( section.PointerToRawData,
+                self.OPTIONAL_HEADER.FileAlignment ) > len(self.__data__):
+                
                 continue
             
             VirtualAddress_adj = adjust_SectionAlignment( section.VirtualAddress, 
@@ -4358,7 +4375,8 @@ class PE:
         """Update the PE image content with any individual section data that has been modified."""
         
         for section in self.sections:
-            section_data_start = adjust_FileAlignment( section.PointerToRawData )
+            section_data_start = adjust_FileAlignment( section.PointerToRawData,
+                self.OPTIONAL_HEADER.FileAlignment )
             section_data_end = section_data_start+section.SizeOfRawData
             if section_data_start < len(self.__data__) and section_data_end < len(self.__data__):
                 self.__data__ = self.__data__[:section_data_start] + section.get_data() + self.__data__[section_data_end:]

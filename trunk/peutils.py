@@ -256,6 +256,52 @@ class SignatureDatabase:
                 return matches[0]
         
         return matches
+
+
+    def match_data(self, code_data, ep_only=True, section_start_only=False):
+
+        data = code_data
+        scan_addresses = [ 0 ]
+
+        # Load the corresponding set of signatures
+        # Either the one for ep_only equal to True or
+        # to False
+        #
+        if section_start_only is True:
+
+            # Load the corresponding tree of signatures
+            #
+            signatures = self.signature_tree_section_start
+
+            # Set the starting address to start scanning from
+            #
+
+        elif ep_only is True:
+
+            # Load the corresponding tree of signatures
+            #
+            signatures = self.signature_tree_eponly_true
+
+
+        # For each start address, check if any signature matches
+        #
+        matches = []
+        for idx in scan_addresses:
+            result = self.__match_signature_tree(
+                signatures,
+                data[idx:idx+self.max_depth])
+            if result:
+                matches.append( (idx, result) )
+
+        # Return only the matched items found at the entry point if
+        # ep_only is True (matches will have only one element in that
+        # case)
+        #
+        if ep_only is True:
+            if matches:
+                return matches[0]
+
+        return matches
         
     
     def __match_signature_tree(self, signature_tree, data, depth = 0):
