@@ -2,7 +2,7 @@
 """peutils, Portable Executable utilities module
 
 
-Copyright (c) 2005-2010 Ero Carrera <ero@dkbza.org>
+Copyright (c) 2005-2011 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 
@@ -18,7 +18,7 @@ import pefile
 
 __author__ = 'Ero Carrera'
 __version__ = pefile.__version__
-__contact__ = 'ero@dkbza.org'
+__contact__ = 'ero.carrera@gmail.com'
 
 
 
