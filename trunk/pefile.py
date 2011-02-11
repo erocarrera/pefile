@@ -72,9 +72,11 @@ fast_load = False
 MAX_STRING_LENGTH = 0x100000 # 2^20 
 
 IMAGE_DOS_SIGNATURE             = 0x5A4D
-IMAGE_OS2_SIGNATURE             = 0x454E
-IMAGE_OS2_SIGNATURE_LE          = 0x454C
-IMAGE_VXD_SIGNATURE             = 0x454C
+IMAGE_DOSZM_SIGNATURE           = 0x4D5A
+IMAGE_NE_SIGNATURE              = 0x454E
+IMAGE_LE_SIGNATURE              = 0x454C
+IMAGE_LX_SIGNATURE              = 0x584C
+
 IMAGE_NT_SIGNATURE              = 0x00004550
 IMAGE_NUMBEROF_DIRECTORY_ENTRIES= 16
 IMAGE_ORDINAL_FLAG              = 0x80000000L
@@ -1735,6 +1737,8 @@ class PE:
             self.__IMAGE_DOS_HEADER_format__,
             dos_header_data, file_offset=0)
         
+        if self.DOS_HEADER.e_magic == IMAGE_DOSZM_SIGNATURE:
+            raise PEFormatError('Probably a ZM Executable (not a PE file).')
         if not self.DOS_HEADER or self.DOS_HEADER.e_magic != IMAGE_DOS_SIGNATURE:
             raise PEFormatError('DOS Header magic not found.')
         
@@ -1757,7 +1761,13 @@ class PE:
         # Some malware will cause the Signature value to not exist at all
         if not self.NT_HEADERS or not self.NT_HEADERS.Signature:
             raise PEFormatError('NT Headers not found.')
-        
+
+        if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_NE_SIGNATURE:
+            raise PEFormatError('Invalid NT Headers signature. Probably a NE file')
+        if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_LE_SIGNATURE:
+            raise PEFormatError('Invalid NT Headers signature. Probably a LE file')
+        if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_LX_SIGNATURE:
+            raise PEFormatError('Invalid NT Headers signature. Probably a LX file')
         if self.NT_HEADERS.Signature != IMAGE_NT_SIGNATURE:
             raise PEFormatError('Invalid NT Headers signature.')
         
