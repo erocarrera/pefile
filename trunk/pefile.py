@@ -524,6 +524,7 @@ def get_sublang_name_for_lang( lang_value, sublang_value ):
 #
 def parse_strings(data, counter, l):
     i = 0
+    error_count = 0
     while i < len(data):
         
         data_slice = data[i:i + 2]
@@ -532,11 +533,14 @@ def parse_strings(data, counter, l):
         
         len_ = struct.unpack("<h", data_slice)[0]
         i += 2
-        if len_ != 0 and len_ <= len(data):
+        if len_ != 0 and 0 <= len_*2 <= len(data):
             try:
                 l[counter] = data[i: i + len_ * 2].decode('utf-16')
             except UnicodeDecodeError:
+                error_count += 1
                 pass
+            if error_count >= 3:
+                break
             i += len_ * 2
         counter += 1
 
