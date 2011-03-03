@@ -2686,6 +2686,9 @@ class PE:
                                 string_entry_size = resource_lang.data.struct.Size
                                 string_entry_id = resource_id.id
                                 
+                                if resource_lang.data.struct.Size is None or resource_id.id is None:
+                                    continue
+                                    
                                 string_entry_data = self.get_data(string_entry_rva, string_entry_size)
                                 parse_strings( string_entry_data, (int(string_entry_id) - 1) * 16, resource_strings )
                                 strings.update(resource_strings)
