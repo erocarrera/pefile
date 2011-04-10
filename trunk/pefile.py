@@ -2610,18 +2610,27 @@ class PE:
             resource_dir.NumberOfNamedEntries +
             resource_dir.NumberOfIdEntries )
         
+        # Set a hard limit on the maximum resonable number of entries
+        MAX_ALLOWED_ENTRIES = 4096
+        if number_of_entries > MAX_ALLOWED_ENTRIES:
+            self.__warnings.append(
+                'Error parsing the resources directory, '
+                'The directory contains %d entries (>%s)' %
+                (number_of_entries, MAX_ALLOWED_ENTRIES) )
+            return None
+        
         strings_to_postprocess = list()
         
         for idx in xrange(number_of_entries):
             
+            
             res = self.parse_resource_entry(rva)
             if res is None:
                 self.__warnings.append(
-                    'Error parsing the resources directory, ' +
+                    'Error parsing the resources directory, '
                     'Entry %d is invalid, RVA = 0x%x. ' %
                     (idx, rva) )
                 break
-            
             
             entry_name = None
             entry_id = None
@@ -2640,8 +2649,8 @@ class PE:
                 
                 except PEFormatError, excp:
                     self.__warnings.append(
-                        'Error parsing the resources directory, ' +
-                        'attempting to read entry name. ' +
+                        'Error parsing the resources directory, '
+                        'attempting to read entry name. '
                         'Can\'t read unicode string at offset 0x%x' %
                         (ustr_offset) )
                 
@@ -2665,6 +2674,7 @@ class PE:
                 else:
                     entry_directory = self.parse_resources_directory(
                         base_rva+res.OffsetToDirectory,
+                        size-(rva-base_rva), # size
                         base_rva=base_rva, level = level+1,
                         dirs=dirs + [base_rva + res.OffsetToDirectory])
                 
