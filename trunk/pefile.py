@@ -2688,17 +2688,20 @@ class PE:
                     strings = dict()
                     for resource_id in entry_directory.entries:
                         if hasattr(resource_id, 'directory'):
+                            
+                            resource_strings = dict()
+                            
                             for resource_lang in resource_id.directory.entries:
                                 
-                                resource_strings = dict()
                                 
+                                if (resource_lang is None or not hasattr(resource_lang, 'data') or 
+                                    resource_lang.data.struct.Size is None or resource_id.id is None):
+                                    continue
+                                    
                                 string_entry_rva = resource_lang.data.struct.OffsetToData
                                 string_entry_size = resource_lang.data.struct.Size
                                 string_entry_id = resource_id.id
                                 
-                                if resource_lang.data.struct.Size is None or resource_id.id is None:
-                                    continue
-                                    
                                 string_entry_data = self.get_data(string_entry_rva, string_entry_size)
                                 parse_strings( string_entry_data, (int(string_entry_id) - 1) * 16, resource_strings )
                                 strings.update(resource_strings)
@@ -3052,13 +3055,13 @@ class PE:
                             
                             key_as_char = []
                             for c in key:
-                                if ord(c)>128:
-                                    key_as_char.append('\\x%02x' %ord(c))
+                                if ord(c) >= 0x80:
+                                    key_as_char.append('\\x%02x' % ord(c))
                                 else:
                                     key_as_char.append(c)
                             
                             key_as_char = ''.join(key_as_char)
-                            
+
                             setattr(stringtable_struct, key_as_char, value)
                             stringtable_struct.entries[key] = value
                             stringtable_struct.entries_offsets[key] = (key_offset, value_offset)
@@ -3133,7 +3136,7 @@ class PE:
                                 raw_data[varword_offset+2:varword_offset+4], 0)
                             varword_offset += 4
                             
-                            if isinstance(word1, (int, long)) and isinstance(word1, (int, long)):
+                            if isinstance(word1, (int, long)) and isinstance(word2, (int, long)):
                                 var_struct.entry = {var_string: '0x%04x 0x%04x' % (word1, word2)}
                         
                         var_offset = self.dword_align(
