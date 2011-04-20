@@ -1696,7 +1696,12 @@ class PE:
         self.__parse__(name, data, fast_load)
         
     
+    def close(self):
+        
+        if isinstance(self.__data__, mmap.mmap):
+            self.__data__.close()
     
+
     def __unpack_data__(self, format, data, file_offset):
         """Apply structure format to raw data.
         
@@ -1726,6 +1731,9 @@ class PE:
         """
         
         if fname:
+            stat = os.stat(fname)
+            if stat.st_size == 0:
+                raise PEFormatError('The file is empty')
             fd = file(fname, 'rb')
             self.fileno = fd.fileno()
             self.__data__ = mmap.mmap( self.fileno, 0, access = mmap.ACCESS_READ  )
