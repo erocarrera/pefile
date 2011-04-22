@@ -3226,6 +3226,11 @@ class PE:
             
             symbol_name_address = self.get_dword_from_data(address_of_names, i)
 
+            if symbol_name_address is None:
+                max_failed_entries_before_giving_up -= 1
+                if max_failed_entries_before_giving_up <= 0:
+                    break
+                
             symbol_name = self.get_string_at_rva( symbol_name_address )
             try:
                 symbol_name_offset = self.get_offset_from_rva( symbol_name_address )
@@ -3239,7 +3244,7 @@ class PE:
                 address_of_name_ordinals, i)
 
             
-            if symbol_ordinal*4 < len(address_of_functions):
+            if symbol_ordinal is not None and symbol_ordinal*4 < len(address_of_functions):
                 symbol_address = self.get_dword_from_data(
                     address_of_functions, symbol_ordinal)
             else:
@@ -3802,6 +3807,9 @@ class PE:
     
     def get_string_at_rva(self, rva):
         """Get an ASCII string located at the given address."""
+
+        if rva is None:
+            return None
 
         s = self.get_section_by_rva(rva)
         if not s:
