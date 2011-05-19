@@ -576,64 +576,11 @@ def set_flags(obj, flag_field, flags):
 def power_of_two(val):
     return val != 0 and (val & (val-1)) == 0
 
-# According to http://corkami.blogspot.com/2010/01/parce-que-la-planche-aura-brule.html
-# if PointerToRawData is less that 0x200 it's rounded to zero. Loading the test file
-# in a debugger it's easy to verify that the PointerToRawData value of 1 is rounded
-# to zero. Hence we reproduce the behabior
-#
-# According to the document: 
-# [ Microsoft Portable Executable and Common Object File Format Specification ]
-# "The alignment factor (in bytes) that is used to align the raw data of sections in
-#  the image file. The value should be a power of 2 between 512 and 64 K, inclusive.
-#  The default is 512. If the SectionAlignment is less than the architecture’s page
-#  size, then FileAlignment must match SectionAlignment."
-#
-# The following is a hardcoded constant if the Windows loader
+
 FILE_ALIGNEMNT_HARDCODED_VALUE = 0x200
 FileAlignment_Warning = False # We only want to print the warning once
-def adjust_FileAlignment( val, file_alignment ):
-    
-    if file_alignment > FILE_ALIGNEMNT_HARDCODED_VALUE:
-        # If it's not a power of two, report it:
-        if not power_of_two(file_alignment) and FileAlignment_Warning is False:
-            self.__warnings.append(
-                'If FileAlignment > 0x200 it should be a power of 2. Value: %x' % (
-                    file_alignment)  )
-            FileAlignment_Warning = True
-
-    if file_alignment < FILE_ALIGNEMNT_HARDCODED_VALUE:
-        return val
-    return (val / 0x200) * 0x200
-
-
-# According to the document: 
-# [ Microsoft Portable Executable and Common Object File Format Specification ]
-# "The alignment (in bytes) of sections when they are loaded into memory. It must be
-#  greater than or equal to FileAlignment. The default is the page size for the
-#  architecture."
-#
 SectionAlignment_Warning = False # We only want to print the warning once
-def adjust_SectionAlignment( val, section_alignment, file_alignment ):
 
-    if file_alignment < FILE_ALIGNEMNT_HARDCODED_VALUE:
-        if file_alignment != section_alignment and SectionAlignment_Warning is False:
-            self.__warnings.append(
-                'If FileAlignment(%x) < 0x200 it should equal SectionAlignment(%x)' % (
-                    file_alignment, section_alignment)  )
-            SectionAlignment_Warning = True
-        
-    if section_alignment < 0x1000: # page size
-        section_alignment = file_alignment
-        
-    # 0x200 is the minimum valid FileAlignment according to the documentation
-    # although ntoskrnl.exe has an alignment of 0x80 in some Windows versions
-    #
-    #elif section_alignment < 0x80: 
-    #    section_alignment = 0x80
-        
-    if section_alignment and val % section_alignment:
-        return section_alignment * ( val / section_alignment )
-    return val
 
 
 class UnicodeStringWrapperPostProcessor:
@@ -1013,9 +960,9 @@ class SectionStructure(Structure):
         addresses as it would be if loaded.
         """
         
-        PointerToRawData_adj = adjust_FileAlignment( self.PointerToRawData,
+        PointerToRawData_adj = self.pe.adjust_FileAlignment( self.PointerToRawData,
             self.pe.OPTIONAL_HEADER.FileAlignment )
-        VirtualAddress_adj = adjust_SectionAlignment( self.VirtualAddress, 
+        VirtualAddress_adj = self.pe.adjust_SectionAlignment( self.VirtualAddress, 
             self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
 
         if start is None:
@@ -1055,18 +1002,18 @@ class SectionStructure(Structure):
     
     
     def get_rva_from_offset(self, offset):
-        return offset - adjust_FileAlignment( self.PointerToRawData,
-            self.pe.OPTIONAL_HEADER.FileAlignment ) + adjust_SectionAlignment( self.VirtualAddress, 
+        return offset - self.pe.adjust_FileAlignment( self.PointerToRawData,
+            self.pe.OPTIONAL_HEADER.FileAlignment ) + self.pe.adjust_SectionAlignment( self.VirtualAddress, 
             self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
     
     
     def get_offset_from_rva(self, rva):
         return (rva - 
-            adjust_SectionAlignment( 
+            self.pe.adjust_SectionAlignment( 
                 self.VirtualAddress, 
                 self.pe.OPTIONAL_HEADER.SectionAlignment, 
                 self.pe.OPTIONAL_HEADER.FileAlignment )
-            ) + adjust_FileAlignment( 
+            ) + self.pe.adjust_FileAlignment( 
                 self.PointerToRawData,
                 self.pe.OPTIONAL_HEADER.FileAlignment )
     
@@ -1078,10 +1025,10 @@ class SectionStructure(Structure):
            # bss and other sections containing only uninitialized data must have 0
            # and do not take space in the file
            return False
-        return ( adjust_FileAlignment( self.PointerToRawData, 
+        return ( self.pe.adjust_FileAlignment( self.PointerToRawData, 
                 self.pe.OPTIONAL_HEADER.FileAlignment ) <= 
                     offset < 
-                        adjust_FileAlignment( self.PointerToRawData,
+                        self.pe.adjust_FileAlignment( self.PointerToRawData,
                             self.pe.OPTIONAL_HEADER.FileAlignment ) + 
                                 self.SizeOfRawData )
     
@@ -1094,7 +1041,7 @@ class SectionStructure(Structure):
         # either truncated or the SizeOfRawData contain a misleading value.
         # In either of those cases we take the VirtualSize
         #
-        if len(self.pe.__data__) - adjust_FileAlignment( self.PointerToRawData,
+        if len(self.pe.__data__) - self.pe.adjust_FileAlignment( self.PointerToRawData,
             self.pe.OPTIONAL_HEADER.FileAlignment ) < self.SizeOfRawData:
             # PECOFF documentation v8 says:
             # VirtualSize: The total size of the section when loaded into memory.
@@ -1106,7 +1053,7 @@ class SectionStructure(Structure):
         else:
             size = max(self.SizeOfRawData, self.Misc_VirtualSize)
         
-        VirtualAddress_adj = adjust_SectionAlignment( self.VirtualAddress, 
+        VirtualAddress_adj = self.pe.adjust_SectionAlignment( self.VirtualAddress, 
             self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
         
         return VirtualAddress_adj <= rva < VirtualAddress_adj + size
@@ -1988,7 +1935,7 @@ class PE:
         # can't be found?
         #
         rawDataPointers = [
-            adjust_FileAlignment( s.PointerToRawData,
+            self.adjust_FileAlignment( s.PointerToRawData,
                 self.OPTIONAL_HEADER.FileAlignment ) 
             for s in self.sections if s.PointerToRawData>0 ]
         
@@ -2228,7 +2175,7 @@ class PE:
                     ('Error parsing section %d. ' % i) +
                     'SizeOfRawData is larger than file.')
             
-            if adjust_FileAlignment( section.PointerToRawData,
+            if self.adjust_FileAlignment( section.PointerToRawData,
                 self.OPTIONAL_HEADER.FileAlignment ) > len(self.__data__):
                 
                 self.__warnings.append(
@@ -2240,7 +2187,7 @@ class PE:
                     ('Suspicious value found parsing section %d. ' % i) +
                     'VirtualSize is extremely large > 256MiB.')
             
-            if adjust_SectionAlignment( section.VirtualAddress, 
+            if self.adjust_SectionAlignment( section.VirtualAddress, 
                 self.OPTIONAL_HEADER.SectionAlignment, self.OPTIONAL_HEADER.FileAlignment ) > 0x10000000:
                 self.__warnings.append(
                     ('Suspicious value found parsing section %d. ' % i) +
@@ -3694,12 +3641,12 @@ class PE:
             if section.SizeOfRawData > len(self.__data__):
                 continue
             
-            if adjust_FileAlignment( section.PointerToRawData,
+            if self.adjust_FileAlignment( section.PointerToRawData,
                 self.OPTIONAL_HEADER.FileAlignment ) > len(self.__data__):
                 
                 continue
             
-            VirtualAddress_adj = adjust_SectionAlignment( section.VirtualAddress, 
+            VirtualAddress_adj = self.adjust_SectionAlignment( section.VirtualAddress, 
                 self.OPTIONAL_HEADER.SectionAlignment, self.OPTIONAL_HEADER.FileAlignment )
             
             if VirtualAddress_adj >= max_virtual_address:
@@ -3787,7 +3734,7 @@ class PE:
         s = self.get_section_by_offset(offset)
         if not s:
             if self.sections:
-                lowest_rva = min( [ adjust_SectionAlignment( s.VirtualAddress, 
+                lowest_rva = min( [ self.adjust_SectionAlignment( s.VirtualAddress, 
                     self.OPTIONAL_HEADER.SectionAlignment, self.OPTIONAL_HEADER.FileAlignment ) for s in self.sections] )
                 if offset < lowest_rva:
                     # We will assume that the offset lies within the headers, or
@@ -4444,7 +4391,7 @@ class PE:
         """Update the PE image content with any individual section data that has been modified."""
         
         for section in self.sections:
-            section_data_start = adjust_FileAlignment( section.PointerToRawData,
+            section_data_start = self.adjust_FileAlignment( section.PointerToRawData,
                 self.OPTIONAL_HEADER.FileAlignment )
             section_data_end = section_data_start+section.SizeOfRawData
             if section_data_start < len(self.__data__) and section_data_end < len(self.__data__):
@@ -4694,3 +4641,60 @@ class PE:
             
         return self.__data__[:]
         
+        
+    # According to http://corkami.blogspot.com/2010/01/parce-que-la-planche-aura-brule.html
+    # if PointerToRawData is less that 0x200 it's rounded to zero. Loading the test file
+    # in a debugger it's easy to verify that the PointerToRawData value of 1 is rounded
+    # to zero. Hence we reproduce the behabior
+    #
+    # According to the document: 
+    # [ Microsoft Portable Executable and Common Object File Format Specification ]
+    # "The alignment factor (in bytes) that is used to align the raw data of sections in
+    #  the image file. The value should be a power of 2 between 512 and 64 K, inclusive.
+    #  The default is 512. If the SectionAlignment is less than the architecture’s page
+    #  size, then FileAlignment must match SectionAlignment."
+    #
+    # The following is a hardcoded constant if the Windows loader
+    def adjust_FileAlignment( self, val, file_alignment ):
+        global FileAlignment_Warning
+        if file_alignment > FILE_ALIGNEMNT_HARDCODED_VALUE:
+            # If it's not a power of two, report it:
+            if not power_of_two(file_alignment) and FileAlignment_Warning is False:
+                self.__warnings.append(
+                    'If FileAlignment > 0x200 it should be a power of 2. Value: %x' % (
+                        file_alignment)  )
+                FileAlignment_Warning = True
+
+        if file_alignment < FILE_ALIGNEMNT_HARDCODED_VALUE:
+            return val
+        return (val / 0x200) * 0x200
+
+
+    # According to the document: 
+    # [ Microsoft Portable Executable and Common Object File Format Specification ]
+    # "The alignment (in bytes) of sections when they are loaded into memory. It must be
+    #  greater than or equal to FileAlignment. The default is the page size for the
+    #  architecture."
+    #
+    def adjust_SectionAlignment( self, val, section_alignment, file_alignment ):
+        global SectionAlignment_Warning
+        if file_alignment < FILE_ALIGNEMNT_HARDCODED_VALUE:
+            if file_alignment != section_alignment and SectionAlignment_Warning is False:
+                self.__warnings.append(
+                    'If FileAlignment(%x) < 0x200 it should equal SectionAlignment(%x)' % (
+                        file_alignment, section_alignment)  )
+                SectionAlignment_Warning = True
+            
+        if section_alignment < 0x1000: # page size
+            section_alignment = file_alignment
+            
+        # 0x200 is the minimum valid FileAlignment according to the documentation
+        # although ntoskrnl.exe has an alignment of 0x80 in some Windows versions
+        #
+        #elif section_alignment < 0x80: 
+        #    section_alignment = 0x80
+            
+        if section_alignment and val % section_alignment:
+            return section_alignment * ( val / section_alignment )
+        return val
+
