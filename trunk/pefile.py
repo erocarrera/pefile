@@ -1662,12 +1662,16 @@ class PE:
         
         if not fast_load:
             fast_load = globals()['fast_load']
-        self.__parse__(name, data, fast_load)
-        
-    
+        try:
+            self.__parse__(name, data, fast_load)
+        except:
+            self.close()
+            raise
+            
+            
     def close(self):
         
-        if isinstance(self.__data__, mmap.mmap):
+        if hasattr(self, '__data__') and isinstance(self.__data__, mmap.mmap):
             self.__data__.close()
     
 
@@ -2222,10 +2226,15 @@ class PE:
             if ( section.__dict__.get('IMAGE_SCN_MEM_WRITE', False)  and
                 section.__dict__.get('IMAGE_SCN_MEM_EXECUTE', False) ):
                 
-                self.__warnings.append(
-                    ('Suspicious flags set for section %d. ' % i) +
-                    'Both IMAGE_SCN_MEM_WRITE and IMAGE_SCN_MEM_EXECUTE are set. ' +
-                    'This might indicate a packed executable.')
+                if section.Name == 'PAGE' and self.is_driver():
+                    # Drivers can have a PAGE section with those flags set without
+                    # implying that it is malicious
+                    pass
+                else:
+                    self.__warnings.append(
+                        ('Suspicious flags set for section %d. ' % i) +
+                        'Both IMAGE_SCN_MEM_WRITE and IMAGE_SCN_MEM_EXECUTE are set. ' +
+                        'This might indicate a packed executable.')
             
             self.sections.append(section)
         
@@ -2906,7 +2915,7 @@ class PE:
                 self.__StringFileInfo_format__,
                 raw_data[stringfileinfo_offset:],
                 file_offset = start_offset+stringfileinfo_offset )
-            
+
             if stringfileinfo_struct is None:
                 self.__warnings.append(
                     'Error parsing StringFileInfo/VarFileInfo struct' )
@@ -2939,7 +2948,7 @@ class PE:
             #
             if stringfileinfo_string and stringfileinfo_string.startswith(u'StringFileInfo'):
                 
-                if stringfileinfo_struct.Type == 1 and stringfileinfo_struct.ValueLength == 0:
+                if stringfileinfo_struct.Type in (0,1) and stringfileinfo_struct.ValueLength == 0:
                     
                     stringtable_offset = self.dword_align(
                         stringfileinfo_offset + stringfileinfo_struct.sizeof() +
@@ -3461,10 +3470,14 @@ class PE:
         else:
             return None
         
+        imp_offset = 4
+        address_mask = 0x7fffffff
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
             ordinal_flag = IMAGE_ORDINAL_FLAG
         elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
             ordinal_flag = IMAGE_ORDINAL_FLAG64
+            imp_offset = 8
+            address_mask = 0x7fffffffffffffffL
         
         for idx in xrange(len(table)):
             
@@ -3486,7 +3499,7 @@ class PE:
                 else:
                     import_by_ordinal = False
                     try:
-                        hint_name_table_rva = table[idx].AddressOfData & 0x7fffffff
+                        hint_name_table_rva = table[idx].AddressOfData & address_mask
                         data = self.get_data(hint_name_table_rva, 2)
                         # Get the Hint
                         imp_hint = self.get_word_from_data(data, 0)
@@ -3502,7 +3515,7 @@ class PE:
                 thunk_offset = table[idx].get_file_offset()
                 thunk_rva = self.get_rva_from_offset(thunk_offset)
                 
-            imp_address = first_thunk + self.OPTIONAL_HEADER.ImageBase + idx * 4
+            imp_address = first_thunk + self.OPTIONAL_HEADER.ImageBase + idx * imp_offset
             
             struct_iat = None
             try:
@@ -3565,8 +3578,28 @@ class PE:
             ordinal_flag = IMAGE_ORDINAL_FLAG64
             format = self.__IMAGE_THUNK_DATA64_format__
 
+        MAX_ADDRESS_SPREAD = 128*2**20 # 64 MB
+        MAX_REPEATED_ADDRESSES = 15
+        repeated_address = 0
+        addresses_of_data_set_64 = set()
+        addresses_of_data_set_32 = set()
         while True and rva:
             
+            # if we see too many times the same entry we assume it could be
+            # a table containing bogus data (with malicious intenet or otherwise)
+            if repeated_address >= MAX_REPEATED_ADDRESSES:
+                return []
+                
+            # if the addresses point somwhere but the difference between the highest
+            # and lowest address is larger than MAX_ADDRESS_SPREAD we assume a bogus
+            # table as the addresses should be contained within a module
+            if (addresses_of_data_set_32 and 
+                max(addresses_of_data_set_32) - min(addresses_of_data_set_32) > MAX_ADDRESS_SPREAD ):
+                return []
+            if (addresses_of_data_set_64 and 
+                max(addresses_of_data_set_64) - min(addresses_of_data_set_64) > MAX_ADDRESS_SPREAD ):
+                return []
+                
             try:
                 data = self.get_data( rva, Structure(format).sizeof() )
             except PEFormatError, e:
@@ -3581,10 +3614,22 @@ class PE:
             if thunk_data and thunk_data.AddressOfData:
                 # If the entry looks like could be an ordinal...
                 if thunk_data.AddressOfData & ordinal_flag:
-                    # But its value is beyond 2^16, we will assume it's a
+                    # but its value is beyond 2^16, we will assume it's a
                     # corrupted and ignore it altogether
                     if thunk_data.AddressOfData & 0x7fffffff > 0xffff:
                         return []
+                # and if it looks like it should be an RVA
+                else:
+                    # keep track of the RVAs seen and store them to study their
+                    # properties. When certain non-standard features are detected
+                    # the parsing will be aborted
+                    if (thunk_data.AddressOfData in addresses_of_data_set_32 or 
+                        thunk_data.AddressOfData in addresses_of_data_set_64):
+                        repeated_address += 1
+                    if thunk_data.AddressOfData >= 2**32:
+                        addresses_of_data_set_64.add(thunk_data.AddressOfData)
+                    else:
+                        addresses_of_data_set_32.add(thunk_data.AddressOfData)
 
             if not thunk_data or thunk_data.all_zeroes():
                 break
