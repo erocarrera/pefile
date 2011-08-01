@@ -3074,7 +3074,7 @@ class PE:
                 varfileinfo_struct = stringfileinfo_struct
                 varfileinfo_struct.name = 'VarFileInfo'
                 
-                if varfileinfo_struct.Type == 1 and varfileinfo_struct.ValueLength == 0:
+                if varfileinfo_struct.Type in (0, 1) and varfileinfo_struct.ValueLength == 0:
                     
                     var_offset = self.dword_align(
                         stringfileinfo_offset + varfileinfo_struct.sizeof() +
