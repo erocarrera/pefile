@@ -1659,6 +1659,7 @@ class PE:
         # That will allow for an easy iteration through the list
         # in order to save the modifications made
         self.__structures__ = []
+        self.__from_file = None
         
         if not fast_load:
             fast_load = globals()['fast_load']
@@ -1670,9 +1671,10 @@ class PE:
             
             
     def close(self):
-        
-        if hasattr(self, '__data__') and isinstance(self.__data__, mmap.mmap):
-            self.__data__.close()
+        if ( self.__from_file is True and hasattr(self, '__data__') and 
+            ((isinstance(mmap.mmap, type) and isinstance(self.__data__, mmap.mmap)) or
+           'mmap.mmap' in repr(type(self.__data__))) ):
+                self.__data__.close()
     
 
     def __unpack_data__(self, format, data, file_offset):
@@ -1707,12 +1709,16 @@ class PE:
             stat = os.stat(fname)
             if stat.st_size == 0:
                 raise PEFormatError('The file is empty')
-            fd = file(fname, 'rb')
-            self.fileno = fd.fileno()
-            self.__data__ = mmap.mmap( self.fileno, 0, access = mmap.ACCESS_READ  )
-            fd.close()
+            try:
+                fd = file(fname, 'rb')
+                self.fileno = fd.fileno()
+                self.__data__ = mmap.mmap(self.fileno, 0, access=mmap.ACCESS_READ)
+                self.__from_file = True
+            finally:
+                fd.close()
         elif data:
             self.__data__ = data
+            self.__from_file = False
         
         dos_header_data = self.__data__[:64]
         if len(dos_header_data) != 64:
