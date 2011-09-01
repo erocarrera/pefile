@@ -2459,6 +2459,21 @@ class PE:
             if not rlc:
                 break
             
+            # rlc.VirtualAddress must lie within the Image
+            if rlc.VirtualAddress > self.OPTIONAL_HEADER.SizeOfImage:
+                self.__warnings.append(
+                    'Invalid relocation information. VirtualAddress outside' +
+                    ' of Image: 0x%x' % rlc.VirtualAddress)
+                break
+            
+            # rlc.SizeOfBlock must be less or equal than the size of the image
+            # (It's a rather loose sanity test)
+            if rlc.SizeOfBlock > self.OPTIONAL_HEADER.SizeOfImage:
+                self.__warnings.append(
+                    'Invalid relocation information. SizeOfBlock too large' +
+                    ': %d' % rlc.SizeOfBlock)
+                break
+            
             reloc_entries = self.parse_relocations(
                 rva+rlc_size, rlc.VirtualAddress, rlc.SizeOfBlock-rlc_size )
             
