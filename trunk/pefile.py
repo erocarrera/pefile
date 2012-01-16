@@ -1052,9 +1052,16 @@ class SectionStructure(Structure):
             size = self.Misc_VirtualSize
         else:
             size = max(self.SizeOfRawData, self.Misc_VirtualSize)
-        
+
         VirtualAddress_adj = self.pe.adjust_SectionAlignment( self.VirtualAddress, 
             self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
+        
+        # Check if there's any further section that will start before the
+        # calculated end for the current one, if so cut the current's size
+        # to fit in the range until the next one starts.
+        for s in self.pe.sections:
+            if s.VirtualAddress > self.VirtualAddress and VirtualAddress_adj + size > s.VirtualAddress:
+                    size = s.VirtualAddress - VirtualAddress_adj
         
         return VirtualAddress_adj <= rva < VirtualAddress_adj + size
     
