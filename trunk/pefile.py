@@ -1789,7 +1789,8 @@ class PE:
         
         self.OPTIONAL_HEADER = self.__unpack_data__(
             self.__IMAGE_OPTIONAL_HEADER_format__,
-            self.__data__[optional_header_offset:],
+            # Read up to 256 bytes to allow creating a copy of too much data
+            self.__data__[optional_header_offset:optional_header_offset+256],
             file_offset = optional_header_offset)
         
         # According to solardesigner's findings for his
@@ -3701,7 +3702,7 @@ class PE:
             
         # Collect all sections in one code block
         #mapped_data = self.header
-        mapped_data = ''+ self.__data__[:]
+        mapped_data = '' + self.__data__[:]
         for section in self.sections:
             
             # Miscellaneous integrity tests.
