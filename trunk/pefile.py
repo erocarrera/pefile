@@ -2320,20 +2320,20 @@ class PE:
                 
         
     
-    def parse_directory_bound_imports(self, file_offset, size):
+    def parse_directory_bound_imports(self, rva, size):
         """"""
         
         bnd_descr = Structure(self.__IMAGE_BOUND_IMPORT_DESCRIPTOR_format__)
         bnd_descr_size = bnd_descr.sizeof()
-        start = file_offset
+        start = rva
         
         bound_imports = []
         while True:
             
             bnd_descr = self.__unpack_data__(
                 self.__IMAGE_BOUND_IMPORT_DESCRIPTOR_format__,
-                   self.__data__[file_offset:file_offset+bnd_descr_size],
-                   file_offset = file_offset)
+                   self.__data__[rva:rva+bnd_descr_size],
+                   file_offset = rva)
             if bnd_descr is None:
                 # If can't parse directory then silently return.
                 # This directory does not necessarily have to be valid to
@@ -2347,11 +2347,12 @@ class PE:
             if bnd_descr.all_zeroes():
                 break
             
-            file_offset += bnd_descr.sizeof()
+            rva += bnd_descr.sizeof()
             
-            section = self.get_section_by_offset(file_offset)
+            section = self.get_section_by_offset(rva)
+            file_offset = self.get_offset_from_rva(rva)
             if section is None:
-                # Find the first section starting at a later offset than that specified by 'file_offset'
+                # Find the first section starting at a later offset than that specified by 'rva'
                 first_section_after_offset = min([section.PointerToRawData for section in self.sections
                                                 if section.PointerToRawData > file_offset])
                 section = self.get_section_by_offset(first_section_after_offset)
@@ -2362,7 +2363,7 @@ class PE:
             if not section:
                 self.__warnings.append(
                     'RVA of IMAGE_BOUND_IMPORT_DESCRIPTOR points to an invalid address: %x' %
-                    file_offset)
+                    rva)
                 return
                 
 
@@ -2373,13 +2374,13 @@ class PE:
                 # IMAGE_BOUND_FORWARDER_REF have the same size.
                 bnd_frwd_ref = self.__unpack_data__(
                     self.__IMAGE_BOUND_FORWARDER_REF_format__,
-                    self.__data__[file_offset:file_offset+bnd_descr_size],
-                    file_offset = file_offset)
+                    self.__data__[rva:rva+bnd_descr_size],
+                    file_offset = rva)
                 # OC Patch:
                 if not bnd_frwd_ref:
                     raise PEFormatError(
                         "IMAGE_BOUND_FORWARDER_REF cannot be read")
-                file_offset += bnd_frwd_ref.sizeof()
+                rva += bnd_frwd_ref.sizeof()
                 
                 offset = start+bnd_frwd_ref.OffsetModuleName
                 name_str =  self.get_string_from_data(
