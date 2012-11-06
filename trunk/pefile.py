@@ -12,7 +12,7 @@ pefile has been tested against the limits of valid PE headers, that is, malware.
 Lots of packed malware attempt to abuse the format way beyond its standard use.
 To the best of my knowledge most of the abuses are handled gracefully.
 
-Copyright (c) 2005-2011 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2012 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 
@@ -2356,11 +2356,15 @@ class PE:
             section = self.get_section_by_offset(rva)
             file_offset = self.get_offset_from_rva(rva)
             if section is None:
-                # Find the first section starting at a later offset than that specified by 'rva'
-                first_section_after_offset = min([section.PointerToRawData for section in self.sections
-                                                if section.PointerToRawData > file_offset])
-                section = self.get_section_by_offset(first_section_after_offset)
-                safety_boundary = section.PointerToRawData - file_offset
+                safety_boundary = len(self.__data__) - file_offset
+                sections_after_offset = [section.PointerToRawData for section in self.sections
+                                         if section.PointerToRawData > file_offset]
+                if sections_after_offset:
+                    # Find the first section starting at a later offset than that specified by 'rva'
+                    first_section_after_offset = min(sections_after_offset)
+                    section = self.get_section_by_offset(first_section_after_offset)
+                    if section is not None:
+                        safety_boundary = section.PointerToRawData - file_offset
             else:
                 safety_boundary = section.PointerToRawData + len(section.get_data()) - file_offset
 
@@ -3185,6 +3189,8 @@ class PE:
                                 'Can\'t read unicode string at offset 0x%x' % (ustr_offset))
                             break
 
+                        if var_string is None:
+                            break
 
                         varfileinfo_struct.Var.append(var_struct)
 
@@ -4665,7 +4671,8 @@ class PE:
                 continue
 
             dword = struct.unpack('I', data[ i*4 : i*4+4 ])[0]
-            checksum = (checksum & 0xffffffff) + dword + (checksum>>32)
+            # Optimized the calculation (thanks to Emmanuel Bourg for pointing it out!)
+            checksum += dword
             if checksum > 2**32:
                 checksum = (checksum & 0xffffffff) + (checksum >> 32)
 
