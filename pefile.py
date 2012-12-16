@@ -1053,12 +1053,13 @@ class SectionStructure(Structure):
         VirtualAddress_adj = self.pe.adjust_SectionAlignment( self.VirtualAddress,
             self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
 
-        # Check if there's any further section that will start before the
-        # calculated end for the current one, if so cut the current's size
-        # to fit in the range until the next one starts.
-        for s in self.pe.sections:
-            if s.VirtualAddress > self.VirtualAddress and VirtualAddress_adj + size > s.VirtualAddress:
-                    size = s.VirtualAddress - VirtualAddress_adj
+        # Check whether there's any section after the current one that starts before the
+        # calculated end for the current one, if so, cut the current section's size
+        # to fit in the range up to where the next section starts.
+        if (self.next_section_virtual_address is not None and
+            self.next_section_virtual_address > self.VirtualAddress and
+            VirtualAddress_adj + size > self.next_section_virtual_address):
+                size = self.next_section_virtual_address - VirtualAddress_adj
 
         return VirtualAddress_adj <= rva < VirtualAddress_adj + size
 
@@ -1066,12 +1067,6 @@ class SectionStructure(Structure):
     def contains(self, rva):
         #print "DEPRECATION WARNING: you should use contains_rva() instead of contains()"
         return self.contains_rva(rva)
-
-
-    #def set_data(self, data):
-    #    """Set the data belonging to the section."""
-    #
-    #    self.data = data
 
 
     def get_entropy(self):
@@ -1129,12 +1124,13 @@ class SectionStructure(Structure):
 
 
 
-class DataContainer:
+class DataContainer(object):
     """Generic data container."""
 
     def __init__(self, **args):
+        bare_setattr = super(DataContainer, self).__setattr__
         for key, value in args.items():
-            setattr(self, key, value)
+            bare_setattr(key, value)
 
 
 
@@ -2203,11 +2199,17 @@ class PE:
                 self.__warnings.append(
                     ('Error parsing section %d. ' % i) +
                     'PointerToRawData points beyond the end of the file.')
+                # Skip these. If we can't get to the raw data it will likely not be a
+                # real section.
+                continue
 
             if section.Misc_VirtualSize > 0x10000000:
                 self.__warnings.append(
                     ('Suspicious value found parsing section %d. ' % i) +
                     'VirtualSize is extremely large > 256MiB.')
+                # Skip these. It will likely not be a real section.
+                continue
+
 
             if self.adjust_SectionAlignment( section.VirtualAddress,
                 self.OPTIONAL_HEADER.SectionAlignment, self.OPTIONAL_HEADER.FileAlignment ) > 0x10000000:
@@ -2254,7 +2256,18 @@ class PE:
                         'Both IMAGE_SCN_MEM_WRITE and IMAGE_SCN_MEM_EXECUTE are set. ' +
                         'This might indicate a packed executable.')
 
+
             self.sections.append(section)
+
+        # Sort the sections by their VirtualAddress and add a field to each of them
+        # with the VirtualAddress of the next section. This will allow to check
+        # for potentially overlapping sections in badly constructed PEs.
+        self.sections.sort(cmp=lambda a,b: cmp(a.VirtualAddress, b.VirtualAddress))
+        for idx, section in enumerate(self.sections):
+            if idx == len(self.sections)-1:
+                section.next_section_virtual_address = None
+            else:
+                section.next_section_virtual_address = self.sections[idx+1].VirtualAddress
 
         if self.FILE_HEADER.NumberOfSections > 0 and self.sections:
             return offset + self.sections[0].sizeof()*self.FILE_HEADER.NumberOfSections
@@ -3754,7 +3767,7 @@ class PE:
         ImageBase+offset.
 
         The optional argument 'max_virtual_address' provides with means of limiting
-        which section are processed.
+        which sections are processed.
         Any section with their VirtualAddress beyond this value will be skipped.
         Normally, sections with values beyond this range are just there to confuse
         tools. It's a common trick to see in packed executables.
