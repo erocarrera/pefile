@@ -1712,7 +1712,7 @@ class PE:
             try:
                 fd = file(fname, 'rb')
                 self.fileno = fd.fileno()
-                self.__data__ = mmap.mmap(self.fileno, 0, access=mmap.ACCESS_READ)
+                self.__data__ = mmap.mmap(self.fileno, 0, mmap.MAP_PRIVATE)
                 self.__from_file = True
             finally:
                 fd.close()
@@ -2016,7 +2016,10 @@ class PE:
         # Read a block of data
         #
         try:
-            data = list(struct.unpack("<32I", self.get_data(0x80, 0x80)))
+            if 'bytearray' in __builtins__.__dict__:
+                data = bytearray(struct.unpack("<32I", self.get_data(0x80, 0x80)))
+            else:
+                data = list(struct.unpack("<32I", self.get_data(0x80, 0x80)))
         except:
             # In the cases where there's not enough data to contain the Rich header
             # we abort its parsing
@@ -2097,10 +2100,22 @@ class PE:
         provided the data will be returned as a 'str' object.
         """
 
-        file_data = list(self.__data__)
+        if 'bytearray' in __builtins__.__dict__:
+            # Making a list of a byte file is incredibly inefficient and will
+            # cause pefile to take far more RAM than it should.  Use bytearrays
+            # instead.
+            file_data = bytearray(self.__data__)
+        else:
+            file_data = list(self.__data__)
+
+
         for structure in self.__structures__:
 
-            struct_data = list(structure.__pack__())
+            if 'bytearray' in __builtins__.__dict__:
+                struct_data = bytearray(structure.__pack__())
+            else:
+                struct_data = list(structure.__pack__())
+
             offset = structure.get_file_offset()
 
             file_data[offset:offset+len(struct_data)] = struct_data
@@ -2115,37 +2130,56 @@ class PE:
                                 offsets = st_entry.entries_offsets[key]
                                 lengths = st_entry.entries_lengths[key]
 
-                                if len( entry ) > lengths[1]:
-
-                                    l = list()
-                                    for idx, c in enumerate(entry):
-                                        if ord(c) > 256:
-                                            l.extend( [ chr(ord(c) & 0xff), chr( (ord(c) & 0xff00) >>8) ]  )
-                                        else:
-                                            l.extend( [chr( ord(c) ), '\0'] )
-
-                                    file_data[
-                                        offsets[1] : offsets[1] + lengths[1]*2 ] = l
+                                if 'bytearray' in __builtins__.__dict__:
+                                    if len( entry ) > lengths[1]:
+                                        l = bytearray()
+                                        for idx, c in enumerate(entry):
+                                            if ord(c) > 256:
+                                                l.extend( [ ord(c) & 0xff, chr(ord(c) & 0xff00) >>8 ] )
+                                            else:
+                                                l.extend( [ ord(c), '\0' ] )
+                                        file_data[offsets[1]:offsets[1]+lengths[1]*2 ] = l
+                                    else:
+                                        l = bytearray()
+                                        for idx, c in enumerate(entry):
+                                            if ord(c) > 256:
+                                                l.extend( [ ord(c) & 0xff, ord(c) & 0xff00 >>8 ] )
+                                            else:
+                                                l.extend( [ ord(c), '\0'] )
+                                        file_data[offsets[1]:offsets[1]+len(entry)*2 ] = l
 
                                 else:
+                                    if len( entry ) > lengths[1]:
+                                        l = list()
+                                        for idx, c in enumerate(entry):
+                                            if ord(c) > 256:
+                                                l.extend( [ chr(ord(c) & 0xff), chr( (ord(c) & 0xff00) >>8) ]  )
+                                            else:
+                                                l.extend( [chr( ord(c) ), '\0'] )
 
-                                    l = list()
-                                    for idx, c in enumerate(entry):
-                                        if ord(c) > 256:
-                                            l.extend( [ chr(ord(c) & 0xff), chr( (ord(c) & 0xff00) >>8) ]  )
-                                        else:
-                                            l.extend( [chr( ord(c) ), '\0'] )
+                                        file_data[
+                                            offsets[1] : offsets[1] + lengths[1]*2 ] = l
+                                    else:
+                                        l = list()
+                                        for idx, c in enumerate(entry):
+                                            if ord(c) > 256:
+                                                l.extend( [ chr(ord(c) & 0xff), chr( (ord(c) & 0xff00) >>8) ]  )
+                                            else:
+                                                l.extend( [chr( ord(c) ), '\0'] )
 
-                                    file_data[
-                                        offsets[1] : offsets[1] + len(entry)*2 ] = l
+                                        file_data[
+                                            offsets[1] : offsets[1] + len(entry)*2 ] = l
 
-                                    remainder = lengths[1] - len(entry)
-                                    file_data[
-                                        offsets[1] + len(entry)*2 :
-                                        offsets[1] + lengths[1]*2 ] = [
-                                            u'\0' ] * remainder*2
+                                        remainder = lengths[1] - len(entry)
+                                        file_data[
+                                            offsets[1] + len(entry)*2 :
+                                            offsets[1] + lengths[1]*2 ] = [
+                                                u'\0' ] * remainder*2
 
-        new_file_data = ''.join( [ chr(ord(c)) for c in file_data] )
+        if 'bytearray' in __builtins__.__dict__:
+            new_file_data = file_data
+        else:
+            new_file_data = ''.join( [ chr(ord(c)) for c in file_data] )
 
         if filename:
             f = file(filename, 'wb+')
@@ -3248,17 +3282,8 @@ class PE:
         Given the RVA of the export directory, it will process all
         its entries.
 
-        The exports will be made available through a list "exports"
-        containing a tuple with the following elements:
-
-            (ordinal, symbol_address, symbol_name)
-
-        And also through a dictionary "exports_by_ordinal" whose keys
-        will be the ordinals and the values tuples of the from:
-
-            (symbol_address, symbol_name)
-
-        The symbol addresses are relative, not absolute.
+        The exports will be made available as a list of ExportData
+        instances in the 'IMAGE_DIRECTORY_ENTRY_EXPORT' PE attribute.
         """
 
         try:
@@ -4657,7 +4682,6 @@ class PE:
 
 
     def generate_checksum(self):
-
         # This will make sure that the data representing the PE image
         # is updated with any changes that might have been made by
         # assigning values to header fields as those are not automatically
@@ -4668,26 +4692,73 @@ class PE:
         # Get the offset to the CheckSum field in the OptionalHeader
         #
         checksum_offset = self.OPTIONAL_HEADER.__file_offset__ + 0x40 # 64
+        # Here, we get a chunk at a time from the memory mapped object rather
+        # than try to read the entire thing and append padding to it.
+        def getDwords(checksum_offset, data):
+            # Use bytearrays rather than lists.  Much much faster, and it
+            # takes far less memory.
+            nullDword = bytearray( "\x00\x00\x00\x00" )
+            remainder = len( data ) % 4
+            numDwords = len( data ) / 4
+            skipBlocks = 0
 
+            def getDword(index):
+               return data[ i*4:i*4+4 ]
+
+            # Given an index and block size, find the length of the largest
+            # sequence of aligned null DWORDs that will fit.
+            def findNullLength(index, blockSize):
+                beginBlockSize = blockSize
+                while blockSize >= 4:
+                   if data[ index*4:(index*4)+(blockSize *4) ] == \
+                          nullDword * blockSize:
+                       endNullBlock = (index*4)+(blockSize*4)
+                       if beginBlockSize != blockSize:
+                           restOfNulls = findNullLength(endNullBlock, blockSize)
+                           return restOfNulls + ( blockSize / 4 )
+                       else:
+                           return blockSize / 4
+                   else:
+                       blockSize = blockSize / 2
+                return 0
+
+            # Python 2's range() is a list. This can take up gigabytes of RAM.
+            # We use xrange() as a generator, and loop through the index of the
+            # blocks.
+            for i in xrange( numDwords ):
+               if i == checksum_offset / 4:  continue
+
+               # Number of blocks to skip to skip over null DWORDs.
+               if skipBlocks > 0:
+                  skipBlocks -= 1
+                  continue
+
+               # We fetch our indexed DWORD.
+               dword = getDword(i)
+
+               # If we fetched a null DWORD, we want to skip it and check
+               # for more DWORDs to skip.
+               if dword == nullDword:
+                   skipBlocks = findNullLength( i, 512 )
+                   continue
+
+               # We yield our block, unpacked.
+               yield struct.unpack('I', str(getDword(i)))[0]
+
+            # We've reached the end, so we need to flush the last block out,
+            # padded to DWORD size.
+            if remainder:
+                yield struct.unpack( 'I', str(data[numDwords*4:]) +\
+                   ( '\0' * ((4-remainder)*(remainder != 0)) ) )[0]
+
+        # Compute our checksum by fetching non-null blocks from our generator.
         checksum = 0
 
-        # Verify the data is dword-aligned. Add padding if needed
-        #
-        remainder = len(self.__data__) % 4
-        data = self.__data__ + ( '\0' * ((4-remainder) * ( remainder != 0 )) )
-
-        for i in range( len( data ) / 4 ):
-
-            # Skip the checksum field
-            #
-            if i == checksum_offset / 4:
-                continue
-
-            dword = struct.unpack('I', data[ i*4 : i*4+4 ])[0]
-            # Optimized the calculation (thanks to Emmanuel Bourg for pointing it out!)
-            checksum += dword
-            if checksum > 2**32:
-                checksum = (checksum & 0xffffffff) + (checksum >> 32)
+        for dword in getDwords(checksum_offset, self.__data__):
+            if dword:
+                checksum = (checksum & 0xffffffff) + dword + (checksum>>32)
+                if checksum > 2**32:
+                    checksum = (checksum & 0xffffffff) + (checksum >> 32)
 
         checksum = (checksum & 0xffff) + (checksum >> 16)
         checksum = (checksum) + (checksum >> 16)
