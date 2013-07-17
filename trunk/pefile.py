@@ -63,6 +63,10 @@ except NameError:
         L = list(iter)
         return zip(range(0, len(L)), L)
 
+def is_bytearray_available():
+    if isinstance(__builtins__, dict):
+        return ('bytearray' in __builtins__)
+    return ('bytearray' in __builtins__.__dict__)
 
 fast_load = False
 
@@ -2016,7 +2020,7 @@ class PE:
         # Read a block of data
         #
         try:
-            if 'bytearray' in __builtins__.__dict__:
+            if is_bytearray_available():
                 data = bytearray(struct.unpack("<32I", self.get_data(0x80, 0x80)))
             else:
                 data = list(struct.unpack("<32I", self.get_data(0x80, 0x80)))
@@ -2100,7 +2104,7 @@ class PE:
         provided the data will be returned as a 'str' object.
         """
 
-        if 'bytearray' in __builtins__.__dict__:
+        if is_bytearray_available():
             # Making a list of a byte file is incredibly inefficient and will
             # cause pefile to take far more RAM than it should.  Use bytearrays
             # instead.
@@ -2111,7 +2115,7 @@ class PE:
 
         for structure in self.__structures__:
 
-            if 'bytearray' in __builtins__.__dict__:
+            if is_bytearray_available():
                 struct_data = bytearray(structure.__pack__())
             else:
                 struct_data = list(structure.__pack__())
@@ -2130,7 +2134,7 @@ class PE:
                                 offsets = st_entry.entries_offsets[key]
                                 lengths = st_entry.entries_lengths[key]
 
-                                if 'bytearray' in __builtins__.__dict__:
+                                if is_bytearray_available():
                                     if len( entry ) > lengths[1]:
                                         l = bytearray()
                                         for idx, c in enumerate(entry):
@@ -2176,7 +2180,7 @@ class PE:
                                             offsets[1] + lengths[1]*2 ] = [
                                                 u'\0' ] * remainder*2
 
-        if 'bytearray' in __builtins__.__dict__:
+        if is_bytearray_available():
             new_file_data = file_data
         else:
             new_file_data = ''.join( [ chr(ord(c)) for c in file_data] )
@@ -4692,73 +4696,96 @@ class PE:
         # Get the offset to the CheckSum field in the OptionalHeader
         #
         checksum_offset = self.OPTIONAL_HEADER.__file_offset__ + 0x40 # 64
-        # Here, we get a chunk at a time from the memory mapped object rather
-        # than try to read the entire thing and append padding to it.
-        def getDwords(checksum_offset, data):
-            # Use bytearrays rather than lists.  Much much faster, and it
-            # takes far less memory.
-            nullDword = bytearray( "\x00\x00\x00\x00" )
-            remainder = len( data ) % 4
-            numDwords = len( data ) / 4
-            skipBlocks = 0
 
-            def getDword(index):
-               return data[ i*4:i*4+4 ]
+        if is_bytearray_available():
+            # Here, we get a chunk at a time from the memory mapped object rather
+            # than try to read the entire thing and append padding to it.
+            def getDwords(checksum_offset, data):
+                # Use bytearrays rather than lists.  Much much faster, and it
+                # takes far less memory.
+                nullDword = bytearray( "\x00\x00\x00\x00" )
+                remainder = len( data ) % 4
+                numDwords = len( data ) / 4
+                skipBlocks = 0
 
-            # Given an index and block size, find the length of the largest
-            # sequence of aligned null DWORDs that will fit.
-            def findNullLength(index, blockSize):
-                beginBlockSize = blockSize
-                while blockSize >= 4:
-                   if data[ index*4:(index*4)+(blockSize *4) ] == \
-                          nullDword * blockSize:
-                       endNullBlock = (index*4)+(blockSize*4)
-                       if beginBlockSize != blockSize:
-                           restOfNulls = findNullLength(endNullBlock, blockSize)
-                           return restOfNulls + ( blockSize / 4 )
+                def getDword(index):
+                   return data[ i*4:i*4+4 ]
+
+                # Given an index and block size, find the length of the largest
+                # sequence of aligned null DWORDs that will fit.
+                def findNullLength(index, blockSize):
+                    beginBlockSize = blockSize
+                    while blockSize >= 4:
+                       if data[ index*4:(index*4)+(blockSize *4) ] == \
+                              nullDword * blockSize:
+                           endNullBlock = (index*4)+(blockSize*4)
+                           if beginBlockSize != blockSize:
+                               restOfNulls = findNullLength(endNullBlock, blockSize)
+                               return restOfNulls + ( blockSize / 4 )
+                           else:
+                               return blockSize / 4
                        else:
-                           return blockSize / 4
-                   else:
-                       blockSize = blockSize / 2
-                return 0
+                           blockSize = blockSize / 2
+                    return 0
 
-            # Python 2's range() is a list. This can take up gigabytes of RAM.
-            # We use xrange() as a generator, and loop through the index of the
-            # blocks.
-            for i in xrange( numDwords ):
-               if i == checksum_offset / 4:  continue
+                # Python 2's range() is a list. This can take up gigabytes of RAM.
+                # We use xrange() as a generator, and loop through the index of the
+                # blocks.
+                for i in xrange( numDwords ):
+                   if i == checksum_offset / 4:  continue
 
-               # Number of blocks to skip to skip over null DWORDs.
-               if skipBlocks > 0:
-                  skipBlocks -= 1
-                  continue
+                   # Number of blocks to skip to skip over null DWORDs.
+                   if skipBlocks > 0:
+                      skipBlocks -= 1
+                      continue
 
-               # We fetch our indexed DWORD.
-               dword = getDword(i)
+                   # We fetch our indexed DWORD.
+                   dword = getDword(i)
 
-               # If we fetched a null DWORD, we want to skip it and check
-               # for more DWORDs to skip.
-               if dword == nullDword:
-                   skipBlocks = findNullLength( i, 512 )
-                   continue
+                   # If we fetched a null DWORD, we want to skip it and check
+                   # for more DWORDs to skip.
+                   if dword == nullDword:
+                       skipBlocks = findNullLength( i, 512 )
+                       continue
 
-               # We yield our block, unpacked.
-               yield struct.unpack('I', str(getDword(i)))[0]
+                   # We yield our block, unpacked.
+                   yield struct.unpack('I', str(getDword(i)))[0]
 
-            # We've reached the end, so we need to flush the last block out,
-            # padded to DWORD size.
-            if remainder:
-                yield struct.unpack( 'I', str(data[numDwords*4:]) +\
-                   ( '\0' * ((4-remainder)*(remainder != 0)) ) )[0]
+                # We've reached the end, so we need to flush the last block out,
+                # padded to DWORD size.
+                if remainder:
+                    yield struct.unpack( 'I', str(data[numDwords*4:]) +\
+                       ( '\0' * ((4-remainder)*(remainder != 0)) ) )[0]
 
-        # Compute our checksum by fetching non-null blocks from our generator.
-        checksum = 0
+            # Compute our checksum by fetching non-null blocks from our generator.
+            checksum = 0
 
-        for dword in getDwords(checksum_offset, self.__data__):
-            if dword:
-                checksum = (checksum & 0xffffffff) + dword + (checksum>>32)
+            for dword in getDwords(checksum_offset, self.__data__):
+                if dword:
+                    checksum = (checksum & 0xffffffff) + dword + (checksum>>32)
+                    if checksum > 2**32:
+                        checksum = (checksum & 0xffffffff) + (checksum >> 32)
+
+        else:
+            checksum = 0
+            # Verify the data is dword-aligned. Add padding if needed
+            #
+            remainder = len(self.__data__) % 4
+            data = self.__data__ + ( '\0' * ((4-remainder) * ( remainder != 0 )) )
+
+            for i in range( len( data ) / 4 ):
+
+                # Skip the checksum field
+                #
+                if i == checksum_offset / 4:
+                    continue
+
+                dword = struct.unpack('I', data[ i*4 : i*4+4 ])[0]
+                # Optimized the calculation (thanks to Emmanuel Bourg for pointing it out!)
+                checksum += dword
                 if checksum > 2**32:
                     checksum = (checksum & 0xffffffff) + (checksum >> 32)
+
 
         checksum = (checksum & 0xffff) + (checksum >> 16)
         checksum = (checksum) + (checksum >> 16)
