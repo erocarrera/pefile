@@ -2181,7 +2181,7 @@ class PE:
                                                 u'\0' ] * remainder*2
 
         if is_bytearray_available():
-            new_file_data = file_data
+            new_file_data = ''.join( chr(c) for c in file_data )
         else:
             new_file_data = ''.join( [ chr(ord(c)) for c in file_data] )
 
