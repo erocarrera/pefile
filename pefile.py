@@ -1885,7 +1885,12 @@ class PE:
         self.NT_HEADERS.FILE_HEADER = self.FILE_HEADER
         self.NT_HEADERS.OPTIONAL_HEADER = self.OPTIONAL_HEADER
 
-
+        # Windows 8 specific check
+        #
+        if self.OPTIONAL_HEADER.AddressOfEntryPoint <  self.OPTIONAL_HEADER.SizeOfHeaders:
+            self.__warnings.append(
+                'SizeOfHeaders is smaller than AddressOfEntryPoint: this file can''t run under Windows 8' )
+        
         # The NumberOfRvaAndSizes is sanitized to stay within
         # reasonable limits so can be casted to an int
         #
