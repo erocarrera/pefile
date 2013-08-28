@@ -80,6 +80,7 @@ IMAGE_DOSZM_SIGNATURE           = 0x4D5A
 IMAGE_NE_SIGNATURE              = 0x454E
 IMAGE_LE_SIGNATURE              = 0x454C
 IMAGE_LX_SIGNATURE              = 0x584C
+IMAGE_TE_SIGNATURE              = 0x5A56 # Terse Executables have a 'VZ' signature
 
 IMAGE_NT_SIGNATURE              = 0x00004550
 IMAGE_NUMBEROF_DIRECTORY_ENTRIES= 16
@@ -97,7 +98,7 @@ directory_entry_types = [
     ('IMAGE_DIRECTORY_ENTRY_SECURITY',      4),
     ('IMAGE_DIRECTORY_ENTRY_BASERELOC',     5),
     ('IMAGE_DIRECTORY_ENTRY_DEBUG',         6),
-    ('IMAGE_DIRECTORY_ENTRY_COPYRIGHT',     7),
+    ('IMAGE_DIRECTORY_ENTRY_COPYRIGHT',     7), # Architecture on non-x86 platforms
     ('IMAGE_DIRECTORY_ENTRY_GLOBALPTR',     8),
     ('IMAGE_DIRECTORY_ENTRY_TLS',           9),
     ('IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG',   10),
@@ -133,23 +134,38 @@ IMAGE_CHARACTERISTICS = dict([(e[1], e[0]) for e in
 
 
 section_characteristics = [
+    ('IMAGE_SCN_TYPE_REG',                  0x00000000), # reserved
+    ('IMAGE_SCN_TYPE_DSECT',                0x00000001), # reserved
+    ('IMAGE_SCN_TYPE_NOLOAD',               0x00000002), # reserved
+    ('IMAGE_SCN_TYPE_GROUP',                0x00000004), # reserved
+    ('IMAGE_SCN_TYPE_NO_PAD',               0x00000008), # reserved
+    ('IMAGE_SCN_TYPE_COPY',                 0x00000010), # reserved
+
     ('IMAGE_SCN_CNT_CODE',                  0x00000020),
     ('IMAGE_SCN_CNT_INITIALIZED_DATA',      0x00000040),
     ('IMAGE_SCN_CNT_UNINITIALIZED_DATA',    0x00000080),
+
     ('IMAGE_SCN_LNK_OTHER',                 0x00000100),
     ('IMAGE_SCN_LNK_INFO',                  0x00000200),
+    ('IMAGE_SCN_LNK_OVER',                  0x00000400), # reserved
     ('IMAGE_SCN_LNK_REMOVE',                0x00000800),
     ('IMAGE_SCN_LNK_COMDAT',                0x00001000),
+
+    ('IMAGE_SCN_MEM_PROTECTED',             0x00004000), # obsolete
+    ('IMAGE_SCN_NO_DEFER_SPEC_EXC',         0x00004000),
+    ('IMAGE_SCN_GPREL',                     0x00008000),
     ('IMAGE_SCN_MEM_FARDATA',               0x00008000),
+    ('IMAGE_SCN_MEM_SYSHEAP',               0x00010000), # obsolete
     ('IMAGE_SCN_MEM_PURGEABLE',             0x00020000),
     ('IMAGE_SCN_MEM_16BIT',                 0x00020000),
     ('IMAGE_SCN_MEM_LOCKED',                0x00040000),
     ('IMAGE_SCN_MEM_PRELOAD',               0x00080000),
+
     ('IMAGE_SCN_ALIGN_1BYTES',              0x00100000),
     ('IMAGE_SCN_ALIGN_2BYTES',              0x00200000),
     ('IMAGE_SCN_ALIGN_4BYTES',              0x00300000),
     ('IMAGE_SCN_ALIGN_8BYTES',              0x00400000),
-    ('IMAGE_SCN_ALIGN_16BYTES',             0x00500000),
+    ('IMAGE_SCN_ALIGN_16BYTES',             0x00500000), # default alignment
     ('IMAGE_SCN_ALIGN_32BYTES',             0x00600000),
     ('IMAGE_SCN_ALIGN_64BYTES',             0x00700000),
     ('IMAGE_SCN_ALIGN_128BYTES',            0x00800000),
@@ -160,6 +176,7 @@ section_characteristics = [
     ('IMAGE_SCN_ALIGN_4096BYTES',           0x00D00000),
     ('IMAGE_SCN_ALIGN_8192BYTES',           0x00E00000),
     ('IMAGE_SCN_ALIGN_MASK',                0x00F00000),
+
     ('IMAGE_SCN_LNK_NRELOC_OVFL',           0x01000000),
     ('IMAGE_SCN_MEM_DISCARDABLE',           0x02000000),
     ('IMAGE_SCN_MEM_NOT_CACHED',            0x04000000),
@@ -184,7 +201,8 @@ debug_types = [
     ('IMAGE_DEBUG_TYPE_OMAP_TO_SRC',    7),
     ('IMAGE_DEBUG_TYPE_OMAP_FROM_SRC',  8),
     ('IMAGE_DEBUG_TYPE_BORLAND',        9),
-    ('IMAGE_DEBUG_TYPE_RESERVED10',     10) ]
+    ('IMAGE_DEBUG_TYPE_RESERVED10',     10),
+    ('IMAGE_DEBUG_TYPE_CLSID',          11) ]
 
 DEBUG_TYPE = dict([(e[1], e[0]) for e in debug_types]+debug_types)
 
@@ -210,25 +228,35 @@ SUBSYSTEM_TYPE = dict([(e[1], e[0]) for e in subsystem_types]+subsystem_types)
 
 machine_types = [
     ('IMAGE_FILE_MACHINE_UNKNOWN',  0),
-    ('IMAGE_FILE_MACHINE_AM33',     0x1d3),
+    ('IMAGE_FILE_MACHINE_I386',     0x014c),
+    ('IMAGE_FILE_MACHINE_R3000',    0x0162),
+    ('IMAGE_FILE_MACHINE_R4000',    0x0166),
+    ('IMAGE_FILE_MACHINE_R10000',   0x0168),
+    ('IMAGE_FILE_MACHINE_WCEMIPSV2',0x0169),
+    ('IMAGE_FILE_MACHINE_ALPHA',    0x0184),
+    ('IMAGE_FILE_MACHINE_SH3',      0x01a2),
+    ('IMAGE_FILE_MACHINE_SH3DSP',   0x01a3),
+    ('IMAGE_FILE_MACHINE_SH3E',     0x01a4),
+    ('IMAGE_FILE_MACHINE_SH4',      0x01a6),
+    ('IMAGE_FILE_MACHINE_SH5',      0x01a8),
+    ('IMAGE_FILE_MACHINE_ARM',      0x01c0),
+    ('IMAGE_FILE_MACHINE_THUMB',    0x01c2),
+    ('IMAGE_FILE_MACHINE_ARMNT',    0x01c4),
+    ('IMAGE_FILE_MACHINE_AM33',     0x01d3),
+    ('IMAGE_FILE_MACHINE_POWERPC',  0x01f0),
+    ('IMAGE_FILE_MACHINE_POWERPCFP',0x01f1),
+    ('IMAGE_FILE_MACHINE_IA64',     0x0200),
+    ('IMAGE_FILE_MACHINE_MIPS16',   0x0266),
+    ('IMAGE_FILE_MACHINE_ALPHA64',  0x0284),
+    ('IMAGE_FILE_MACHINE_AXP64',    0x0284), # same
+    ('IMAGE_FILE_MACHINE_MIPSFPU',  0x0366),
+    ('IMAGE_FILE_MACHINE_MIPSFPU16',0x0466),
+    ('IMAGE_FILE_MACHINE_TRICORE',  0x0520),
+    ('IMAGE_FILE_MACHINE_CEF',      0x0cef),
+    ('IMAGE_FILE_MACHINE_EBC',      0x0ebc),
     ('IMAGE_FILE_MACHINE_AMD64',    0x8664),
-    ('IMAGE_FILE_MACHINE_ARM',      0x1c0),
-    ('IMAGE_FILE_MACHINE_EBC',      0xebc),
-    ('IMAGE_FILE_MACHINE_I386',     0x14c),
-    ('IMAGE_FILE_MACHINE_IA64',     0x200),
-    ('IMAGE_FILE_MACHINE_MR32',     0x9041),
-    ('IMAGE_FILE_MACHINE_MIPS16',   0x266),
-    ('IMAGE_FILE_MACHINE_MIPSFPU',  0x366),
-    ('IMAGE_FILE_MACHINE_MIPSFPU16',0x466),
-    ('IMAGE_FILE_MACHINE_POWERPC',  0x1f0),
-    ('IMAGE_FILE_MACHINE_POWERPCFP',0x1f1),
-    ('IMAGE_FILE_MACHINE_R4000',    0x166),
-    ('IMAGE_FILE_MACHINE_SH3',      0x1a2),
-    ('IMAGE_FILE_MACHINE_SH3DSP',   0x1a3),
-    ('IMAGE_FILE_MACHINE_SH4',      0x1a6),
-    ('IMAGE_FILE_MACHINE_SH5',      0x1a8),
-    ('IMAGE_FILE_MACHINE_THUMB',    0x1c2),
-    ('IMAGE_FILE_MACHINE_WCEMIPSV2',0x169),
+    ('IMAGE_FILE_MACHINE_M32R',     0x9041),
+    ('IMAGE_FILE_MACHINE_CEE',      0xc0ee),
  ]
 
 MACHINE_TYPE = dict([(e[1], e[0]) for e in machine_types]+machine_types)
@@ -252,19 +280,21 @@ RELOCATION_TYPE = dict([(e[1], e[0]) for e in relocation_types]+relocation_types
 
 
 dll_characteristics = [
-    ('IMAGE_DLL_CHARACTERISTICS_RESERVED_0x0001', 0x0001),
-    ('IMAGE_DLL_CHARACTERISTICS_RESERVED_0x0002', 0x0002),
-    ('IMAGE_DLL_CHARACTERISTICS_RESERVED_0x0004', 0x0004),
-    ('IMAGE_DLL_CHARACTERISTICS_RESERVED_0x0008', 0x0008),
-    ('IMAGE_DLL_CHARACTERISTICS_DYNAMIC_BASE',      0x0040),
-    ('IMAGE_DLL_CHARACTERISTICS_FORCE_INTEGRITY',   0x0080),
-    ('IMAGE_DLL_CHARACTERISTICS_NX_COMPAT',         0x0100),
-    ('IMAGE_DLL_CHARACTERISTICS_NO_ISOLATION',      0x0200),
-    ('IMAGE_DLL_CHARACTERISTICS_NO_SEH',    0x0400),
-    ('IMAGE_DLL_CHARACTERISTICS_NO_BIND',   0x0800),
-    ('IMAGE_DLL_CHARACTERISTICS_RESERVED_0x1000', 0x1000),
-    ('IMAGE_DLL_CHARACTERISTICS_WDM_DRIVER',    0x2000),
-    ('IMAGE_DLL_CHARACTERISTICS_TERMINAL_SERVER_AWARE', 0x8000) ]
+    ('IMAGE_LIBRARY_PROCESS_INIT',                     0x0001), # reserved
+    ('IMAGE_LIBRARY_PROCESS_TERM',                     0x0002), # reserved
+    ('IMAGE_LIBRARY_THREAD_INIT',                      0x0004), # reserved
+    ('IMAGE_LIBRARY_THREAD_TERM',                      0x0008), # reserved
+    ('IMAGE_DLLCHARACTERISTICS_HIGH_ENTROPY_VA',       0x0020),
+    ('IMAGE_DLLCHARACTERISTICS_DYNAMIC_BASE',          0x0040),
+    ('IMAGE_DLLCHARACTERISTICS_FORCE_INTEGRITY',       0x0080),
+    ('IMAGE_DLLCHARACTERISTICS_NX_COMPAT',             0x0100),
+    ('IMAGE_DLLCHARACTERISTICS_NO_ISOLATION',          0x0200),
+    ('IMAGE_DLLCHARACTERISTICS_NO_SEH',                0x0400),
+    ('IMAGE_DLLCHARACTERISTICS_NO_BIND',               0x0800),
+    ('IMAGE_DLLCHARACTERISTICS_APPCONTAINER',          0x1000),
+    ('IMAGE_DLLCHARACTERISTICS_WDM_DRIVER',            0x2000),
+    ('IMAGE_DLLCHARACTERISTICS_GUARD_CF',              0x4000),
+    ('IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE', 0x8000) ]
 
 DLL_CHARACTERISTICS = dict([(e[1], e[0]) for e in dll_characteristics]+dll_characteristics)
 
@@ -1612,9 +1642,12 @@ class PE:
         'I,SizeOfZeroFill', 'I,Characteristics' ) )
 
     __IMAGE_LOAD_CONFIG_DIRECTORY_format__ = ('IMAGE_LOAD_CONFIG_DIRECTORY',
-        ('I,Size', 'I,TimeDateStamp',
-        'H,MajorVersion', 'H,MinorVersion',
-        'I,GlobalFlagsClear', 'I,GlobalFlagsSet',
+        ('I,Size',
+        'I,TimeDateStamp',
+        'H,MajorVersion',
+        'H,MinorVersion',
+        'I,GlobalFlagsClear',
+        'I,GlobalFlagsSet',
         'I,CriticalSectionDefaultTimeout',
         'I,DeCommitFreeBlockThreshold',
         'I,DeCommitTotalFreeThreshold',
@@ -1623,25 +1656,44 @@ class PE:
         'I,VirtualMemoryThreshold',
         'I,ProcessHeapFlags',
         'I,ProcessAffinityMask',
-        'H,CSDVersion', 'H,Reserved1',
-        'I,EditList', 'I,SecurityCookie',
-        'I,SEHandlerTable', 'I,SEHandlerCount' ) )
+        'H,CSDVersion',
+        'H,Reserved1',
+        'I,EditList',
+        'I,SecurityCookie',
+        'I,SEHandlerTable',
+        'I,SEHandlerCount',
+        'I,GuardCFCheckFunctionPointer',
+        'I,Reserved2',
+        'I,GuardCFFunctionTable',
+        'I,GuardCFFunctionCount',
+        'I,GuardFlags' ) )
 
     __IMAGE_LOAD_CONFIG_DIRECTORY64_format__ = ('IMAGE_LOAD_CONFIG_DIRECTORY',
-        ('I,Size', 'I,TimeDateStamp',
-      'H,MajorVersion', 'H,MinorVersion',
-      'I,GlobalFlagsClear', 'I,GlobalFlagsSet',
-      'I,CriticalSectionDefaultTimeout',
-      'Q,DeCommitFreeBlockThreshold',
-      'Q,DeCommitTotalFreeThreshold',
-      'Q,LockPrefixTable',
-      'Q,MaximumAllocationSize',
-      'Q,VirtualMemoryThreshold',
-      'Q,ProcessAffinityMask',
-      'I,ProcessHeapFlags',
-      'H,CSDVersion', 'H,Reserved1',
-      'Q,EditList', 'Q,SecurityCookie',
-      'Q,SEHandlerTable', 'Q,SEHandlerCount' ) )
+        ('I,Size',
+        'I,TimeDateStamp',
+        'H,MajorVersion',
+        'H,MinorVersion',
+        'I,GlobalFlagsClear',
+        'I,GlobalFlagsSet',
+        'I,CriticalSectionDefaultTimeout',
+        'Q,DeCommitFreeBlockThreshold',
+        'Q,DeCommitTotalFreeThreshold',
+        'Q,LockPrefixTable',
+        'Q,MaximumAllocationSize',
+        'Q,VirtualMemoryThreshold',
+        'Q,ProcessAffinityMask',
+        'I,ProcessHeapFlags',
+        'H,CSDVersion',
+        'H,Reserved1',
+        'Q,EditList',
+        'Q,SecurityCookie',
+        'Q,SEHandlerTable',
+        'Q,SEHandlerCount',
+        'Q,GuardCFCheckFunctionPointer',
+        'Q,Reserved2',
+        'Q,GuardCFFunctionTable',
+        'Q,GuardCFFunctionCount',
+        'I,GuardFlags' ) )
 
     __IMAGE_BOUND_IMPORT_DESCRIPTOR_format__ = ('IMAGE_BOUND_IMPORT_DESCRIPTOR',
         ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,NumberOfModuleForwarderRefs'))
@@ -1765,6 +1817,8 @@ class PE:
             raise PEFormatError('Invalid NT Headers signature. Probably a LE file')
         if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_LX_SIGNATURE:
             raise PEFormatError('Invalid NT Headers signature. Probably a LX file')
+        if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_TE_SIGNATURE:
+            raise PEFormatError('Invalid NT Headers signature. Probably a TE file')
         if self.NT_HEADERS.Signature != IMAGE_NT_SIGNATURE:
             raise PEFormatError('Invalid NT Headers signature.')
 
