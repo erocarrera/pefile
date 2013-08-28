@@ -190,18 +190,20 @@ DEBUG_TYPE = dict([(e[1], e[0]) for e in debug_types]+debug_types)
 
 
 subsystem_types = [
-    ('IMAGE_SUBSYSTEM_UNKNOWN',     0),
-    ('IMAGE_SUBSYSTEM_NATIVE',      1),
-    ('IMAGE_SUBSYSTEM_WINDOWS_GUI', 2),
-    ('IMAGE_SUBSYSTEM_WINDOWS_CUI', 3),
-    ('IMAGE_SUBSYSTEM_OS2_CUI',     5),
-    ('IMAGE_SUBSYSTEM_POSIX_CUI',   7),
-    ('IMAGE_SUBSYSTEM_WINDOWS_CE_GUI',  9),
-    ('IMAGE_SUBSYSTEM_EFI_APPLICATION', 10),
-    ('IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER', 11),
-    ('IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER',      12),
-    ('IMAGE_SUBSYSTEM_EFI_ROM',     13),
-    ('IMAGE_SUBSYSTEM_XBOX',        14)]
+    ('IMAGE_SUBSYSTEM_UNKNOWN',                   0),
+    ('IMAGE_SUBSYSTEM_NATIVE',                    1),
+    ('IMAGE_SUBSYSTEM_WINDOWS_GUI',               2),
+    ('IMAGE_SUBSYSTEM_WINDOWS_CUI',               3),
+    ('IMAGE_SUBSYSTEM_OS2_CUI',                   5),
+    ('IMAGE_SUBSYSTEM_POSIX_CUI',                 7),
+    ('IMAGE_SUBSYSTEM_NATIVE_WINDOWS',            8),
+    ('IMAGE_SUBSYSTEM_WINDOWS_CE_GUI',            9),
+    ('IMAGE_SUBSYSTEM_EFI_APPLICATION',          10),
+    ('IMAGE_SUBSYSTEM_EFI_BOOT_SERVICE_DRIVER',  11),
+    ('IMAGE_SUBSYSTEM_EFI_RUNTIME_DRIVER',       12),
+    ('IMAGE_SUBSYSTEM_EFI_ROM',                  13),
+    ('IMAGE_SUBSYSTEM_XBOX',                     14),
+    ('IMAGE_SUBSYSTEM_WINDOWS_BOOT_APPLICATION', 16)]
 
 SUBSYSTEM_TYPE = dict([(e[1], e[0]) for e in subsystem_types]+subsystem_types)
 
@@ -1890,7 +1892,7 @@ class PE:
         if self.OPTIONAL_HEADER.AddressOfEntryPoint <  self.OPTIONAL_HEADER.SizeOfHeaders:
             self.__warnings.append(
                 'SizeOfHeaders is smaller than AddressOfEntryPoint: this file can''t run under Windows 8' )
-        
+
         # The NumberOfRvaAndSizes is sanitized to stay within
         # reasonable limits so can be casted to an int
         #
