@@ -1770,7 +1770,12 @@ class PE:
             try:
                 fd = file(fname, 'rb')
                 self.fileno = fd.fileno()
-                self.__data__ = mmap.mmap(self.fileno, 0, mmap.MAP_PRIVATE)
+                if hasattr(mmap, 'MAP_PRIVATE'):
+                    # Unix
+                    self.__data__ = mmap.mmap(self.fileno, 0, mmap.MAP_PRIVATE)
+                else:
+                    # Windows
+                    self.__data__ = mmap.mmap(self.fileno, 0, access=mmap.ACCESS_READ)
                 self.__from_file = True
             finally:
                 fd.close()
