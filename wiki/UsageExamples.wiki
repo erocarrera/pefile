@@ -91,6 +91,9 @@ for section in pe.sections:
 Each directory, if it exists in the PE file being processed, has an entry as _DIRECTORY_ENTRY_directoryname_ in the PE instance. The imported symbols can be listed as follows:
 
 {{{
+# If the PE file was loaded using the fast_load=True argument, we will need to parse the data directories:
+pe.parse_data_directories()
+
 for entry in pe.DIRECTORY_ENTRY_IMPORT:
   print entry.dll
   for imp in entry.imports:
