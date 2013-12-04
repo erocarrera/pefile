@@ -35,6 +35,7 @@ import exceptions
 import string
 import array
 import mmap
+import ordlookup
 
 sha1, sha256, sha512, md5 = None, None, None, None
 
@@ -971,6 +972,34 @@ class Structure:
                     self.__field_offsets__[key], key+':', val_str))
 
         return dump
+
+    def dump_dict(self):
+        """Returns a dictionary representation of the structure."""
+
+        dump_dict = dict()
+
+        dump_dict['Structure'] = self.name
+
+        # Refer to the __set_format__ method for an explanation
+        # of the following construct.
+        for keys in self.__keys__:
+            for key in keys:
+
+                val = getattr(self, key)
+                if isinstance(val, int) or isinstance(val, long):
+                    if key == 'TimeDateStamp' or key == 'dwTimeStamp':
+                        try:
+                            val = '0x%-8X [%s UTC]' % (val, time.asctime(time.gmtime(val)))
+                        except exceptions.ValueError, e:
+                            val = '0x%-8X [INVALID TIME]' % val
+                else:
+                    val = ''.join(filter(lambda c:c != '\0', str(val)))
+
+                dump_dict[key] = {'FileOffset': self.__field_offsets__[key] + self.__file_offset__,
+                                  'Offset': self.__field_offsets__[key],
+                                  'Value': val}
+
+        return dump_dict
 
 
 
@@ -1929,7 +1958,7 @@ class PE:
         if self.PE_TYPE is None or self.OPTIONAL_HEADER is None:
             raise PEFormatError("No Optional Header found, invalid PE32 or PE32+ file")
 
-        dll_characteristics_flags = retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLL_CHARACTERISTICS_')
+        dll_characteristics_flags = retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLLCHARACTERISTICS_')
 
         # Set the Dll Characteristics flags according the the DllCharacteristics member
         set_flags(
@@ -1950,7 +1979,7 @@ class PE:
         #
         if self.OPTIONAL_HEADER.AddressOfEntryPoint <  self.OPTIONAL_HEADER.SizeOfHeaders:
             self.__warnings.append(
-                'SizeOfHeaders is smaller than AddressOfEntryPoint: this file can''t run under Windows 8' )
+                'SizeOfHeaders is smaller than AddressOfEntryPoint: this file cannot run under Windows 8' )
 
         # The NumberOfRvaAndSizes is sanitized to stay within
         # reasonable limits so can be casted to an int
@@ -2275,8 +2304,9 @@ class PE:
         """
 
         self.sections = []
-
+        MAX_SIMULTANEOUS_ERRORS = 3
         for i in xrange(self.FILE_HEADER.NumberOfSections):
+            simultaneous_errors = 0
             section = SectionStructure( self.__IMAGE_SECTION_HEADER_format__, pe=self )
             if not section:
                 break
@@ -2292,54 +2322,46 @@ class PE:
             section.__unpack__(section_data)
             self.__structures__.append(section)
 
-            if section.SizeOfRawData > len(self.__data__):
+            if section.SizeOfRawData+section.PointerToRawData > len(self.__data__):
+                simultaneous_errors += 1
                 self.__warnings.append(
                     ('Error parsing section %d. ' % i) +
                     'SizeOfRawData is larger than file.')
 
             if self.adjust_FileAlignment( section.PointerToRawData,
                 self.OPTIONAL_HEADER.FileAlignment ) > len(self.__data__):
-
+                simultaneous_errors += 1
                 self.__warnings.append(
                     ('Error parsing section %d. ' % i) +
                     'PointerToRawData points beyond the end of the file.')
-                # Skip these. If we can't get to the raw data it will likely not be a
-                # real section.
-                continue
 
             if section.Misc_VirtualSize > 0x10000000:
+                simultaneous_errors += 1
                 self.__warnings.append(
                     ('Suspicious value found parsing section %d. ' % i) +
                     'VirtualSize is extremely large > 256MiB.')
-                # Skip these. It will likely not be a real section.
-                continue
 
 
             if self.adjust_SectionAlignment( section.VirtualAddress,
                 self.OPTIONAL_HEADER.SectionAlignment, self.OPTIONAL_HEADER.FileAlignment ) > 0x10000000:
+                simultaneous_errors += 1
                 self.__warnings.append(
                     ('Suspicious value found parsing section %d. ' % i) +
                     'VirtualAddress is beyond 0x10000000.')
 
-            #
-            # Some packer used a non-aligned PointerToRawData in the sections,
-            # which causes several common tools not to load the section data
-            # properly as they blindly read from the indicated offset.
-            # It seems that Windows will round the offset down to the largest
-            # offset multiple of FileAlignment which is smaller than
-            # PointerToRawData. The following code will do the same.
-            #
-
-            #alignment = self.OPTIONAL_HEADER.FileAlignment
-            #self.update_section_data(section)
-
             if ( self.OPTIONAL_HEADER.FileAlignment != 0 and
                 ( section.PointerToRawData % self.OPTIONAL_HEADER.FileAlignment) != 0):
+                simultaneous_errors += 1
                 self.__warnings.append(
                     ('Error parsing section %d. ' % i) +
                     'PointerToRawData should normally be ' +
                     'a multiple of FileAlignment, this might imply the file ' +
-                    'is trying to confuse tools which parse this incorrectly')
+                    'is trying to confuse tools which parse this incorrectly.')
+
+
+            if simultaneous_errors >= MAX_SIMULTANEOUS_ERRORS:
+                self.__warnings.append('Too many warnings parsing section. Aborting.')
+                break
 
 
             section_flags = retrieve_flags(SECTION_CHARACTERISTICS, 'IMAGE_SCN_')
@@ -3560,6 +3582,11 @@ class PE:
                 dll = '*invalid*'
 
             if dll:
+                for symbol in import_data:
+                    if symbol.name is None:
+                        funcname = ordlookup.ordLookup(dll.lower(), symbol.ordinal)
+                        if funcname:
+                            symbol.name = funcname
                 import_descs.append(
                     ImportDescData(
                         struct = import_desc,
@@ -3568,6 +3595,33 @@ class PE:
 
         return import_descs
 
+
+    def get_imphash(self):
+        impstrs = []
+        exts = ['ocx', 'sys', 'dll']
+        if not hasattr(self, "DIRECTORY_ENTRY_IMPORT"):
+            return ""
+        for entry in self.DIRECTORY_ENTRY_IMPORT:
+            libname = entry.dll.lower()
+            parts = libname.rsplit('.', 1)
+            if len(parts) > 1 and parts[1] in exts:
+                libname = parts[0]
+
+            for imp in entry.imports:
+                funcname = None
+                if not imp.name:
+                    funcname = ordlookup.ordLookup(entry.dll.lower(), imp.ordinal)
+                    if not funcname:
+                        raise Exception("Unable to look up ordinal %s:%04x" % (entry.dll, imp.ordinal))
+                else:
+                    funcname = imp.name
+
+                if not funcname:
+                    continue
+
+                impstrs.append('%s.%s' % (libname.lower(),funcname.lower()))
+
+        return hashlib.md5( ','.join( impstrs ) ).hexdigest()
 
 
     def parse_import_directory(self, rva, size):
@@ -3584,9 +3638,10 @@ class PE:
                     'Error parsing the import directory at RVA: 0x%x' % ( rva ) )
                 break
 
+            file_offset = self.get_offset_from_rva(rva)
             import_desc =  self.__unpack_data__(
                 self.__IMAGE_IMPORT_DESCRIPTOR_format__,
-                data, file_offset = self.get_offset_from_rva(rva) )
+                data, file_offset = file_offset )
 
             # If the structure is all zeros, we reached the end of the list
             if not import_desc or import_desc.all_zeroes():
@@ -3594,11 +3649,19 @@ class PE:
 
             rva += import_desc.sizeof()
 
+            # If the array of thunk's is somewhere earlier than the import
+            # descriptor we can set a maximum length for the array. Otherwise
+            # just set a maximum length of the size of the file
+            max_len = len(self.__data__) - file_offset
+            if rva > import_desc.OriginalFirstThunk or rva > import_desc.FirstThunk:
+                max_len = max(rva-import_desc.OriginalFirstThunk, rva-import_desc.FirstThunk)
+
             try:
                 import_data =  self.parse_imports(
                     import_desc.OriginalFirstThunk,
                     import_desc.FirstThunk,
-                    import_desc.ForwarderChain)
+                    import_desc.ForwarderChain,
+                    max_length = max_len)
             except PEFormatError, excp:
                 self.__warnings.append(
                     'Error parsing the import directory. ' +
@@ -3613,6 +3676,11 @@ class PE:
                 dll = '*invalid*'
 
             if dll:
+                for symbol in import_data:
+                    if symbol.name is None:
+                        funcname = ordlookup.ordLookup(dll.lower(), symbol.ordinal)
+                        if funcname:
+                            symbol.name = funcname
                 import_descs.append(
                     ImportDescData(
                         struct = import_desc,
@@ -3639,7 +3707,7 @@ class PE:
 
 
 
-    def parse_imports(self, original_first_thunk, first_thunk, forwarder_chain):
+    def parse_imports(self, original_first_thunk, first_thunk, forwarder_chain, max_length=None):
         """Parse the imported symbols.
 
         It will fill a list, which will be available as the dictionary
@@ -3659,12 +3727,12 @@ class PE:
         #    raise PEFormatError, 'Invalid/corrupt imports.'
 
         # Import Lookup Table. Contains ordinals or pointers to strings.
-        ilt = self.get_import_table(original_first_thunk)
+        ilt = self.get_import_table(original_first_thunk, max_length)
         # Import Address Table. May have identical content to ILT if
         # PE file is not bounded, Will contain the address of the
         # imported symbols once the binary is loaded or if it is already
         # bound.
-        iat = self.get_import_table(first_thunk)
+        iat = self.get_import_table(first_thunk, max_length)
 
         # OC Patch:
         # Would crash if IAT or ILT had None type
@@ -3775,7 +3843,7 @@ class PE:
 
 
 
-    def get_import_table(self, rva):
+    def get_import_table(self, rva, max_length=None):
 
         table = []
 
@@ -3794,7 +3862,12 @@ class PE:
         repeated_address = 0
         addresses_of_data_set_64 = set()
         addresses_of_data_set_32 = set()
+        start_rva = rva
         while True and rva:
+            if max_length is not None and rva >= start_rva+max_length:
+                self.__warnings.append(
+                    'Error parsing the import table. Entries go beyond bounds.')
+                break
 
             # if we see too many times the same entry we assume it could be
             # a table containing bogus data (with malicious intent or otherwise)
@@ -3821,6 +3894,18 @@ class PE:
 
             thunk_data = self.__unpack_data__(
                 format, data, file_offset=self.get_offset_from_rva(rva) )
+
+            # Check if the AddressOfData lies within the range of RVAs that it's
+            # being scanned, abort if that is the case, as it is very unlikely
+            # to be legitimate data.
+            # Seen in PE with SHA256:
+            # 5945bb6f0ac879ddf61b1c284f3b8d20c06b228e75ae4f571fa87f5b9512902c
+            if thunk_data.AddressOfData >= start_rva and thunk_data.AddressOfData <= rva:
+                self.__warnings.append(
+                    'Error parsing the import table. ' +
+                    'AddressOfData overlaps with THUNK_DATA for ' +
+                    'THUNK at RVA 0x%x' % ( rva ) )
+                break
 
             if thunk_data and thunk_data.AddressOfData:
                 # If the entry looks like could be an ordinal...
@@ -4159,7 +4244,7 @@ class PE:
             dump.add_header('OPTIONAL_HEADER')
             dump.add_lines(self.OPTIONAL_HEADER.dump())
 
-        dll_characteristics_flags = retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLL_CHARACTERISTICS_')
+        dll_characteristics_flags = retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLLCHARACTERISTICS_')
 
         dump.add('DllCharacteristics: ')
         flags = []
@@ -4276,8 +4361,12 @@ class PE:
                 for symbol in module.imports:
 
                     if symbol.import_by_ordinal is True:
-                        dump.add('%s Ordinal[%s] (Imported by Ordinal)' % (
-                            module.dll, str(symbol.ordinal)))
+                        if symbol.name is not None:
+                            dump.add('%s.%s Ordinal[%s] (Imported by Ordinal)' % (
+                                    module.dll, symbol.name, str(symbol.ordinal)))
+                        else:
+                            dump.add('%s Ordinal[%s] (Imported by Ordinal)' % (
+                                module.dll, str(symbol.ordinal)))
                     else:
                         dump.add('%s.%s Hint[%s]' % (
                             module.dll, symbol.name, str(symbol.hint)))
@@ -4422,6 +4511,269 @@ class PE:
 
         return dump.get_text()
 
+
+    def dump_dict(self, dump=None):
+        """Dump all the PE header information into a dictionary."""
+
+        dump_dict = dict()
+
+        warnings = self.get_warnings()
+        if warnings:
+            dump_dict['Parsing Warnings'] = warnings
+
+        dump_dict['DOS_HEADER'] = self.DOS_HEADER.dump_dict()
+        dump_dict['NT_HEADERS'] = self.NT_HEADERS.dump_dict()
+        dump_dict['FILE_HEADER'] = self.FILE_HEADER.dump_dict()
+
+        image_flags = retrieve_flags(IMAGE_CHARACTERISTICS, 'IMAGE_FILE_')
+
+        dump_dict['Flags'] = list()
+        for flag in image_flags:
+            if getattr(self.FILE_HEADER, flag[0]):
+                dump_dict['Flags'].append(flag[0])
+
+        if hasattr(self, 'OPTIONAL_HEADER') and self.OPTIONAL_HEADER is not None:
+            dump_dict['OPTIONAL_HEADER'] = self.OPTIONAL_HEADER.dump_dict()
+
+        dll_characteristics_flags = retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLLCHARACTERISTICS_')
+
+        dump_dict['DllCharacteristics'] = list()
+        for flag in dll_characteristics_flags:
+            if getattr(self.OPTIONAL_HEADER, flag[0]):
+                dump_dict['DllCharacteristics'].append(flag[0])
+
+        dump_dict['PE Sections'] = list()
+
+        section_flags = retrieve_flags(SECTION_CHARACTERISTICS, 'IMAGE_SCN_')
+        for section in self.sections:
+            section_dict = section.dump_dict()
+            dump_dict['PE Sections'].append(section_dict)
+            section_dict['Flags'] = list()
+            for flag in section_flags:
+                if getattr(section, flag[0]):
+                    section_dict['Flags'].append(flag[0])
+
+            section_dict['Entropy'] = section.get_entropy()
+            if md5 is not None:
+                section_dict['MD5'] = section.get_hash_md5()
+            if sha1 is not None:
+                section_dict['SHA1'] = section.get_hash_sha1()
+            if sha256 is not None:
+                section_dict['SHA256'] = section.get_hash_sha256()
+            if sha512 is not None:
+                section_dict['SHA512'] = section.get_hash_sha512()
+
+
+
+        if (hasattr(self, 'OPTIONAL_HEADER') and
+            hasattr(self.OPTIONAL_HEADER, 'DATA_DIRECTORY') ):
+
+            dump_dict['Directories'] = list()
+
+            for idx in xrange(len(self.OPTIONAL_HEADER.DATA_DIRECTORY)):
+                directory = self.OPTIONAL_HEADER.DATA_DIRECTORY[idx]
+                dump_dict['Directories'].append(directory.dump_dict())
+
+        def convert_char(char):
+            if char in string.ascii_letters or char in string.digits or char in string.punctuation or char in string.whitespace:
+                return char
+            else:
+                return r'\x%02x' % ord(char)
+
+        def convert_to_printable(s):
+            return ''.join([convert_char(c) for c in s])
+
+        if hasattr(self, 'VS_VERSIONINFO'):
+            dump_dict['Version Information'] = list()
+            dump_dict['Version Information'].append(self.VS_VERSIONINFO.dump_dict())
+
+            if hasattr(self, 'VS_FIXEDFILEINFO'):
+                dump_dict['Version Information'].append(self.VS_FIXEDFILEINFO.dump_dict())
+
+            if hasattr(self, 'FileInfo'):
+                fileinfo_list = list()
+                for entry in self.FileInfo:
+                    fileinfo_list.append(entry.dump_dict())
+
+                    if hasattr(entry, 'StringTable'):
+                        stringtable_dict = dict()
+                        for st_entry in entry.StringTable:
+                            [fileinfo_list.append(line) for line in st_entry.dump_dict()]
+                            stringtable_dict['LangID'] = st_entry.LangID
+                            for str_entry in st_entry.entries.items():
+                                stringtable_dict[convert_to_printable(str_entry[0])] = convert_to_printable(str_entry[1])
+                        fileinfo_list.append(stringtable_dict)
+
+
+                    elif hasattr(entry, 'Var'):
+                        for var_entry in entry.Var:
+                            var_dict = dict()
+                            if hasattr(var_entry, 'entry'):
+                                [fileinfo_list.append(line) for line in var_entry.dump_dict()]
+                                var_dict[convert_to_printable(var_entry.entry.keys()[0])] = var_entry.entry.values()[0]
+                                fileinfo_list.append(var_dict)
+
+
+        if hasattr(self, 'DIRECTORY_ENTRY_EXPORT'):
+            dump_dict['Exported symbols'] = list()
+            dump_dict['Exported symbols'].append(self.DIRECTORY_ENTRY_EXPORT.struct.dump_dict())
+            for export in self.DIRECTORY_ENTRY_EXPORT.symbols:
+                export_dict = dict()
+                if export.address is not None:
+                    export_dict.update({'Ordinal': export.ordinal, 'RVA': export.address, 'Name': export.name})
+                    if export.forwarder:
+                        export_dict['forwarder'] = export.forwarder
+                dump_dict['Exported symbols'].append(export_dict)
+
+        if hasattr(self, 'DIRECTORY_ENTRY_IMPORT'):
+            dump_dict['Imported symbols'] = list()
+            for module in self.DIRECTORY_ENTRY_IMPORT:
+                import_list = list()
+                dump_dict['Imported symbols'].append(import_list)
+                import_list.append(module.struct.dump_dict())
+                for symbol in module.imports:
+                    symbol_dict = dict()
+                    if symbol.import_by_ordinal is True:
+                        symbol_dict['DLL'] = module.dll
+                        symbol_dict['Ordinal'] = symbol.ordinal
+                    else:
+                        symbol_dict['DLL'] = module.dll
+                        symbol_dict['Name'] = symbol.name
+                        symbol_dict['Hint'] = symbol.hint
+
+                    if symbol.bound:
+                        symbol_dict['Bound'] = symbol.bound
+                    import_list.append(symbol_dict)
+
+
+        if hasattr(self, 'DIRECTORY_ENTRY_BOUND_IMPORT'):
+            dump_dict['Bound imports'] = list()
+            for bound_imp_desc in self.DIRECTORY_ENTRY_BOUND_IMPORT:
+                bound_imp_desc_dict = dict()
+                dump_dict['Bound imports'].append(bound_imp_desc_dict)
+
+                bound_imp_desc_dict.update(bound_imp_desc.struct.dump_dict())
+                bound_imp_desc_dict['DLL'] = bound_imp_desc.name
+
+                for bound_imp_ref in bound_imp_desc.entries:
+                    bound_imp_ref_dict = dict()
+                    bound_imp_ref_dict.update(bound_imp_ref.struct.dump_dict())
+                    bound_imp_ref_dict['DLL'] = bound_imp_ref.name
+
+
+        if hasattr(self, 'DIRECTORY_ENTRY_DELAY_IMPORT'):
+            dump_dict['Delay Imported symbols'] = list()
+            for module in self.DIRECTORY_ENTRY_DELAY_IMPORT:
+                module_list = list()
+                dump_dict['Delay Imported symbols'].append(module_list)
+                module_list.append(module.struct.dump_dict())
+
+                for symbol in module.imports:
+                    symbol_dict = dict()
+                    if symbol.import_by_ordinal is True:
+                        symbol_dict['DLL'] = module.dll
+                        symbol_dict['Ordinal'] = symbol.ordinal
+                    else:
+                        symbol_dict['DLL'] = module.dll
+                        symbol_dict['Name'] = symbol.name
+                        symbol_dict['Hint'] = symbol.hint
+
+                    if symbol.bound:
+                        symbol_dict['Bound'] = symbol.bound
+                    module_list.append(symbol_dict)
+
+
+        if hasattr(self, 'DIRECTORY_ENTRY_RESOURCE'):
+            dump_dict['Resource directory'] = list()
+            dump_dict['Resource directory'].append(self.DIRECTORY_ENTRY_RESOURCE.struct.dump_dict())
+
+            for resource_type in self.DIRECTORY_ENTRY_RESOURCE.entries:
+                resource_type_dict = dict()
+
+                if resource_type.name is not None:
+                    resource_type_dict['Name'] = resource_type.name
+                else:
+                    resource_type_dict['Id'] = (
+                        resource_type.struct.Id, RESOURCE_TYPE.get(resource_type.struct.Id, '-'))
+
+                resource_type_dict.update(resource_type.struct.dump_dict())
+                dump_dict['Resource directory'].append(resource_type_dict)
+
+                if hasattr(resource_type, 'directory'):
+                    directory_list = list()
+                    directory_list.append(resource_type.directory.struct.dump_dict())
+                    dump_dict['Resource directory'].append(directory_list)
+
+                    for resource_id in resource_type.directory.entries:
+                        resource_id_dict = dict()
+
+                        if resource_id.name is not None:
+                            resource_id_dict['Name'] = resource_id.name
+                        else:
+                            resource_id_dict['Id'] = resource_id.struct.Id
+
+                        resource_id_dict.update(resource_id.struct.dump_dict())
+                        directory_list.append(resource_id_dict)
+
+                        if hasattr(resource_id, 'directory'):
+                            resource_id_list = list()
+                            resource_id_list.append(resource_id.directory.struct.dump_dict())
+                            directory_list.append(resource_id_list)
+
+                            for resource_lang in resource_id.directory.entries:
+                                if hasattr(resource_lang, 'data'):
+                                    resource_lang_dict = dict()
+                                    resource_lang_dict['LANG'] = resource_lang.data.lang
+                                    resource_lang_dict['SUBLANG'] = resource_lang.data.sublang
+                                    resource_lang_dict['LANG_NAME'] = LANG.get(resource_lang.data.lang, '*unknown*')
+                                    resource_lang_dict['SUBLANG_NAME'] = get_sublang_name_for_lang(resource_lang.data.lang, resource_lang.data.sublang)
+                                    resource_lang_dict.update(resource_lang.struct.dump_dict())
+                                    resource_lang_dict.update(resource_lang.data.struct.dump_dict())
+                                    resource_id_list.append(resource_lang_dict)
+                            if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
+                                for idx, res_string in resource_id.directory.strings.items():
+                                    resource_id_list.append(convert_to_printable(res_string))
+
+
+        if ( hasattr(self, 'DIRECTORY_ENTRY_TLS') and
+             self.DIRECTORY_ENTRY_TLS and
+             self.DIRECTORY_ENTRY_TLS.struct ):
+            dump_dict['TLS'] = self.DIRECTORY_ENTRY_TLS.struct.dump_dict()
+
+
+        if ( hasattr(self, 'DIRECTORY_ENTRY_LOAD_CONFIG') and
+             self.DIRECTORY_ENTRY_LOAD_CONFIG and
+             self.DIRECTORY_ENTRY_LOAD_CONFIG.struct ):
+            dump_dict['LOAD_CONFIG'] = self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.dump_dict()
+
+
+        if hasattr(self, 'DIRECTORY_ENTRY_DEBUG'):
+            dump_dict['Debug information'] = list()
+            for dbg in self.DIRECTORY_ENTRY_DEBUG:
+                dbg_dict = dict()
+                dump_dict['Debug information'].append(dbg_dict)
+                dbg_dict.update(dbg.struct.dump_dict())
+                dbg_dict['Type'] = DEBUG_TYPE.get(dbg.struct.Type, dbg.struct.Type)
+
+
+        if hasattr(self, 'DIRECTORY_ENTRY_BASERELOC'):
+            dump_dict['Base relocations'] = list()
+            for base_reloc in self.DIRECTORY_ENTRY_BASERELOC:
+                base_reloc_list = list()
+                dump_dict['Base relocations'].append(base_reloc_list)
+                base_reloc_list.append(base_reloc.struct.dump_dict())
+                for reloc in base_reloc.entries:
+                    reloc_dict = dict()
+                    base_reloc_list.append(reloc_dict)
+                    reloc_dict['RVA'] = reloc.rva
+                    try:
+                        reloc_dict['Type'] = RELOCATION_TYPE[reloc.type][16:]
+                    except KeyError:
+                        reloc_dict['Type'] = reloc.type
+
+        return dump_dict
+
+
     # OC Patch
     def get_physical_by_rva(self, rva):
         """Gets the physical address in the PE file from an RVA value."""
@@ -4463,7 +4815,7 @@ class PE:
         """
 
         try:
-            return self.get_dword_from_data(self.get_data(rva)[:4], 0)
+            return self.get_dword_from_data(self.get_data(rva, 4), 0)
         except PEFormatError:
             return None
 
