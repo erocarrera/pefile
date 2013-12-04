@@ -4,7 +4,7 @@ try:
     from setuptools import setup
 except ImportError, excp:
     from distutils.core import setup
-    
+
 import pefile
 import os
 
@@ -28,5 +28,6 @@ setup(name = 'pefile',
     	'Programming Language :: Python',
     	'Topic :: Software Development :: Libraries :: Python Modules'],
     long_description = "\n".join(pefile.__doc__.split('\n')),
-    py_modules = ['pefile', 'peutils'] )
+    py_modules = ['pefile', 'peutils'],
+    packages = ['ordlookup'] )
 
