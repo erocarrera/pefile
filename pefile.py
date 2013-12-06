@@ -2113,15 +2113,12 @@ class PE:
         RICH = 0x68636952 # 'Rich' as dword
 
         # Read a block of data
-        #
         try:
-            if is_bytearray_available():
-                data = bytearray(struct.unpack("<32I", self.get_data(0x80, 0x80)))
-            else:
-                data = list(struct.unpack("<32I", self.get_data(0x80, 0x80)))
-        except:
-            # In the cases where there's not enough data to contain the Rich header
-            # we abort its parsing
+            rich_data = self.get_data(0x80, 0x80)
+            if len(rich_data) != 0x80:
+                return None
+            data = list(struct.unpack("<32I", rich_data))
+        except PEFormatError:
             return None
 
         # the checksum should be present 3 times after the DanS signature
@@ -2234,7 +2231,7 @@ class PE:
                                         l = bytearray()
                                         for idx, c in enumerate(entry):
                                             if ord(c) > 256:
-                                                l.extend( [ ord(c) & 0xff, chr(ord(c) & 0xff00) >>8 ] )
+                                                l.extend( [ ord(c) & 0xff, chr( (ord(c) & 0xff00) >> 8) ] )
                                             else:
                                                 l.extend( [ ord(c), '\0' ] )
                                         file_data[offsets[1]:offsets[1]+lengths[1]*2 ] = l
@@ -2242,10 +2239,15 @@ class PE:
                                         l = bytearray()
                                         for idx, c in enumerate(entry):
                                             if ord(c) > 256:
-                                                l.extend( [ ord(c) & 0xff, ord(c) & 0xff00 >>8 ] )
+                                                l.extend( [ chr(ord(c) & 0xff), chr( (ord(c) & 0xff00) >>8) ] )
                                             else:
                                                 l.extend( [ ord(c), '\0'] )
                                         file_data[offsets[1]:offsets[1]+len(entry)*2 ] = l
+                                        remainder = lengths[1] - len(entry)
+                                        if remainder:
+                                            start = offsets[1] + len(entry)*2
+                                            end = offsets[1] + lengths[1]*2
+                                            file_data[start:end] = ['\0'] * remainder*2
 
                                 else:
                                     if len( entry ) > lengths[1]:
@@ -2262,18 +2264,15 @@ class PE:
                                         l = list()
                                         for idx, c in enumerate(entry):
                                             if ord(c) > 256:
-                                                l.extend( [ chr(ord(c) & 0xff), chr( (ord(c) & 0xff00) >>8) ]  )
+                                                l.extend( [chr(ord(c) & 0xff), chr( (ord(c) & 0xff00) >>8) ]  )
                                             else:
-                                                l.extend( [chr( ord(c) ), '\0'] )
+                                                l.extend( [chr(ord(c)), '\0'] )
 
-                                        file_data[
-                                            offsets[1] : offsets[1] + len(entry)*2 ] = l
-
+                                        file_data[offsets[1]:offsets[1]+len(entry)*2] = l
                                         remainder = lengths[1] - len(entry)
-                                        file_data[
-                                            offsets[1] + len(entry)*2 :
-                                            offsets[1] + lengths[1]*2 ] = [
-                                                u'\0' ] * remainder*2
+                                        start = offsets[1] + len(entry)*2
+                                        end = offsets[1] + lengths[1]*2
+                                        file_data[start:end] = [u'\0'] * remainder*2
 
         if is_bytearray_available():
             new_file_data = ''.join( chr(c) for c in file_data )
@@ -3269,7 +3268,6 @@ class PE:
 
                             key_as_char = ''.join(key_as_char)
 
-                            setattr(stringtable_struct, key_as_char, value)
                             stringtable_struct.entries[key] = value
                             stringtable_struct.entries_offsets[key] = (key_offset, value_offset)
                             stringtable_struct.entries_lengths[key] = (len(key), len(value))
@@ -3610,7 +3608,7 @@ class PE:
             for imp in entry.imports:
                 funcname = None
                 if not imp.name:
-                    funcname = ordlookup.ordLookup(entry.dll.lower(), imp.ordinal)
+                    funcname = ordlookup.ordLookup(entry.dll.lower(), imp.ordinal, make_name=True)
                     if not funcname:
                         raise Exception("Unable to look up ordinal %s:%04x" % (entry.dll, imp.ordinal))
                 else:
@@ -5115,95 +5113,24 @@ class PE:
         #
         checksum_offset = self.OPTIONAL_HEADER.__file_offset__ + 0x40 # 64
 
-        if is_bytearray_available():
-            # Here, we get a chunk at a time from the memory mapped object rather
-            # than try to read the entire thing and append padding to it.
-            def getDwords(checksum_offset, data):
-                # Use bytearrays rather than lists.  Much much faster, and it
-                # takes far less memory.
-                nullDword = bytearray( "\x00\x00\x00\x00" )
-                remainder = len( data ) % 4
-                numDwords = len( data ) / 4
-                skipBlocks = 0
+        checksum = 0
+        # Verify the data is dword-aligned. Add padding if needed
+        #
+        remainder = len(self.__data__) % 4
+        data_len = len(self.__data__) + ((4-remainder) * ( remainder != 0 ))
 
-                def getDword(index):
-                   return data[ i*4:i*4+4 ]
-
-                # Given an index and block size, find the length of the largest
-                # sequence of aligned null DWORDs that will fit.
-                def findNullLength(index, blockSize):
-                    beginBlockSize = blockSize
-                    while blockSize >= 4:
-                       if data[ index*4:(index*4)+(blockSize *4) ] == \
-                              nullDword * blockSize:
-                           endNullBlock = (index*4)+(blockSize*4)
-                           if beginBlockSize != blockSize:
-                               restOfNulls = findNullLength(endNullBlock, blockSize)
-                               return restOfNulls + ( blockSize / 4 )
-                           else:
-                               return blockSize / 4
-                       else:
-                           blockSize = blockSize / 2
-                    return 0
-
-                # Python 2's range() is a list. This can take up gigabytes of RAM.
-                # We use xrange() as a generator, and loop through the index of the
-                # blocks.
-                for i in xrange( numDwords ):
-                   if i == checksum_offset / 4:  continue
-
-                   # Number of blocks to skip to skip over null DWORDs.
-                   if skipBlocks > 0:
-                      skipBlocks -= 1
-                      continue
-
-                   # We fetch our indexed DWORD.
-                   dword = getDword(i)
-
-                   # If we fetched a null DWORD, we want to skip it and check
-                   # for more DWORDs to skip.
-                   if dword == nullDword:
-                       skipBlocks = findNullLength( i, 512 )
-                       continue
-
-                   # We yield our block, unpacked.
-                   yield struct.unpack('I', str(getDword(i)))[0]
-
-                # We've reached the end, so we need to flush the last block out,
-                # padded to DWORD size.
-                if remainder:
-                    yield struct.unpack( 'I', str(data[numDwords*4:]) +\
-                       ( '\0' * ((4-remainder)*(remainder != 0)) ) )[0]
-
-            # Compute our checksum by fetching non-null blocks from our generator.
-            checksum = 0
-
-            for dword in getDwords(checksum_offset, self.__data__):
-                if dword:
-                    checksum = (checksum & 0xffffffff) + dword + (checksum>>32)
-                    if checksum > 2**32:
-                        checksum = (checksum & 0xffffffff) + (checksum >> 32)
-
-        else:
-            checksum = 0
-            # Verify the data is dword-aligned. Add padding if needed
-            #
-            remainder = len(self.__data__) % 4
-            data = self.__data__ + ( '\0' * ((4-remainder) * ( remainder != 0 )) )
-
-            for i in range( len( data ) / 4 ):
-
-                # Skip the checksum field
-                #
-                if i == checksum_offset / 4:
-                    continue
-
-                dword = struct.unpack('I', data[ i*4 : i*4+4 ])[0]
-                # Optimized the calculation (thanks to Emmanuel Bourg for pointing it out!)
-                checksum += dword
-                if checksum > 2**32:
-                    checksum = (checksum & 0xffffffff) + (checksum >> 32)
-
+        for i in xrange( data_len / 4 ):
+            # Skip the checksum field
+            if i == checksum_offset / 4:
+                continue
+            if i+1 == (data_len / 4) and remainder:
+                dword = struct.unpack('I', self.__data__[i*4:]+ ('\0' * (4-remainder)) )[0]
+            else:
+                dword = struct.unpack('I', self.__data__[ i*4 : i*4+4 ])[0]
+            # Optimized the calculation (thanks to Emmanuel Bourg for pointing it out!)
+            checksum += dword
+            if checksum > 2**32:
+                checksum = (checksum & 0xffffffff) + (checksum >> 32)
 
         checksum = (checksum & 0xffff) + (checksum >> 16)
         checksum = (checksum) + (checksum >> 16)
