@@ -2682,6 +2682,7 @@ class PE:
         file_offset = self.get_offset_from_rva(data_rva)
 
         entries = []
+        offsets_and_type = []
         for idx in xrange( len(data) / 2 ):
 
             entry = self.__unpack_data__(
@@ -2695,6 +2696,15 @@ class PE:
 
             reloc_type = (word>>12)
             reloc_offset = (word & 0x0fff)
+            if (reloc_offset, reloc_type) in offsets_and_type:
+                self.__warnings.append(
+                    'Overlapping offsets in relocation data ' +
+                    'data at RVA: 0x%x' % (reloc_offset+rva))
+                break
+            if len(offsets_and_type) >= 1000:
+                offsets_and_type.pop()
+            offsets_and_type.insert(0, (reloc_offset, reloc_type))
+
             entries.append(
                 RelocationData(
                     struct = entry,
@@ -2806,7 +2816,7 @@ class PE:
         MAX_ALLOWED_ENTRIES = 4096
         if number_of_entries > MAX_ALLOWED_ENTRIES:
             self.__warnings.append(
-                'Error parsing the resources directory, '
+                'Error parsing the resources directory. '
                 'The directory contains %d entries (>%s)' %
                 (number_of_entries, MAX_ALLOWED_ENTRIES) )
             return None
@@ -3430,6 +3440,8 @@ class PE:
                     break
 
             symbol_name = self.get_string_at_rva( symbol_name_address )
+            if not is_valid_function_name(symbol_name):
+                break
             try:
                 symbol_name_offset = self.get_offset_from_rva( symbol_name_address )
             except PEFormatError:
@@ -3548,9 +3560,10 @@ class PE:
                     'Error parsing the Delay import directory at RVA: 0x%x' % ( rva ) )
                 break
 
+            file_offset = self.get_offset_from_rva(rva)
             import_desc =  self.__unpack_data__(
                 self.__IMAGE_DELAY_IMPORT_DESCRIPTOR_format__,
-                data, file_offset = self.get_offset_from_rva(rva) )
+                data, file_offset = file_offset )
 
 
             # If the structure is all zeros, we reached the end of the list
@@ -3560,15 +3573,23 @@ class PE:
 
             rva += import_desc.sizeof()
 
+            # If the array of thunk's is somewhere earlier than the import
+            # descriptor we can set a maximum length for the array. Otherwise
+            # just set a maximum length of the size of the file
+            max_len = len(self.__data__) - file_offset
+            if rva > import_desc.pINT or rva > import_desc.pIAT:
+                max_len = max(rva-import_desc.pINT, rva-import_desc.pIAT)
+
             try:
                 import_data =  self.parse_imports(
                     import_desc.pINT,
                     import_desc.pIAT,
-                    None)
+                    None,
+                    max_length = max_len)
             except PEFormatError, e:
                 self.__warnings.append(
                     'Error parsing the Delay import directory. ' +
-                    'Invalid import data at RVA: 0x%x' % ( rva ) )
+                    'Invalid import data at RVA: 0x%x (%s)' % ( rva, e.value) )
                 break
 
             if not import_data:
@@ -3660,10 +3681,10 @@ class PE:
                     import_desc.FirstThunk,
                     import_desc.ForwarderChain,
                     max_length = max_len)
-            except PEFormatError, excp:
+            except PEFormatError, e:
                 self.__warnings.append(
                     'Error parsing the import directory. ' +
-                    'Invalid Import data at RVA: 0x%x (%s)' % ( rva, str(excp) ) )
+                    'Invalid Import data at RVA: 0x%x (%s)' % ( rva, e.value ) )
                 break
 
             if not import_data:
@@ -3698,8 +3719,6 @@ class PE:
         if suspicious_imports_count == len(suspicious_imports) and total_symbols < 20:
             self.__warnings.append(
                 'Imported symbols contain entries typical of packed executables.' )
-
-
 
         return import_descs
 
@@ -3756,6 +3775,7 @@ class PE:
             imp_offset = 8
             address_mask = 0x7fffffffffffffffL
 
+        num_invalid = 0
         for idx in xrange(len(table)):
 
             imp_ord = None
@@ -3817,7 +3837,16 @@ class PE:
             # table the parsing will be aborted
             #
             if imp_ord == None and imp_name == None:
-                raise PEFormatError( 'Invalid entries in the Import Table. Aborting parsing.' )
+                raise PEFormatError('Invalid entries, aborting parsing.')
+
+            # Some PEs appear to interleave valid and invalid imports. Instead of
+            # aborting the parsing altogether we will simply skip the invalid entries.
+            # Although if we see 1000 invalid entries and no legit ones, we abort.
+            if imp_name == '*invalid*':
+                if num_invalid > 1000 and num_invalid == idx:
+                    raise PEFormatError('Too many invalid names, aborting parsing.')
+                num_invalid += 1
+                continue
 
             if imp_name != '' and (imp_ord or imp_name):
                 imported_symbols.append(
@@ -3883,11 +3912,11 @@ class PE:
                 return []
 
             try:
-                data = self.get_data( rva, Structure(format).sizeof() )
+                data = self.get_data(rva, Structure(format).sizeof())
             except PEFormatError, e:
                 self.__warnings.append(
                     'Error parsing the import table. ' +
-                    'Invalid data at RVA: 0x%x' % ( rva ) )
+                    'Invalid data at RVA: 0x%x' % rva)
                 return None
 
             thunk_data = self.__unpack_data__(
