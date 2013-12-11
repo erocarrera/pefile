@@ -12,7 +12,7 @@ pefile has been tested against the limits of valid PE headers, that is, malware.
 Lots of packed malware attempt to abuse the format way beyond its standard use.
 To the best of my knowledge most of the abuses are handled gracefully.
 
-Copyright (c) 2005-2012 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2013 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 
