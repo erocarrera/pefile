@@ -1,0 +1,71 @@
+
+--------------------------------------------------------------------
+             pefile - Portable Executable reader module
+--------------------------------------------------------------------
+
+
+INTRODUCTION
+
+pefile will allow to access from any Python script all (or most) of the contents
+of a given PE file.
+
+The structures defined in the Windows header files will be accessible as the
+PE instance attributes and will have the same names as defined there.
+(The main structures will have the standard capitalized names and will be
+attributes of the PE instance. Their members will be attributes.)
+
+Other attributes and data, which require further processing but are very useful
+will be available as lowercase attributes. Some of those are, the imported and
+exported symbols and the sections, with direct access to their data (if any) and
+convenient methods to retrieve data based on the address as if the file were
+loaded, instead of needing to dig the offsets into the file.
+
+WRITTING SUPPORT
+
+Starting from pefile 1.2 it's possible to write back any changes done to the PE
+file. One has to be careful with this functionality as it will not be very
+intelligent reconstructing the PE file. That is, it will not handle displacing
+structures if that would be needed because a new section has been added.
+The rule of thumb is, if there's room for an additional header/structure to fit
+then there'll be no problem and pefile will write it.
+All other modifications, i.e. changing individual values in header/structure
+members should work well.
+One possible useful application of this could be to correct malformed headers
+used by some malware in order to cause certain analysis tools to malfunction.
+
+
+AVAILABILITY
+
+Last versions are available at:
+
+http://dkbza.org/pefile.html
+
+
+INSTALLATION/USAGE
+
+Just importing it should suffice. The module should be endianness independent and
+it's known to work on OS X, Windows, and Linux.
+
+
+TODO
+
+There might be some obscure info which is not readily accessible, this may be
+due to my ignorance or laziness. Patches or suggestions are, as usual, welcomed.
+
+Thinks known to be missing so far:
+
+-Reading and processing the exceptions directory entry. (Architecture dependent
+info)
+
+BUGS
+
+Given the amount of information embedded in the PE file format it is difficult
+to test all the data retrieved thoroughly. I did my best trying and verifying
+the accuracy of all the parsing. Most of the basic data has been tested by using
+this module, so no outrageously obvious problems should exist. Any feedback on
+inconsistent or faulty behavior will be welcome.
+
+-------------------------------------------------------------------------
+Copyright (c) 2005-2013 Ero Carrera <ero@dkbza.org>. All rights reserved.
+-------------------------------------------------------------------------
+
