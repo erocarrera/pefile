@@ -3911,9 +3911,13 @@ class PE:
                 max(addresses_of_data_set_64) - min(addresses_of_data_set_64) > MAX_ADDRESS_SPREAD ):
                 return []
 
+            failed = False
             try:
                 data = self.get_data(rva, Structure(format).sizeof())
             except PEFormatError, e:
+                failed = True
+
+            if failed or len(data) != Structure(format).sizeof():
                 self.__warnings.append(
                     'Error parsing the import table. ' +
                     'Invalid data at RVA: 0x%x' % rva)
