@@ -913,7 +913,6 @@ class Structure:
         self.__unpacked_data_elms__ = struct.unpack(self.__format__, data)
         for i in xrange(len(self.__unpacked_data_elms__)):
             for key in self.__keys__[i]:
-                #self.values[key] = self.__unpacked_data_elms__[i]
                 setattr(self, key, self.__unpacked_data_elms__[i])
 
 
@@ -1446,7 +1445,8 @@ def is_valid_dos_filename(s):
     if s is None or not isinstance(s, str):
         return False
     for c in s:
-        if c not in allowed_filename:
+        # Allow path separators as import names can contain directories.
+        if c not in allowed_filename and c not in '\\/':
             return False
     return True
 
@@ -1796,6 +1796,7 @@ class PE:
             stat = os.stat(fname)
             if stat.st_size == 0:
                 raise PEFormatError('The file is empty')
+            fd = None
             try:
                 fd = file(fname, 'rb')
                 self.fileno = fd.fileno()
@@ -1806,8 +1807,14 @@ class PE:
                     # Windows
                     self.__data__ = mmap.mmap(self.fileno, 0, access=mmap.ACCESS_READ)
                 self.__from_file = True
+            except IOError, excp:
+                exception_msg = str(excp)
+                if exception_msg:
+                    exception_msg = ': %s' % exception_msg
+                raise Exception('Unable to access file \'%s\'%s' % (fname, exception_msg))
             finally:
-                fd.close()
+                if fd is not None:
+                    fd.close()
         elif data:
             self.__data__ = data
             self.__from_file = False
@@ -2318,6 +2325,11 @@ class PE:
                     ('Invalid section %d. ' % i) +
                     'Contents are null-bytes.')
                 break
+            if len(section_data) == 0:
+                self.__warnings.append(
+                    ('Invalid section %d. ' % i) +
+                    'No data in the file (is this corkami\'s virtsectblXP?).')
+                break
             section.__unpack__(section_data)
             self.__structures__.append(section)
 
@@ -2678,8 +2690,13 @@ class PE:
     def parse_relocations(self, data_rva, rva, size):
         """"""
 
-        data = self.get_data(data_rva, size)
-        file_offset = self.get_offset_from_rva(data_rva)
+        try:
+            data = self.get_data(data_rva, size)
+            file_offset = self.get_offset_from_rva(data_rva)
+        except PEFormatError, excp:
+            self.__warnings.append(
+                'Bad RVA in relocation data: 0x%x' % (data_rva))
+            return []
 
         entries = []
         offsets_and_type = []
@@ -5236,22 +5253,27 @@ class PE:
     def get_overlay_data_start_offset(self):
         """Get the offset of data appended to the file and not contained within the area described in the headers."""
 
-        highest_PointerToRawData = 0
-        highest_SizeOfRawData = 0
+        largest_offset_and_size = (0, 0)
+
+        def update_if_sum_is_larger_and_within_file(offset_and_size, file_size=len(self.__data__)):
+            if sum(offset_and_size) <= file_size and sum(offset_and_size) > sum(largest_offset_and_size):
+                return offset_and_size
+            return largest_offset_and_size
+
+        if hasattr(self, 'OPTIONAL_HEADER'):
+            largest_offset_and_size = update_if_sum_is_larger_and_within_file(
+                (self.OPTIONAL_HEADER.get_file_offset(), self.FILE_HEADER.SizeOfOptionalHeader))
+
         for section in self.sections:
+            largest_offset_and_size = update_if_sum_is_larger_and_within_file(
+                (section.PointerToRawData, section.SizeOfRawData))
 
-            # If a section seems to fall outside the boundaries of the file we assume it's either
-            # because of intentionally misleading values or because the file is truncated
-            # In either case we skip it
-            if section.PointerToRawData + section.SizeOfRawData > len(self.__data__):
-                continue
+        for directory in self.OPTIONAL_HEADER.DATA_DIRECTORY:
+            largest_offset_and_size = update_if_sum_is_larger_and_within_file(
+                (directory.VirtualAddress, directory.Size))
 
-            if section.PointerToRawData + section.SizeOfRawData > highest_PointerToRawData + highest_SizeOfRawData:
-                highest_PointerToRawData = section.PointerToRawData
-                highest_SizeOfRawData = section.SizeOfRawData
-
-        if len(self.__data__) > highest_PointerToRawData + highest_SizeOfRawData:
-            return highest_PointerToRawData + highest_SizeOfRawData
+        if len(self.__data__) > sum(largest_offset_and_size):
+            return sum(largest_offset_and_size)
 
         return None
 
