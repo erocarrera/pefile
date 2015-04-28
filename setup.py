@@ -2,7 +2,7 @@
 
 try:
     from setuptools import setup
-except ImportError, excp:
+except ImportError as excp:
     from distutils.core import setup
 
 import pefile
