@@ -1,3 +1,7 @@
+import sys
+
+sys.path.append('.', '..')
+
 import ws2_32
 import oleaut32
 
