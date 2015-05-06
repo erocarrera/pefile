@@ -954,7 +954,7 @@ class Structure:
             for key in keys:
 
                 val = getattr(self, key)
-                if isinstance(val, int) or isinstance(val, long):
+                if isinstance(val, int):
                     val_str = '0x%-8X' % (val)
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
@@ -1040,7 +1040,7 @@ class SectionStructure(Structure):
         if end > self.PointerToRawData + self.SizeOfRawData:
             end = self.PointerToRawData + self.SizeOfRawData
 
-        return self.pe.__data__[offset:end]
+        return self.pe.__data__[int(offset):int(end)]
 
 
     def __setattr__(self, name, val):
@@ -4185,8 +4185,9 @@ class PE:
             return ''
 
         s = ''
-        while ord(b):
-            s += b
+
+        while b != 0:
+            s += chr(b)
             offset += 1
             try:
                 b = data[offset]
