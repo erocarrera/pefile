@@ -905,8 +905,7 @@ class Structure:
         elif len(data) < self.__format_length__:
             raise PEFormatError('Data length less than expected header length.')
 
-
-        if data.count(chr(0)) == len(data):
+        if data.count(b'\x00') == len(data):
             self.__all_zeroes__ = True
 
         self.__unpacked_data_elms__ = struct.unpack(self.__format__, data)
@@ -2063,7 +2062,7 @@ class PE:
         if not lowest_section_offset or lowest_section_offset < offset:
             self.header = self.__data__[:offset]
         else:
-            self.header = self.__data__[:lowest_section_offset]
+            self.header = self.__data__[:int(lowest_section_offset)]
 
 
         # Check whether the entry point lies within a section
@@ -2319,7 +2318,7 @@ class PE:
             section.set_file_offset(section_offset)
             section_data = self.__data__[section_offset : section_offset + section.sizeof()]
             # Check if the section is all nulls and stop if so.
-            if section_data.count('\0') == section.sizeof():
+            if section_data.count(b'\x00') == section.sizeof():
                 self.__warnings.append(
                     ('Invalid section %d. ' % i) +
                     'Contents are null-bytes.')
@@ -2398,7 +2397,7 @@ class PE:
         # Sort the sections by their VirtualAddress and add a field to each of them
         # with the VirtualAddress of the next section. This will allow to check
         # for potentially overlapping sections in badly constructed PEs.
-        self.sections.sort(cmp=lambda a,b: cmp(a.VirtualAddress, b.VirtualAddress))
+        self.sections.sort(key=lambda a: a.VirtualAddress)
         for idx, section in enumerate(self.sections):
             if idx == len(self.sections)-1:
                 section.next_section_virtual_address = None
