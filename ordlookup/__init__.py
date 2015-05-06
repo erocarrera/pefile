@@ -1,6 +1,6 @@
 import sys
 
-sys.path.append('.', '..')
+sys.path.append('.\ordlookup')
 
 import ws2_32
 import oleaut32
@@ -24,7 +24,7 @@ def ordLookup(libname, ord, make_name=False):
     '''
     names = ords.get(libname.lower())
     if names == None:
-        if make_name is True:
+        if make_name == True:
             return 'ord%d' % ord
         return None
     name = names.get(ord)

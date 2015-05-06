@@ -65,12 +65,6 @@ the accuracy of all the parsing. Most of the basic data has been tested by using
 this module, so no outrageously obvious problems should exist. Any feedback on
 inconsistent or faulty behavior will be welcome.
 
-
-COMPATIBILITY
-
-This version has been tested to be compatible with python versions 2.7 to 3.4,
-as of 28/04/2015. Compatibility for versions > 2.7x has been added by Shay Ber <shayberr@gmail.com>.
-
 -------------------------------------------------------------------------
 Copyright (c) 2005-2013 Ero Carrera <ero@dkbza.org>. All rights reserved.
 -------------------------------------------------------------------------

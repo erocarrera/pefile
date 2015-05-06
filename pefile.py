@@ -31,7 +31,6 @@ import struct
 import time
 import math
 import re
-import exceptions
 import string
 import array
 import mmap
@@ -62,7 +61,7 @@ try:
 except NameError:
     def enumerate(iter):
         L = list(iter)
-        return list(zip(list(range(0, len(L))), L))
+        return zip(range(0, len(L)), L)
 
 def is_bytearray_available():
     if isinstance(__builtins__, dict):
@@ -589,7 +588,7 @@ def retrieve_flags(flag_dict, flag_filter):
     matching the filter "flag_filter".
     """
 
-    return [(f[0], f[1]) for f in list(flag_dict.items()) if
+    return [(f[0], f[1]) for f in flag_dict.items() if
             isinstance(f[0], str) and f[0].startswith(flag_filter)]
 
 
@@ -762,7 +761,7 @@ class Dump:
         The text can be indented with the optional argument 'indent'.
         """
 
-        if isinstance(txt, str):
+        if isinstance(txt, unicode):
             try:
                 txt = str(txt)
             except UnicodeEncodeError:
@@ -913,7 +912,6 @@ class Structure:
         self.__unpacked_data_elms__ = struct.unpack(self.__format__, data)
         for i in range(len(self.__unpacked_data_elms__)):
             for key in self.__keys__[i]:
-                #self.values[key] = self.__unpacked_data_elms__[i]
                 setattr(self, key, self.__unpacked_data_elms__[i])
 
 
@@ -957,15 +955,15 @@ class Structure:
             for key in keys:
 
                 val = getattr(self, key)
-                if isinstance(val, int) or isinstance(val, int):
+                if isinstance(val, int) or isinstance(val, long):
                     val_str = '0x%-8X' % (val)
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
                             val_str += ' [%s UTC]' % time.asctime(time.gmtime(val))
-                        except exceptions.ValueError as e:
+                        except ValueError as e:
                             val_str += ' [INVALID TIME]'
                 else:
-                    val_str = ''.join([c for c in str(val) if c != '\0'])
+                    val_str = ''.join(filter(lambda c:c != '\0', str(val)))
 
                 dump.append('0x%-8X 0x%-3X %-30s %s' % (
                     self.__field_offsets__[key] + self.__file_offset__,
@@ -986,14 +984,14 @@ class Structure:
             for key in keys:
 
                 val = getattr(self, key)
-                if isinstance(val, int) or isinstance(val, int):
+                if isinstance(val, int) or isinstance(val, long):
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
                             val = '0x%-8X [%s UTC]' % (val, time.asctime(time.gmtime(val)))
-                        except exceptions.ValueError as e:
+                        except ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
                 else:
-                    val = ''.join([c for c in str(val) if c != '\0'])
+                    val = ''.join(filter(lambda c:c != '\0', str(val)))
 
                 dump_dict[key] = {'FileOffset': self.__field_offsets__[key] + self.__file_offset__,
                                   'Offset': self.__field_offsets__[key],
@@ -1194,7 +1192,7 @@ class DataContainer(object):
 
     def __init__(self, **args):
         bare_setattr = super(DataContainer, self).__setattr__
-        for key, value in list(args.items()):
+        for key, value in args.items():
             bare_setattr(key, value)
 
 
@@ -1441,12 +1439,13 @@ class BoundImportRefData(DataContainer):
 #
 # The filename length is not checked because the DLLs filename
 # can be longer that the 8.3
-allowed_filename = string.lowercase + string.uppercase + string.digits + "!#$%&'()-@^_`{}~+,.;=[]" + ''.join( [chr(i) for i in range(128, 256)] )
+allowed_filename = 'abcdefghijklmnopqrstuvwxyz' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '0123456789' + "!#$%&'()-@^_`{}~+,.;=[]" + ''.join( [chr(i) for i in range(128, 256)] )
 def is_valid_dos_filename(s):
     if s is None or not isinstance(s, str):
         return False
     for c in s:
-        if c not in allowed_filename:
+        # Allow path separators as import names can contain directories.
+        if c not in allowed_filename and c not in '\\/':
             return False
     return True
 
@@ -1455,7 +1454,7 @@ def is_valid_dos_filename(s):
 # function names. If the symbol's characters don't fall within this charset
 # we will assume the name is invalid
 #
-allowed_function_name = string.lowercase + string.uppercase + string.digits + '_?@$()'
+allowed_function_name = 'abcdefghijklmnopqrstuvwxyz' + 'ABCDEFGHIJKLMNOPQRSTUVWXYZ' + '0123456789' + '_?@$()'
 def is_valid_function_name(s):
     if s is None or not isinstance(s, str):
         return False
@@ -1796,6 +1795,7 @@ class PE:
             stat = os.stat(fname)
             if stat.st_size == 0:
                 raise PEFormatError('The file is empty')
+            fd = None
             try:
                 fd = file(fname, 'rb')
                 self.fileno = fd.fileno()
@@ -1806,8 +1806,14 @@ class PE:
                     # Windows
                     self.__data__ = mmap.mmap(self.fileno, 0, access=mmap.ACCESS_READ)
                 self.__from_file = True
+            except IOError as excp:
+                exception_msg = str(excp)
+                if exception_msg:
+                    exception_msg = ': %s' % exception_msg
+                raise Exception('Unable to access file \'%s\'%s' % (fname, exception_msg))
             finally:
-                fd.close()
+                if fd is not None:
+                    fd.close()
         elif data:
             self.__data__ = data
             self.__from_file = False
@@ -2172,7 +2178,7 @@ class PE:
         """
 
         for warning in self.__warnings:
-            print(('>', warning))
+            print('>', warning)
 
 
     def full_load(self):
@@ -2221,7 +2227,7 @@ class PE:
                 for entry in self.FileInfo:
                     if hasattr(entry, 'StringTable'):
                         for st_entry in entry.StringTable:
-                            for key, entry in list(st_entry.entries.items()):
+                            for key, entry in st_entry.entries.items():
 
                                 offsets = st_entry.entries_offsets[key]
                                 lengths = st_entry.entries_lengths[key]
@@ -2272,7 +2278,7 @@ class PE:
                                         remainder = lengths[1] - len(entry)
                                         start = offsets[1] + len(entry)*2
                                         end = offsets[1] + lengths[1]*2
-                                        file_data[start:end] = ['\0'] * remainder*2
+                                        file_data[start:end] = [u'\0'] * remainder*2
 
         if is_bytearray_available():
             new_file_data = ''.join( chr(c) for c in file_data )
@@ -2317,6 +2323,11 @@ class PE:
                 self.__warnings.append(
                     ('Invalid section %d. ' % i) +
                     'Contents are null-bytes.')
+                break
+            if len(section_data) == 0:
+                self.__warnings.append(
+                    ('Invalid section %d. ' % i) +
+                    'No data in the file (is this corkami\'s virtsectblXP?).')
                 break
             section.__unpack__(section_data)
             self.__structures__.append(section)
@@ -2678,8 +2689,13 @@ class PE:
     def parse_relocations(self, data_rva, rva, size):
         """"""
 
-        data = self.get_data(data_rva, size)
-        file_offset = self.get_offset_from_rva(data_rva)
+        try:
+            data = self.get_data(data_rva, size)
+            file_offset = self.get_offset_from_rva(data_rva)
+        except PEFormatError as excp:
+            self.__warnings.append(
+                'Bad RVA in relocation data: 0x%x' % (data_rva))
+            return []
 
         entries = []
         offsets_and_type = []
@@ -3023,7 +3039,7 @@ class PE:
         if resource is None:
             return None
 
-        #resource.NameIsString = (resource.Name & 0x80000000L) >> 31
+        #resource.NameIsString = (resource.Name & 0x80000000) >> 31
         resource.NameOffset = resource.Name & 0x7FFFFFFF
 
         resource.__pad = resource.Name & 0xFFFF0000
@@ -3089,7 +3105,7 @@ class PE:
 
         # If the structure does not contain the expected name, it's assumed to be invalid
         #
-        if versioninfo_string != 'VS_VERSION_INFO':
+        if versioninfo_string != u'VS_VERSION_INFO':
 
             self.__warnings.append('Invalid VS_VERSION_INFO block')
             return
@@ -3177,7 +3193,7 @@ class PE:
 
             # Parse a StringFileInfo entry
             #
-            if stringfileinfo_string and stringfileinfo_string.startswith('StringFileInfo'):
+            if stringfileinfo_string and stringfileinfo_string.startswith(u'StringFileInfo'):
 
                 if stringfileinfo_struct.Type in (0,1) and stringfileinfo_struct.ValueLength == 0:
 
@@ -3299,7 +3315,7 @@ class PE:
 
             # Parse a VarFileInfo entry
             #
-            elif stringfileinfo_string and stringfileinfo_string.startswith( 'VarFileInfo' ):
+            elif stringfileinfo_string and stringfileinfo_string.startswith( u'VarFileInfo' ):
 
                 varfileinfo_struct = stringfileinfo_struct
                 varfileinfo_struct.name = 'VarFileInfo'
@@ -3353,7 +3369,7 @@ class PE:
                                 raw_data[varword_offset+2:varword_offset+4], 0)
                             varword_offset += 4
 
-                            if isinstance(word1, int) and isinstance(word2, int):
+                            if isinstance(word1, (int, long)) and isinstance(word2, (int, long)):
                                 var_struct.entry = {var_string: '0x%04x 0x%04x' % (word1, word2)}
 
                         var_offset = self.dword_align(
@@ -3911,9 +3927,13 @@ class PE:
                 max(addresses_of_data_set_64) - min(addresses_of_data_set_64) > MAX_ADDRESS_SPREAD ):
                 return []
 
+            failed = False
             try:
                 data = self.get_data(rva, Structure(format).sizeof())
             except PEFormatError as e:
+                failed = True
+
+            if failed or len(data) != Structure(format).sizeof():
                 self.__warnings.append(
                     'Error parsing the import table. ' +
                     'Invalid data at RVA: 0x%x' % rva)
@@ -4055,7 +4075,7 @@ class PE:
                     for resource_id in resource_type.directory.entries:
                         if hasattr(resource_id, 'directory'):
                             if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
-                                for res_string in list(resource_id.directory.strings.values()):
+                                for res_string in resource_id.directory.strings.values():
                                     resources_strings.append( res_string )
 
         return resources_strings
@@ -4187,16 +4207,16 @@ class PE:
         except PEFormatError as e:
             return None
 
-        s = ''
+        s = u''
         for idx in range(max_length):
             try:
                 uchr = struct.unpack('<H', self.get_data(rva+2*idx, 2))[0]
             except struct.error:
                 break
 
-            if chr(uchr) == '\0':
+            if unichr(uchr) == u'\0':
                 break
-            s += chr(uchr)
+            s += unichr(uchr)
 
         return s
 
@@ -4228,7 +4248,7 @@ class PE:
 
     def print_info(self):
         """Print all the PE header information in a human readable from."""
-        print((self.dump_info()))
+        print(self.dump_info())
 
 
     def dump_info(self, dump=None):
@@ -4345,7 +4365,7 @@ class PE:
                             [dump.add_line('  '+line) for line in st_entry.dump()]
                             dump.add_line('  LangID: '+st_entry.LangID)
                             dump.add_newline()
-                            for str_entry in list(st_entry.entries.items()):
+                            for str_entry in st_entry.entries.items():
                                 dump.add_line( '    ' +
                                     convert_to_printable(str_entry[0]) + ': ' +
                                     convert_to_printable(str_entry[1]) )
@@ -4357,8 +4377,8 @@ class PE:
                                 [dump.add_line('  '+line) for line in var_entry.dump()]
                                 dump.add_line(
                                     '    ' +
-                                    convert_to_printable(list(var_entry.entry.keys())[0]) +
-                                    ': ' + list(var_entry.entry.values())[0])
+                                    convert_to_printable(var_entry.entry.keys()[0]) +
+                                    ': ' + var_entry.entry.values()[0])
 
                         dump.add_newline()
 
@@ -4485,7 +4505,7 @@ class PE:
                                     dump.add_lines(resource_lang.data.struct.dump(), 12)
                             if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
                                 dump.add_line( '[STRINGS]' , 10 )
-                                for idx, res_string in list(resource_id.directory.strings.items()):
+                                for idx, res_string in resource_id.directory.strings.items():
                                     dump.add_line( '%6d: %s' % (idx, convert_to_printable(res_string) ), 12 )
 
                 dump.add_newline()
@@ -4627,7 +4647,7 @@ class PE:
                         for st_entry in entry.StringTable:
                             [fileinfo_list.append(line) for line in st_entry.dump_dict()]
                             stringtable_dict['LangID'] = st_entry.LangID
-                            for str_entry in list(st_entry.entries.items()):
+                            for str_entry in st_entry.entries.items():
                                 stringtable_dict[convert_to_printable(str_entry[0])] = convert_to_printable(str_entry[1])
                         fileinfo_list.append(stringtable_dict)
 
@@ -4637,7 +4657,7 @@ class PE:
                             var_dict = dict()
                             if hasattr(var_entry, 'entry'):
                                 [fileinfo_list.append(line) for line in var_entry.dump_dict()]
-                                var_dict[convert_to_printable(list(var_entry.entry.keys())[0])] = list(var_entry.entry.values())[0]
+                                var_dict[convert_to_printable(var_entry.entry.keys()[0])] = var_entry.entry.values()[0]
                                 fileinfo_list.append(var_dict)
 
 
@@ -4758,7 +4778,7 @@ class PE:
                                     resource_lang_dict.update(resource_lang.data.struct.dump_dict())
                                     resource_id_list.append(resource_lang_dict)
                             if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
-                                for idx, res_string in list(resource_id.directory.strings.items()):
+                                for idx, res_string in resource_id.directory.strings.items():
                                     resource_id_list.append(convert_to_printable(res_string))
 
 
@@ -5232,22 +5252,27 @@ class PE:
     def get_overlay_data_start_offset(self):
         """Get the offset of data appended to the file and not contained within the area described in the headers."""
 
-        highest_PointerToRawData = 0
-        highest_SizeOfRawData = 0
+        largest_offset_and_size = (0, 0)
+
+        def update_if_sum_is_larger_and_within_file(offset_and_size, file_size=len(self.__data__)):
+            if sum(offset_and_size) <= file_size and sum(offset_and_size) > sum(largest_offset_and_size):
+                return offset_and_size
+            return largest_offset_and_size
+
+        if hasattr(self, 'OPTIONAL_HEADER'):
+            largest_offset_and_size = update_if_sum_is_larger_and_within_file(
+                (self.OPTIONAL_HEADER.get_file_offset(), self.FILE_HEADER.SizeOfOptionalHeader))
+
         for section in self.sections:
+            largest_offset_and_size = update_if_sum_is_larger_and_within_file(
+                (section.PointerToRawData, section.SizeOfRawData))
 
-            # If a section seems to fall outside the boundaries of the file we assume it's either
-            # because of intentionally misleading values or because the file is truncated
-            # In either case we skip it
-            if section.PointerToRawData + section.SizeOfRawData > len(self.__data__):
-                continue
+        for directory in self.OPTIONAL_HEADER.DATA_DIRECTORY:
+            largest_offset_and_size = update_if_sum_is_larger_and_within_file(
+                (directory.VirtualAddress, directory.Size))
 
-            if section.PointerToRawData + section.SizeOfRawData > highest_PointerToRawData + highest_SizeOfRawData:
-                highest_PointerToRawData = section.PointerToRawData
-                highest_SizeOfRawData = section.SizeOfRawData
-
-        if len(self.__data__) > highest_PointerToRawData + highest_SizeOfRawData:
-            return highest_PointerToRawData + highest_SizeOfRawData
+        if len(self.__data__) > sum(largest_offset_and_size):
+            return sum(largest_offset_and_size)
 
         return None
 
