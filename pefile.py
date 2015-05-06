@@ -1797,7 +1797,7 @@ class PE:
                 raise PEFormatError('The file is empty')
             fd = None
             try:
-                fd = file(fname, 'rb')
+                fd = open(fname, 'rb')
                 self.fileno = fd.fileno()
                 if hasattr(mmap, 'MAP_PRIVATE'):
                     # Unix
@@ -2286,7 +2286,7 @@ class PE:
             new_file_data = ''.join( [ chr(ord(c)) for c in file_data] )
 
         if filename:
-            f = file(filename, 'wb+')
+            f = open(filename, 'wb+')
             f.write(new_file_data)
             f.close()
         else:
