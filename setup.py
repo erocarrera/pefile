@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 try:
     from setuptools import setup
@@ -8,17 +9,18 @@ except ImportError, excp:
 import pefile
 import os
 
-os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
-os.environ['COPYFILE_DISABLE'] = 'true'
-
+# os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
+# os.environ['COPYFILE_DISABLE'] = 'true'
 
 setup(name = 'pefile',
     version = pefile.__version__,
     description = 'Python PE parsing module',
     author = pefile.__author__,
     author_email = pefile.__contact__,
-    url = 'http://code.google.com/p/pefile/',
-    download_url = 'http://pefile.googlecode.com/files/pefile-%s.tar.gz' % pefile.__version__,
+    url = 'https://github.com/erocarrera/pefile',
+    package_name = 'pefile',
+    download_url='{0}/releases'.format(base_url),
+    #download_url = 'http://pefile.googlecode.com/files/pefile-%s.tar.gz' % pefile.__version__,
     platforms = ['any'],
     classifiers = ['Development Status :: 5 - Production/Stable',
     	'Intended Audience :: Developers',
