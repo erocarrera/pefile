@@ -12,7 +12,7 @@ pefile has been tested against the limits of valid PE headers, that is, malware.
 Lots of packed malware attempt to abuse the format way beyond its standard use.
 To the best of my knowledge most of the abuses are handled gracefully.
 
-Copyright (c) 2005-2013 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2015 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 
@@ -20,9 +20,8 @@ For detailed copyright information see the file COPYING in
 the root of the distribution archive.
 """
 
-__revision__ = '139'
 __author__ = 'Ero Carrera'
-__version__ = '1.2.10-%d' % int( __revision__ )
+__version__ = '1.3.0'
 __contact__ = 'ero.carrera@gmail.com'
 
 
