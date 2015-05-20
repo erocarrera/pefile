@@ -1,29 +1,29 @@
-# -*- coding: Latin-1 -*-
+#!/usr/bin/python
+# -*- coding: utf-8 -*-
 """pefile, Portable Executable reader module
 
-
-All the PE file basic structures are available with their default names
-as attributes of the instance returned.
+All the PE file basic structures are available with their default names as
+attributes of the instance returned.
 
 Processed elements such as the import table are made available with lowercase
 names, to differentiate them from the upper case basic structure names.
 
-pefile has been tested against the limits of valid PE headers, that is, malware.
-Lots of packed malware attempt to abuse the format way beyond its standard use.
-To the best of my knowledge most of the abuses are handled gracefully.
+pefile has been tested against the limits of valid PE headers, that is,
+malware. Lots of packed malware attempt to abuse the format way beyond its
+standard use. To the best of my knowledge most of the abuses are handled
+gracefully.
 
 Copyright (c) 2005-2015 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 
-For detailed copyright information see the file COPYING in
-the root of the distribution archive.
+For detailed copyright information see the file COPYING in the root of the
+distribution archive.
 """
 
 __author__ = 'Ero Carrera'
 __version__ = '1.3.0'
 __contact__ = 'ero.carrera@gmail.com'
-
 
 import os
 import struct
@@ -98,7 +98,10 @@ directory_entry_types = [
     ('IMAGE_DIRECTORY_ENTRY_SECURITY',      4),
     ('IMAGE_DIRECTORY_ENTRY_BASERELOC',     5),
     ('IMAGE_DIRECTORY_ENTRY_DEBUG',         6),
-    ('IMAGE_DIRECTORY_ENTRY_COPYRIGHT',     7), # Architecture on non-x86 platforms
+
+    # Architecture on non-x86 platforms
+    ('IMAGE_DIRECTORY_ENTRY_COPYRIGHT',     7),
+
     ('IMAGE_DIRECTORY_ENTRY_GLOBALPTR',     8),
     ('IMAGE_DIRECTORY_ENTRY_TLS',           9),
     ('IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG',   10),
@@ -108,7 +111,8 @@ directory_entry_types = [
     ('IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR',14),
     ('IMAGE_DIRECTORY_ENTRY_RESERVED',      15) ]
 
-DIRECTORY_ENTRY = dict([(e[1], e[0]) for e in directory_entry_types]+directory_entry_types)
+DIRECTORY_ENTRY = dict(
+    [(e[1], e[0]) for e in directory_entry_types]+directory_entry_types)
 
 
 image_characteristics = [
@@ -276,7 +280,8 @@ relocation_types = [
     ('IMAGE_REL_BASED_DIR64',           10),
     ('IMAGE_REL_BASED_HIGH3ADJ',        11) ]
 
-RELOCATION_TYPE = dict([(e[1], e[0]) for e in relocation_types]+relocation_types)
+RELOCATION_TYPE = dict(
+    [(e[1], e[0]) for e in relocation_types]+relocation_types)
 
 
 dll_characteristics = [
@@ -296,7 +301,8 @@ dll_characteristics = [
     ('IMAGE_DLLCHARACTERISTICS_GUARD_CF',              0x4000),
     ('IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE', 0x8000) ]
 
-DLL_CHARACTERISTICS = dict([(e[1], e[0]) for e in dll_characteristics]+dll_characteristics)
+DLL_CHARACTERISTICS = dict(
+    [(e[1], e[0]) for e in dll_characteristics]+dll_characteristics)
 
 
 # Resource types
