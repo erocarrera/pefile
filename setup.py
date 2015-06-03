@@ -3,7 +3,11 @@
 import os
 import sys
 
-from setuptools import setup, Command
+try:
+    from setuptools import setup, Command
+except ImportError, excp:
+    from distutils.core import setup, Command
+
 from unittest import TestLoader, TextTestRunner
 
 import pefile
@@ -29,7 +33,7 @@ class TestCommand(Command):
     pass
 
   def run(self):
-    test_suite = TestLoader().discover('tests/', pattern='*_test.py')
+    test_suite = TestLoader().discover('.', pattern='*_test.py')
     test_results = TextTestRunner(verbosity=2).run(test_suite)
 
 setup(name = 'pefile',
