@@ -8,7 +8,11 @@ before_install:
   -in tests/test_data.tar.bz2.enc -out tests/test_data.tar.bz2 -d
 - tar jxvf tests/test_data.tar.bz2 -C tests
 
+install:
+- pip install -r requirements.txt
+
 script:
+- chmod +x ./run_tests.py ./setup.py
 - ./run_tests.py
 - ./setup.py build
 - ./setup.py sdist
