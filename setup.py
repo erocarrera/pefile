@@ -1,7 +1,5 @@
 #!/usr/bin/python
-
-import os
-import sys
+# -*- coding: utf-8 -*-
 
 try:
     from setuptools import setup, Command

@@ -14,6 +14,7 @@ install:
 script:
 - chmod +x ./run_tests.py ./setup.py
 - ./run_tests.py
+- ./setup.py test
 - ./setup.py build
 - ./setup.py sdist
 - ./setup.py bdist

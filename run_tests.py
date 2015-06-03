@@ -9,7 +9,7 @@ from unittest import TestLoader, TextTestRunner
 sys.path.insert(0, u'.')
 
 if __name__ == '__main__':
-  test_suite = TestLoader().discover('.', pattern='*_test.py')
+  test_suite = TestLoader().discover('./tests', pattern='*_test.py')
   test_results = TextTestRunner(verbosity=2).run(test_suite)
   if not test_results.wasSuccessful():
     sys.exit(1)
