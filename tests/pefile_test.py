@@ -3,18 +3,12 @@
 
 import os
 import difflib
-try:
-    from hashlib import sha256
-except ImportError:
-    import sha
-    sha256 = sha.new
+from hashlib import sha256
 import unittest
 
 import pefile
 
-PEFILE_DIR = './'
-TEST_DIR = os.path.join(PEFILE_DIR, 'tests')
-REGRESSION_TESTS_DIR = os.path.join(TEST_DIR, 'test_files')
+REGRESSION_TESTS_DIR = 'tests/test_files'
 
 class Test_pefile(unittest.TestCase):
 
@@ -39,6 +33,8 @@ class Test_pefile(unittest.TestCase):
 
         for idx, pe_filename in enumerate( self.test_files ):
             if pe_filename.endswith('fake_PE_no_read_permissions_issue_53'):
+                continue
+            if pe_filename.endswith('empty_file'):
                 continue
 
             try:
@@ -233,7 +229,7 @@ class Test_pefile(unittest.TestCase):
         """pefile should fail parsing empty files."""
 
         # Take a known good file
-        control_file = os.path.join( TEST_DIR, 'empty_file')
+        control_file = os.path.join(REGRESSION_TESTS_DIR, 'empty_file')
         self.assertRaises( pefile.PEFormatError, pefile.PE, control_file )
 
 
@@ -407,7 +403,8 @@ class Test_pefile(unittest.TestCase):
 
         # Take a known good file.
         control_file = os.path.join(
-            TEST_DIR, 'pefile_unittest_data__resurrel_malware_rebased_0x400000')
+            REGRESSION_TESTS_DIR,
+            'pefile_unittest_data__resurrel_malware_rebased_0x400000')
         control_file_f = file(control_file, 'rb')
         control_file_data = control_file_f.read()
         control_file_f.close()

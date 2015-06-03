@@ -25,7 +25,7 @@ class TestCommand(Command):
     pass
 
   def run(self):
-    test_suite = TestLoader().discover('.', pattern='*_test.py')
+    test_suite = TestLoader().discover('./tests', pattern='*_test.py')
     test_results = TextTestRunner(verbosity=2).run(test_suite)
 
 setup(name = 'pefile',
