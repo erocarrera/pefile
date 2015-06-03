@@ -28,5 +28,5 @@ addons:
   artifacts:
     debug: true
     paths:
-    - $(git ls-files -o | grep .txt)
+    - $(git ls-files -o | grep .txt | grep -V pefile.egg-info | tr "\n" ":")
 
