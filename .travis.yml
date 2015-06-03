@@ -29,6 +29,5 @@ addons:
   artifacts:
     debug: true
     paths:
-    - $(git ls-files -o | tr "\n" ":")
     - $(git ls-files -o | grep .txt)
 
