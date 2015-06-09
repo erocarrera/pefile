@@ -40,6 +40,7 @@ pefile is self-contained. It has no dependecies and it is endianness independent
   * **pyemu**: [download](https://www.openrce.org/repositories/browse/codypierce), [whitepaper](https://www.blackhat.com/presentations/bh-usa-07/Pierce/Whitepaper/bh-usa-07-pierce-WP.pdf)
   * [Offensive Computing](http://www.offensivecomputing.net/)
   * [Immunity Debugger 1.1](https://www.openrce.org/blog/view/882/Immunity_Debugger_v1.1_Release)
+  * [PyInstaller](http://www.pyinstaller.org/)
 
 ## Additional resources
 
