@@ -1349,6 +1349,7 @@ class DebugData(DataContainer):
     """Holds debug information.
 
     struct:     IMAGE_DEBUG_DIRECTORY structure
+    entries:    list of entries (IMAGE_DEBUG_TYPE instances)
     """
 
 class BaseRelocationData(DataContainer):
@@ -1729,6 +1730,13 @@ class PE:
 
     __IMAGE_BOUND_FORWARDER_REF_format__ = ('IMAGE_BOUND_FORWARDER_REF',
         ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,Reserved') )
+
+    ___IMAGE_DEBUG_MISC_format__ = ('IMAGE_DEBUG_MISC',
+        ('I,DataType',
+         'I,Length,',
+         '?,Unicode',
+         '3B,Reserved',
+         'B,Data'))
 
 
     def __init__(self, name=None, data=None, fast_load=None):
@@ -2755,9 +2763,69 @@ class PE:
             if not dbg:
                 return None
 
+            # apply structure according to DEBUG_TYPE
+            # http://www.debuginfo.com/articles/debuginfomatch.html
+            #
+            if dbg.Type == 1:
+            # IMAGE_DEBUG_TYPE_COFF
+                dbg_type = None
+
+            elif dbg.Type == 2:
+                # if IMAGE_DEBUG_TYPE_CODEVIEW
+                dbg_type_offset = dbg.PointerToRawData
+                dbg_type_rva = self.get_rva_from_offset(dbg_type_offset)
+                dbg_type_size = dbg.SizeOfData
+                dbg_type_data = self.get_data(dbg_type_rva, dbg_type_size)
+
+                if dbg_type_data[:4] == 'RSDS':
+                    # pdb7.0
+                    pdbFileName_size = dbg_type_size - 24
+                    # avoid to "patch" the tuple during the runtime
+                    __CV_INFO_PDB70_format__ = ('CV_INFO_PDB70',
+                        ('4s,CvSignature',
+                         'I,Signature_Data1',
+                         'H,Signature_Data2',
+                         'H,Signature_Data3',
+                         'Q,Signature_Data4',
+                         'I,Age',
+                         str(pdbFileName_size) + 's,PdbFileName'))
+                    dbg_type = self.__unpack_data__(
+                        __CV_INFO_PDB70_format__,
+                        dbg_type_data,
+                        dbg_type_offset)
+
+                elif dbg_type_data[:4] == 'NB10':
+                    # pdb2.0
+                    pdbFileName_size = dbg_type_size - 24
+                    # avoid to "patch" the tuple during the runtime
+                    __CV_INFO_PDB20_format__ = ('CV_INFO_PDB20',
+                        ('4s,Signature',
+                         'I,Offset',
+                         'I,Signature_Data1',
+                         'H,Signature_Data2',
+                         'H,Signature_Data3',
+                         'Q,Signature_Data4',
+                         'I,Age',
+                         str(pdbFileName_size) + 's,PdbFileName'))
+                    dbg_type = self.__unpack_data__(
+                        __CV_INFO_PDB20_format__,
+                        dbg_type_data,
+                        dbg_type_offset)
+
+                else:
+                    dbg_type = None
+
+            elif dbg.Type == 4:
+                # IMAGE_DEBUG_TYPE_MISC
+                dbg_type = self.__unpack_data__(
+                        ___IMAGE_DEBUG_MISC_format__,
+                        dbg_type_data,
+                        dbg_type_offset)
+
             debug.append(
                 DebugData(
-                    struct = dbg))
+                    struct = dbg,
+                    entries = dbg_type))
 
         return debug
 
