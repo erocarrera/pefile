@@ -1456,7 +1456,7 @@ def is_valid_dos_filename(s):
 # function names. If the symbol's characters don't fall within this charset
 # we will assume the name is invalid
 #
-allowed_function_name = string.lowercase + string.uppercase + string.digits + '_?@$()'
+allowed_function_name = string.lowercase + string.uppercase + string.digits + '_?@$()<>'
 def is_valid_function_name(s):
     if s is None or not isinstance(s, str):
         return False
