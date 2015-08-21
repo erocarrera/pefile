@@ -28,6 +28,7 @@ __contact__ = 'ero.carrera@gmail.com'
 
 import os
 import struct
+import sys
 import time
 import math
 import re
@@ -37,6 +38,9 @@ import mmap
 import ordlookup
 
 sha1, sha256, sha512, md5 = None, None, None, None
+
+if sys.version_info > (3, 0, -1):
+    unichr = str
 
 try:
     import hashlib
@@ -2139,7 +2143,7 @@ class PE:
         result ["values"] = headervalues
 
         data = data[4:]
-        for i in range(len(data) / 2):
+        for i in range(int(len(data) / 2)):
 
             # Stop until the Rich footer signature is found
             #
@@ -2698,7 +2702,7 @@ class PE:
 
         entries = []
         offsets_and_type = []
-        for idx in range( len(data) / 2 ):
+        for idx in range( int(len(data) / 2) ):
 
             entry = self.__unpack_data__(
                 self.__IMAGE_BASE_RELOCATION_ENTRY_format__,
@@ -2737,7 +2741,7 @@ class PE:
         dbg_size = Structure(self.__IMAGE_DEBUG_DIRECTORY_format__).sizeof()
 
         debug = []
-        for idx in range(size/dbg_size):
+        for idx in range(int(size/dbg_size)):
             try:
                 data = self.get_data(rva+dbg_size*idx, dbg_size)
             except PEFormatError as e:
@@ -3078,8 +3082,8 @@ class PE:
         # Retrieve the data for the version info resource
         #
         start_offset = self.get_offset_from_rva( version_struct.OffsetToData )
+        start_offset = int(start_offset)
         raw_data = self.__data__[ start_offset : start_offset+version_struct.Size ]
-
 
         # Map the main structure and the subsequent string
         #
