@@ -818,9 +818,9 @@ class Structure:
         #self.values = {}
         self.__format_length__ = 0
         self.__field_offsets__ = dict()
+        self.__unpacked_data_elms__ = []
         self.__set_format__(format[1])
         self.__all_zeroes__ = False
-        self.__unpacked_data_elms__ = None
         self.__file_offset__ = file_offset
         if name:
             self.name = name
@@ -866,6 +866,7 @@ class Structure:
             if ',' in elm:
                 elm_type, elm_name = elm.split(',', 1)
                 self.__format__ += elm_type
+                self.__unpacked_data_elms__.append(None)
 
                 elm_names = elm_name.split(',')
                 names = []
