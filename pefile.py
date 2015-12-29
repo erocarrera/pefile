@@ -41,6 +41,7 @@ sha1, sha256, sha512, md5 = None, None, None, None
 
 if sys.version_info > (3, 0, -1):
     unichr = str
+    long = int
 
 try:
     import hashlib
