@@ -40,7 +40,9 @@ import ordlookup
 sha1, sha256, sha512, md5 = None, None, None, None
 
 if sys.version_info > (3, 0, -1):
+    unicode = str
     unichr = str
+    long = int
 
 try:
     import hashlib
@@ -814,7 +816,7 @@ class Structure:
     """
 
 
-    def __init__(self, format, name=None, file_offset=None):
+    def __init__(self, format, name=None, file_offset=0):
         # Format is forced little endian, for big endian non Intel platforms
         self.__format__ = '<'
         self.__keys__ = []
@@ -824,6 +826,10 @@ class Structure:
         self.__set_format__(format[1])
         self.__all_zeroes__ = False
         self.__unpacked_data_elms__ = None
+        if isinstance(file_offset, float):
+            print("WARNING passed float (%s) as offset "
+                  "coercing to int" % (file_offset))
+            file_offset = int(file_offset)
         self.__file_offset__ = file_offset
         if name:
             self.name = name
@@ -909,6 +915,10 @@ class Structure:
         elif len(data) < self.__format_length__:
             raise PEFormatError('Data length less than expected header length.')
 
+        if isinstance(data, str):
+            print("WARNING got str - encoding first ...")
+            print(len(data))
+            data = data.encode('utf8')
         if data.count(b'\x00') == len(data):
             self.__all_zeroes__ = True
 
@@ -1177,7 +1187,7 @@ class SectionStructure(Structure):
 
         occurences = array.array('L', [0]*256)
 
-        for x in data:
+        for x in str(data):
             occurences[ord(x)] += 1
 
         entropy = 0
@@ -3098,6 +3108,7 @@ class PE:
         try:
             versioninfo_string = self.get_string_u_at_rva( ustr_offset )
         except PEFormatError as excp:
+            raise
             self.__warnings.append(
                 'Error parsing the version information, ' +
                 'attempting to read VS_VERSION_INFO string. Can\'t ' +
