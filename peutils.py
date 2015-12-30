@@ -195,7 +195,7 @@ class SignatureDatabase:
             #
             try :
                 data = pe.__data__
-            except Exception, excp :
+            except Exception as excp :
                 raise
 
             # Load the corresponding tree of signatures
@@ -213,7 +213,7 @@ class SignatureDatabase:
             #
             try :
                 data = pe.get_memory_mapped_image()
-            except Exception, excp :
+            except Exception as excp :
                 raise
 
             # Load the corresponding tree of signatures

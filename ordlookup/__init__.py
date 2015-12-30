@@ -1,5 +1,5 @@
-import ws2_32
-import oleaut32
+from . import ws2_32
+from . import oleaut32
 
 '''
 A small module for keeping a database of ordinal to symbol
@@ -20,7 +20,7 @@ def ordLookup(libname, ord, make_name=False):
     '''
     names = ords.get(libname.lower())
     if names == None:
-        if make_name is True:
+        if make_name == True:
             return 'ord%d' % ord
         return None
     name = names.get(ord)
