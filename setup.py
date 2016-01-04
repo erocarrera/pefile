@@ -11,8 +11,18 @@ from unittest import TestLoader, TextTestRunner
 import pefile
 
 
-os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
-os.environ['COPYFILE_DISABLE'] = 'true'
+# os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
+# os.environ['COPYFILE_DISABLE'] = 'true'
+
+class TestCommand(Command):
+  """Run tests."""
+  user_options = []
+
+  def initialize_options(self):
+    pass
+
+  def finalize_options(self):
+    pass
 
 # build_msi does not support the 1.2.10-139 versioning schema
 # (or 1.2.10.139), hence the revision number is stripped.
