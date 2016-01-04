@@ -20,9 +20,9 @@ For detailed copyright information see the file COPYING in
 the root of the distribution archive.
 """
 
-__revision__ = "$LastChangedRevision$"
+__revision__ = '139'
 __author__ = 'Ero Carrera'
-__version__ = '1.2.10-%d' % int( __revision__[21:-2] )
+__version__ = '1.2.10-%d' % int( __revision__ )
 __contact__ = 'ero.carrera@gmail.com'
 
 
