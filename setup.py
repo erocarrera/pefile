@@ -1,6 +1,9 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import os
+import sys
+
 try:
     from setuptools import setup, Command
 except ImportError, excp:
@@ -10,9 +13,8 @@ from unittest import TestLoader, TextTestRunner
 
 import pefile
 
-
-# os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
-# os.environ['COPYFILE_DISABLE'] = 'true'
+os.environ['COPY_EXTENDED_ATTRIBUTES_DISABLE'] = 'true'
+os.environ['COPYFILE_DISABLE'] = 'true'
 
 class TestCommand(Command):
   """Run tests."""
