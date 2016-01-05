@@ -3678,7 +3678,7 @@ class PE:
                     'Invalid import data at RVA: 0x%x (%s)' % ( rva, e.value) )
                 break
 
-            if not import_data:
+            if import_data is None:
                 continue
 
 
@@ -3773,7 +3773,7 @@ class PE:
                     'Invalid Import data at RVA: 0x%x (%s)' % ( rva, e.value ) )
                 break
 
-            if not import_data:
+            if import_data is None:
                 continue
 
             dll = self.get_string_at_rva(import_desc.Name)
@@ -3837,6 +3837,8 @@ class PE:
         # bound.
         iat = self.get_import_table(first_thunk, max_length)
 
+        if (len(iat)==0) and (len(ilt)==0):
+            return []
         # OC Patch:
         # Would crash if IAT or ILT had None type
         if (not iat or len(iat)==0) and (not ilt or len(ilt)==0):
