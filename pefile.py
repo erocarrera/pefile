@@ -1737,14 +1737,6 @@ class PE:
     __IMAGE_BOUND_FORWARDER_REF_format__ = ('IMAGE_BOUND_FORWARDER_REF',
         ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,Reserved') )
 
-    ___IMAGE_DEBUG_MISC_format__ = ('IMAGE_DEBUG_MISC',
-        ('I,DataType',
-         'I,Length,',
-         '?,Unicode',
-         '3B,Reserved',
-         'B,Data'))
-
-
     def __init__(self, name=None, data=None, fast_load=None):
 
         self.sections = []
@@ -2772,29 +2764,34 @@ class PE:
             # apply structure according to DEBUG_TYPE
             # http://www.debuginfo.com/articles/debuginfomatch.html
             #
+            dbg_type = None
+
             if dbg.Type == 1:
             # IMAGE_DEBUG_TYPE_COFF
-                dbg_type = None
+                pass
 
             elif dbg.Type == 2:
                 # if IMAGE_DEBUG_TYPE_CODEVIEW
                 dbg_type_offset = dbg.PointerToRawData
-                dbg_type_rva = self.get_rva_from_offset(dbg_type_offset)
                 dbg_type_size = dbg.SizeOfData
-                dbg_type_data = self.get_data(dbg_type_rva, dbg_type_size)
+                dbg_type_data = self.__data__[dbg_type_offset:dbg_type_offset+dbg_type_size]
 
                 if dbg_type_data[:4] == 'RSDS':
                     # pdb7.0
-                    pdbFileName_size = dbg_type_size - 24
-                    # avoid to "patch" the tuple during the runtime
-                    __CV_INFO_PDB70_format__ = ('CV_INFO_PDB70',
-                        ('4s,CvSignature',
-                         'I,Signature_Data1',
+                    __CV_INFO_PDB70_format__ = ['CV_INFO_PDB70',
+                        ['I,CvSignature',
+                         'I,Signature_Data1', # Signature is of GUID type
                          'H,Signature_Data2',
                          'H,Signature_Data3',
-                         'Q,Signature_Data4',
-                         'I,Age',
-                         str(pdbFileName_size) + 's,PdbFileName'))
+                         'H,Signature_Data4',
+                         'H,Signature_Data5',
+                         'I,Signature_Data6',
+                         'I,Age']]
+                    pdbFileName_size = (
+                        dbg_type_size -
+                        Structure(__CV_INFO_PDB70_format__).sizeof())
+                    __CV_INFO_PDB70_format__[1].append(
+                        str(pdbFileName_size) + 's,PdbFileName')
                     dbg_type = self.__unpack_data__(
                         __CV_INFO_PDB70_format__,
                         dbg_type_data,
@@ -2802,36 +2799,55 @@ class PE:
 
                 elif dbg_type_data[:4] == 'NB10':
                     # pdb2.0
-                    pdbFileName_size = dbg_type_size - 24
-                    # avoid to "patch" the tuple during the runtime
-                    __CV_INFO_PDB20_format__ = ('CV_INFO_PDB20',
-                        ('4s,Signature',
-                         'I,Offset',
-                         'I,Signature_Data1',
-                         'H,Signature_Data2',
-                         'H,Signature_Data3',
-                         'Q,Signature_Data4',
-                         'I,Age',
-                         str(pdbFileName_size) + 's,PdbFileName'))
+                    __CV_INFO_PDB20_format__ = ['CV_INFO_PDB20',
+                        ['I,CvHeaderSignature',
+                         'I,CvHeaderOffset',
+                         'I,Signature',
+                         'I,Age']]
+                    pdbFileName_size = (
+                        dbg_type_size -
+                        Structure(__CV_INFO_PDB20_format__).sizeof())
+
+                    # Add the last variable-length string field.
+                    __CV_INFO_PDB20_format__[1].append(
+                        str(pdbFileName_size) + 's,PdbFileName')
                     dbg_type = self.__unpack_data__(
                         __CV_INFO_PDB20_format__,
                         dbg_type_data,
                         dbg_type_offset)
 
-                else:
-                    dbg_type = None
-
             elif dbg.Type == 4:
                 # IMAGE_DEBUG_TYPE_MISC
-                dbg_type = self.__unpack_data__(
+                dbg_type_offset = dbg.PointerToRawData
+                dbg_type_size = dbg.SizeOfData
+                dbg_type_data = self.__data__[dbg_type_offset:dbg_type_offset+dbg_type_size]
+                ___IMAGE_DEBUG_MISC_format__ = ['IMAGE_DEBUG_MISC',
+                    ['I,DataType',
+                     'I,Length',
+                     'B,Unicode',
+                     'B,Reserved1',
+                     'H,Reserved2']]
+                dbg_type_partial = self.__unpack_data__(
                         ___IMAGE_DEBUG_MISC_format__,
                         dbg_type_data,
                         dbg_type_offset)
 
+                # The Unicode bool should be set to 0 or 1.
+                if dbg_type_partial.Unicode in (0, 1):
+                    data_size = (
+                        dbg_type_size -
+                        Structure(___IMAGE_DEBUG_MISC_format__).sizeof())
+                    ___IMAGE_DEBUG_MISC_format__[1].append(
+                            str(data_size) + 's,Data')
+                    dbg_type = self.__unpack_data__(
+                            ___IMAGE_DEBUG_MISC_format__,
+                            dbg_type_data,
+                            dbg_type_offset)
+
             debug.append(
                 DebugData(
                     struct = dbg,
-                    entries = dbg_type))
+                    entry = dbg_type))
 
         return debug
 
@@ -4605,7 +4621,6 @@ class PE:
             dump.add_lines(self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.dump())
             dump.add_newline()
 
-
         if hasattr(self, 'DIRECTORY_ENTRY_DEBUG'):
             dump.add_header('Debug information')
             for dbg in self.DIRECTORY_ENTRY_DEBUG:
@@ -4615,7 +4630,9 @@ class PE:
                 except KeyError:
                     dump.add_line('Type: 0x%x(Unknown)' % dbg.struct.Type)
                 dump.add_newline()
-
+                if dbg.entry:
+                    dump.add_lines(dbg.entry.dump(), 4)
+                    dump.add_newline()
 
         if hasattr(self, 'DIRECTORY_ENTRY_BASERELOC'):
             dump.add_header('Base relocations')
@@ -4629,7 +4646,6 @@ class PE:
                         dump.add_line('0x%08X 0x%x(Unknown)' % (
                             reloc.rva, reloc.type), 4)
                 dump.add_newline()
-
 
         return dump.get_text()
 

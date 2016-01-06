@@ -1,16 +1,12 @@
 language: python
-
 python:
 - '2.7'
-
 before_install:
 - openssl aes-256-cbc -K $encrypted_5f282b249fcf_key -iv $encrypted_5f282b249fcf_iv
   -in tests/test_data.tar.bz2.enc -out tests/test_data.tar.bz2 -d
 - tar jxf tests/test_data.tar.bz2 -C tests
-
 install:
 - pip install -r requirements.txt
-
 script:
 - chmod +x ./run_tests.py ./setup.py
 - ./setup.py test
@@ -20,13 +16,10 @@ script:
 - mkdir -p ${PWD}/tmp/lib/python2.7/site-packages/ && PYTHONPATH=${PWD}/tmp/lib/python2.7/site-packages/
   ./setup.py install --prefix=${PWD}/tmp/
 - coverage run --source=pefile --omit="*_test*,*__init__*,*test_lib*" ./run_tests.py
-
 after_success:
 - coveralls --verbose
-
 addons:
   artifacts:
     debug: true
     paths:
     - $(git ls-files -o | grep .txt | grep -v pefile.egg-info | tr "\n" ":")
-
