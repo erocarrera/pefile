@@ -1732,13 +1732,6 @@ class PE:
     __IMAGE_BOUND_FORWARDER_REF_format__ = ('IMAGE_BOUND_FORWARDER_REF',
         ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,Reserved') )
 
-    ___IMAGE_DEBUG_MISC_format__ = ('IMAGE_DEBUG_MISC',
-        ('I,DataType',
-         'I,Length',
-         'B,Unicode',
-         '3B,Reserved',
-         'B,Data'))
-
 
     def __init__(self, name=None, data=None, fast_load=None):
 
@@ -2822,6 +2815,14 @@ class PE:
                 dbg_type_rva = self.get_rva_from_offset(dbg_type_offset)
                 dbg_type_size = dbg.SizeOfData
                 dbg_type_data = self.get_data(dbg_type_rva, dbg_type_size)
+                datablock_size = dbg_type_size - 12
+
+                ___IMAGE_DEBUG_MISC_format__ = ('IMAGE_DEBUG_MISC',
+                    ('I,DataType',
+                     'I,Length',
+                     'B,Unicode',
+                     '3B,Reserved',
+                     str(datablock_size) + 's,Data'))
 
                 dbg_type = self.__unpack_data__(
                         self.___IMAGE_DEBUG_MISC_format__,
