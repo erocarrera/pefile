@@ -1734,8 +1734,8 @@ class PE:
 
     ___IMAGE_DEBUG_MISC_format__ = ('IMAGE_DEBUG_MISC',
         ('I,DataType',
-         'I,Length,',
-         '?,Unicode',
+         'I,Length',
+         'B,Unicode',
          '3B,Reserved',
          'B,Data'))
 
@@ -2751,7 +2751,7 @@ class PE:
         for idx in xrange(size/dbg_size):
             try:
                 data = self.get_data(rva+dbg_size*idx, dbg_size)
-            except PEFormatError, e:
+            except PEFormatError as e:
                 self.__warnings.append(
                     'Invalid debug information. Can\'t read ' +
                     'data at RVA: 0x%x' % rva)
@@ -2759,7 +2759,7 @@ class PE:
 
             dbg = self.__unpack_data__(
                 self.__IMAGE_DEBUG_DIRECTORY_format__,
-                data, file_offset = self.get_offset_from_rva(rva+dbg_size*idx))
+                data, file_offset=self.get_offset_from_rva(rva+dbg_size*idx))
 
             if not dbg:
                 return None
@@ -2768,7 +2768,7 @@ class PE:
             # http://www.debuginfo.com/articles/debuginfomatch.html
             #
             if dbg.Type == 1:
-            # IMAGE_DEBUG_TYPE_COFF
+                # IMAGE_DEBUG_TYPE_COFF
                 dbg_type = None
 
             elif dbg.Type == 2:
@@ -2818,15 +2818,20 @@ class PE:
 
             elif dbg.Type == 4:
                 # IMAGE_DEBUG_TYPE_MISC
+                dbg_type_offset = dbg.PointerToRawData
+                dbg_type_rva = self.get_rva_from_offset(dbg_type_offset)
+                dbg_type_size = dbg.SizeOfData
+                dbg_type_data = self.get_data(dbg_type_rva, dbg_type_size)
+
                 dbg_type = self.__unpack_data__(
-                        ___IMAGE_DEBUG_MISC_format__,
+                        self.___IMAGE_DEBUG_MISC_format__,
                         dbg_type_data,
                         dbg_type_offset)
 
             debug.append(
                 DebugData(
-                    struct = dbg,
-                    entries = dbg_type))
+                    struct=dbg,
+                    entries=dbg_type))
 
         return debug
 
