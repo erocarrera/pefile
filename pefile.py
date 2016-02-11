@@ -2825,10 +2825,11 @@ class PE:
                      str(datablock_size) + 's,Data'))
 
                 dbg_type = self.__unpack_data__(
-                        self.___IMAGE_DEBUG_MISC_format__,
+                        ___IMAGE_DEBUG_MISC_format__,
                         dbg_type_data,
                         dbg_type_offset)
-
+            else:
+                dbg_type = None
             debug.append(
                 DebugData(
                     struct=dbg,
