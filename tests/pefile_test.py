@@ -1,3 +1,5 @@
+from __future__ import print_function
+from builtins import range
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
@@ -41,17 +43,17 @@ class Test_pefile(unittest.TestCase):
                 pe = pefile.PE(pe_filename)
                 pe_file_data = pe.dump_info()
                 pe_file_data = pe_file_data.replace('\n\r', '\n')
-            except Exception, excp:
-                print 'Failed processing [%s]' % os.path.basename(pe_filename)
+            except Exception as excp:
+                print('Failed processing [%s]' % os.path.basename(pe_filename))
                 raise
 
             control_data_filename = '%s.dmp' % pe_filename
 
             if not os.path.exists(control_data_filename):
-                print (
+                print((
                     'Could not find control data file [%s]. '
                     'Assuming first run and generating...') % (
-                    os.path.basename(control_data_filename) )
+                    os.path.basename(control_data_filename) ))
                 control_data_f = file( control_data_filename, 'wb')
                 control_data_f.write( pe_file_data )
                 continue
@@ -68,7 +70,7 @@ class Test_pefile(unittest.TestCase):
             lines_to_ignore = 0
 
             if control_data_hash != pe_file_data_hash:
-                print 'Hash differs for [%s]' % os.path.basename(pe_filename)
+                print('Hash differs for [%s]' % os.path.basename(pe_filename))
 
                 diff = difflib.ndiff(
                     control_data.splitlines(), pe_file_data.splitlines())
@@ -117,7 +119,7 @@ class Test_pefile(unittest.TestCase):
                     error_diff_f.write(
                         '\n'.join([l for l in diff if not l.startswith(' ')]))
                     error_diff_f.close()
-                    print 'Diff saved to: error_diff.txt'
+                    print('Diff saved to: error_diff.txt')
 
             if diff_lines_removed_count == 0:
                 try:
@@ -139,7 +141,7 @@ class Test_pefile(unittest.TestCase):
         control_file = os.path.join( REGRESSION_TESTS_DIR, 'MSVBVM60.DLL')
         pe = pefile.PE(control_file, fast_load=True)
         # Load the 16 directories.
-        pe.parse_data_directories( directories= range(0x10) )
+        pe.parse_data_directories( directories= list(range(0x10)) )
 
         # Do it all at once.
         pe_full = pefile.PE(control_file, fast_load=False)
@@ -177,8 +179,8 @@ class Test_pefile(unittest.TestCase):
                 diff += 1
                 # Skip the zeroes that pefile automatically adds to pad a new,
                 # shorter string, into the space occupied by a longer one.
-                if new_data[idx] != '\0':
-                    differences.append(new_data[idx])
+                if new_data[idx] != 0:
+                    differences.append(chr(new_data[idx]))
 
         # Verify all modifications in the file were the ones we just made
         #
@@ -205,7 +207,7 @@ class Test_pefile(unittest.TestCase):
         """
 
         # Generate 10KiB of zeroes
-        data = '\0' * (1024*10)
+        data = b'\0' * (1024*10)
 
         # Attempt to parse data and verify PE header, a PEFormatError exception
         # is thrown.
@@ -218,7 +220,7 @@ class Test_pefile(unittest.TestCase):
         """
 
         # Generate 64 bytes of zeroes
-        data = '\0' * (64)
+        data = b'\0' * (64)
 
         # Attempt to parse data and verify PE header a PEFormatError exception
         # is thrown.
