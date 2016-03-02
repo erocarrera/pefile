@@ -196,7 +196,7 @@ class Test_pefile(unittest.TestCase):
 
         # Truncate it at the PE header and add invalid data.
         pe_header_offest = pe.DOS_HEADER.e_lfanew
-        corrupted_data = pe.__data__[:pe_header_offest] + '\0' * (1024*10)
+        corrupted_data = pe.__data__[:pe_header_offest] + b'\0' * (1024*10)
 
         self.assertRaises(pefile.PEFormatError, pefile.PE, data=corrupted_data)
 

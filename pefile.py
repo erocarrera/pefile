@@ -757,7 +757,6 @@ class Dump(object):
     def __init__(self):
         self.text = list()
 
-
     def add_lines(self, txt, indent=0):
         """Adds a list of lines.
 
@@ -766,40 +765,31 @@ class Dump(object):
         for line in txt:
             self.add_line(line, indent)
 
-
     def add_line(self, txt, indent=0):
         """Adds a line.
 
         The line can be indented with the optional argument 'indent'.
         """
-
         self.add(txt+'\n', indent)
-
 
     def add(self, txt, indent=0):
         """Adds some text, no newline will be appended.
 
         The text can be indented with the optional argument 'indent'.
         """
-        self.text.append( (' '*indent) + bytes(txt, 'utf-8') )
-
+        self.text.append('{0}{1}'.format(' '*indent, txt))
 
     def add_header(self, txt):
         """Adds a header element."""
-
-        self.add_line(bytes(b'-'*10 + txt + b'-'*10 + b'\n'))
-
+        self.add_line('{0}{1}{0}\n'.format('-'*10, txt))
 
     def add_newline(self):
         """Adds a newline."""
-
-        self.text.append( '\n' )
-
+        self.text.append('\n')
 
     def get_text(self):
         """Get the text in its current state."""
-
-        return ''.join( bytes(b) for b in self.text )
+        return ''.join(bytes(b) for b in self.text)
 
 
 STRUCT_SIZEOF_TYPES = {
@@ -2520,7 +2510,8 @@ class PE(object):
                 # Names shorted than 4 characters will be taken as invalid as well.
 
                 if name_str:
-                    invalid_chars = [c for c in name_str if c not in string.printable]
+                    invalid_chars = [c for c in name_str if
+                                     (chr(c) if isinstance(c, int) else c) not in string.printable]
                     if len(name_str) > 256 or invalid_chars:
                         break
 
@@ -2533,7 +2524,8 @@ class PE(object):
                 0, self.__data__[offset : offset + MAX_STRING_LENGTH])
 
             if name_str:
-                invalid_chars = [c for c in name_str if c not in bytes(string.printable)]
+                invalid_chars = [c for c in name_str if
+                                 (chr(c) if isinstance(c, int) else c) not in string.printable]
                 if len(name_str) > 256 or invalid_chars:
                     break
 
@@ -4061,14 +4053,11 @@ class PE(object):
             self.relocate_image(ImageBase)
 
         # Collect all sections in one code block
-        #mapped_data = self.header
-        mapped_data = '' + self.__data__[:]
+        mapped_data = self.__data__[:]
         for section in self.sections:
 
             # Miscellaneous integrity tests.
-            # Some packer will set these to bogus values to
-            # make tools go nuts.
-            #
+            # Some packer will set these to bogus values to make tools go nuts.
             if section.Misc_VirtualSize == 0 or section.SizeOfRawData == 0:
                 continue
 
@@ -4389,7 +4378,7 @@ class PE(object):
                     if hasattr(entry, 'StringTable'):
                         for st_entry in entry.StringTable:
                             [dump.add_line('  '+line) for line in st_entry.dump()]
-                            dump.add_line('  LangID: '+bytes(st_entry.LangID))
+                            dump.add_line('  LangID: {0}'.format(st_entry.LangID))
                             dump.add_newline()
                             for str_entry in list(st_entry.entries.items()):
                                 dump.add_line( '    {0}: {1}'.format(
