@@ -80,6 +80,15 @@ def handler(err):
     return (u''.join([u'\\x{0:02x}'.format(ord(err.object[i])) for i in range(start,end)]),end)
 codecs.register_error('hexreplace', handler)
 
+def count_zeroes(data):
+    try:
+        # newbytes' count() takes a str in Python 2
+        count = data.count('\0')
+    except TypeError:
+        # bytes' count() takes an int in Python 3
+        count = data.count(0)
+    return count
+
 fast_load = False
 
 # This will set a maximum length of a string to be retrieved from the file.
@@ -607,7 +616,7 @@ def retrieve_flags(flag_dict, flag_filter):
     """
 
     return [(f[0], f[1]) for f in list(flag_dict.items()) if
-            isinstance(f[0], (str, bytes, unicode)) and f[0].startswith(flag_filter)]
+            isinstance(f[0], (str, bytes)) and f[0].startswith(flag_filter)]
 
 
 def set_flags(obj, flag_field, flags):
@@ -778,7 +787,7 @@ class Dump(object):
     def add_header(self, txt):
         """Adds a header element."""
 
-        self.add_line(bytes('-'*10+txt+'-'*10+'\n'))
+        self.add_line(bytes(b'-'*10 + txt + b'-'*10 + b'\n'))
 
 
     def add_newline(self):
@@ -906,7 +915,7 @@ class Structure(object):
         elif len(data) < self.__format_length__:
             raise PEFormatError('Data length less than expected header length.')
 
-        if data.count('\0') == len(data):
+        if count_zeroes(data) == len(data):
             self.__all_zeroes__ = True
 
         self.__unpacked_data_elms__ = struct.unpack(self.__format__, data)
@@ -1456,7 +1465,7 @@ else: # Python 2.x
         b"!#$%&'()-@^_`{}~+,.;=[]" + bytes(range(128, 256)))
 
 def is_valid_dos_filename(s):
-    if s is None or not isinstance(s, (str, unicode, bytes)):
+    if s is None or not isinstance(s, (str, bytes)):
         return False
     for c in s:
         # Allow path separators as import names can contain directories.
@@ -1476,7 +1485,7 @@ else:
     allowed_function_name = bytes(string.lowercase + string.uppercase +
         string.digits + '_?@$()<>')
 def is_valid_function_name(s):
-    if s is None or not isinstance(s, (str, unicode, bytes)):
+    if s is None or not isinstance(s, (str, bytes)):
         return False
     for c in s:
         if c not in allowed_function_name:
@@ -2289,7 +2298,7 @@ class PE(object):
             section.set_file_offset(section_offset)
             section_data = self.__data__[section_offset : section_offset + section.sizeof()]
             # Check if the section is all nulls and stop if so.
-            if section_data.count('\0') == section.sizeof():
+            if count_zeroes(section_data) == section.sizeof():
                 self.__warnings.append(
                     'Invalid section {0}. Contents are null-bytes.'.format(i))
                 break
@@ -2360,7 +2369,7 @@ class PE(object):
         # Sort the sections by their VirtualAddress and add a field to each of them
         # with the VirtualAddress of the next section. This will allow to check
         # for potentially overlapping sections in badly constructed PEs.
-        self.sections.sort(cmp=lambda a,b: cmp(a.VirtualAddress, b.VirtualAddress))
+        self.sections.sort(key=lambda a: a.VirtualAddress)
         for idx, section in enumerate(self.sections):
             if idx == len(self.sections)-1:
                 section.next_section_virtual_address = None
@@ -2511,7 +2520,7 @@ class PE(object):
                 # Names shorted than 4 characters will be taken as invalid as well.
 
                 if name_str:
-                    invalid_chars = [c for c in name_str if c not in bytes(string.printable)]
+                    invalid_chars = [c for c in name_str if c not in string.printable]
                     if len(name_str) > 256 or invalid_chars:
                         break
 
@@ -3236,7 +3245,7 @@ class PE(object):
 
 
             # Parse a StringFileInfo entry
-            if stringfileinfo_string and stringfileinfo_string.startswith('StringFileInfo'):
+            if stringfileinfo_string and stringfileinfo_string.startswith(b'StringFileInfo'):
 
                 if stringfileinfo_struct.Type in (0,1) and stringfileinfo_struct.ValueLength == 0:
 
@@ -3747,7 +3756,7 @@ class PE(object):
                         imports = import_data,
                         dll = dll))
 
-        suspicious_imports = set([ 'LoadLibrary', 'GetProcAddress' ])
+        suspicious_imports = set([ b'LoadLibrary', b'GetProcAddress' ])
         suspicious_imports_count = 0
         total_symbols = 0
         for imp_dll in import_descs:
@@ -4219,7 +4228,7 @@ class PE(object):
 
         s = data[offset:]
 
-        return s[:s.find('\0')]
+        return s[:s.find(bytes('\0', 'ascii'))]
 
     def get_string_u_at_rva(self, rva, max_length = 2**16):
         """Get an Unicode string located at the given address."""
@@ -4231,7 +4240,7 @@ class PE(object):
         except PEFormatError as e:
             return None
 
-        s = unicode()
+        s = u''
         for idx in range(max_length):
             data = self.get_data(rva+2*idx, 2)
             try:
@@ -4241,7 +4250,7 @@ class PE(object):
 
             if uchr == 0:
                 break
-            s += unichr(uchr)
+            s += chr(uchr)
 
         return s.encode('ascii', 'backslashreplace')
 
@@ -4383,9 +4392,9 @@ class PE(object):
                             dump.add_line('  LangID: '+bytes(st_entry.LangID))
                             dump.add_newline()
                             for str_entry in list(st_entry.entries.items()):
-                                dump.add_line( '    ' +
-                                    unicode(str_entry[0], 'utf-8', 'backslashreplace') + ': ' +
-                                    unicode(str_entry[1], 'utf-8', 'backslashreplace') )
+                                dump.add_line( '    {0}: {1}'.format(
+                                    str(str_entry[0], 'utf-8', 'backslashreplace'),
+                                    str(str_entry[1], 'utf-8', 'backslashreplace') ))
                         dump.add_newline()
 
                     elif hasattr(entry, 'Var'):
@@ -4393,10 +4402,10 @@ class PE(object):
                             if hasattr(var_entry, 'entry'):
                                 [dump.add_line('  '+line) for line in var_entry.dump()]
                                 dump.add_line(
-                                    '    ' +
-                                    unicode(list(var_entry.entry.keys())[0],
-                                            'utf-8', 'backslashreplace') +
-                                    ': ' + list(var_entry.entry.values())[0])
+                                    '    {0}: {1}'.format(
+                                        str(list(var_entry.entry.keys())[0],
+                                            'utf-8', 'backslashreplace'),
+                                        list(var_entry.entry.values())[0]))
 
                         dump.add_newline()
 

@@ -287,7 +287,7 @@ class Test_pefile(unittest.TestCase):
             pe.OPTIONAL_HEADER.AddressOfEntryPoint, 10)
 
         # this is the correct EP data
-        good_ep_data = '\x55\x8b\xec\x83\xec\x70\x83\x65\xcc\x00'
+        good_ep_data = b'\x55\x8b\xec\x83\xec\x70\x83\x65\xcc\x00'
 
         self.assertEqual( entry_point_data, good_ep_data )
 
@@ -308,9 +308,9 @@ class Test_pefile(unittest.TestCase):
             pe.OPTIONAL_HEADER.AddressOfEntryPoint, 32)
 
         # this is the correct EP data
-        good_ep_data = (
-            '\xb8\x00\x04@\x00\xff\xd0j\x00\xe8\x00\x00\x00\x00\xff%\x00\x02'
-            '@\x00D\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
+        good_ep_data = bytes(
+            '\xb8\x00\x04\x40\x00\xff\xd0\x6a\x00\xe8\x00\x00\x00\x00\xff\x25'
+            '\x00\x02\x40\x00\x44\x02\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00')
 
         self.assertEqual(entry_point_data, good_ep_data)
 
@@ -330,7 +330,7 @@ class Test_pefile(unittest.TestCase):
 
         # this is the correct EP data
         good_ep_data = (
-            'bee0114000ff36e9c300000048010f010b014b45524e454c33322e444c4c0000')
+            b'bee0114000ff36e9c300000048010f010b014b45524e454c33322e444c4c0000')
 
         self.assertEqual( entry_point_data.encode('hex'), good_ep_data )
 
@@ -364,7 +364,7 @@ class Test_pefile(unittest.TestCase):
         trimmed_data = pe.trim()
 
         # Ensure the overlay data is correct.
-        self.assertEqual( overlay_data, ("A"*186) + '\n' )
+        self.assertEqual( overlay_data, bytes(("A"*186) + '\n') )
 
         # Ensure the trim offset is correct.
         self.assertEqual( pe.get_overlay_data_start_offset(), 294912 )
