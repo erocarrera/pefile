@@ -945,7 +945,7 @@ class Structure(object):
 
         dump = []
 
-        dump.append('[%s]' % self.name)
+        dump.append('[{0}]'.format(self.name))
 
         printable_bytes = [ord(i) for i in string.printable if i not in string.whitespace]
 
@@ -1465,7 +1465,7 @@ def is_valid_dos_filename(s):
         return False
     for c in s:
         # Allow path separators as import names can contain directories.
-        if c not in allowed_filename and c not in bytes('\\/'):
+        if c not in allowed_filename and c not in b'\\/':
             return False
     return True
 
@@ -1932,7 +1932,7 @@ class PE(object):
             # Create padding
             #
             padded_data = self.__data__[optional_header_offset:optional_header_offset+0x200] + (
-                '\0' * padding_length)
+                b'\0' * padding_length)
 
             self.OPTIONAL_HEADER = self.__unpack_data__(
                 self.__IMAGE_OPTIONAL_HEADER_format__,
@@ -1971,7 +1971,7 @@ class PE(object):
 
                     padding_length = 128
                     padded_data = self.__data__[optional_header_offset:optional_header_offset+0x200] + (
-                        '\0' * padding_length)
+                        b'\0' * padding_length)
                     self.OPTIONAL_HEADER = self.__unpack_data__(
                         self.__IMAGE_OPTIONAL_HEADER64_format__,
                         padded_data,
@@ -2031,7 +2031,7 @@ class PE(object):
                 break
 
             if len(self.__data__) - offset < 8:
-                data = self.__data__[offset:] + '\0'*8
+                data = self.__data__[offset:] + b'\0'*8
             else:
                 data = self.__data__[offset:offset+MAX_ASSUMED_VALID_NUMBER_OF_RVA_AND_SIZES]
 
@@ -2449,7 +2449,6 @@ class PE(object):
 
         bound_imports = []
         while True:
-
             bnd_descr = self.__unpack_data__(
                 self.__IMAGE_BOUND_IMPORT_DESCRIPTOR_format__,
                    self.__data__[rva:rva+bnd_descr_size],
@@ -2473,27 +2472,30 @@ class PE(object):
             file_offset = self.get_offset_from_rva(rva)
             if section is None:
                 safety_boundary = len(self.__data__) - file_offset
-                sections_after_offset = [section.PointerToRawData for section in self.sections
-                                         if section.PointerToRawData > file_offset]
+                sections_after_offset = [
+                    s.PointerToRawData for s in self.sections
+                    if s.PointerToRawData > file_offset]
                 if sections_after_offset:
-                    # Find the first section starting at a later offset than that specified by 'rva'
+                    # Find the first section starting at a later offset than that
+                    # specified by 'rva'
                     first_section_after_offset = min(sections_after_offset)
                     section = self.get_section_by_offset(first_section_after_offset)
                     if section is not None:
                         safety_boundary = section.PointerToRawData - file_offset
             else:
-                safety_boundary = section.PointerToRawData + len(section.get_data()) - file_offset
-
+                safety_boundary = (section.PointerToRawData +
+                                   len(section.get_data()) - file_offset)
             if not section:
                 self.__warnings.append(
-                    'RVA of IMAGE_BOUND_IMPORT_DESCRIPTOR points to an invalid address: %x' %
-                    rva)
+                    ('RVA of IMAGE_BOUND_IMPORT_DESCRIPTOR points '
+                     'to an invalid address: {0:x}').format(rva))
                 return
 
 
             forwarder_refs = []
             # 8 is the size of __IMAGE_BOUND_IMPORT_DESCRIPTOR_format__
-            for idx in range( min( bnd_descr.NumberOfModuleForwarderRefs, old_div(safety_boundary,8)) ):
+            for idx in range(min(bnd_descr.NumberOfModuleForwarderRefs,
+                                 old_div(safety_boundary,8))):
                 # Both structures IMAGE_BOUND_IMPORT_DESCRIPTOR and
                 # IMAGE_BOUND_FORWARDER_REF have the same size.
                 bnd_frwd_ref = self.__unpack_data__(
@@ -3168,6 +3170,10 @@ class PE(object):
 
         # If the structure does not contain the expected name, it's assumed to be invalid
         if versioninfo_string != b'VS_VERSION_INFO':
+            if isinstance(versioninfo_string, bytes):
+                versioninfo_string = versioninfo_string.decode('utf-8', 'backslashreplace')
+            else:
+                versioninfo_string = versioninfo_string.encode('utf-8', 'backslashreplace')
             if len(versioninfo_string) > 128:
                 versioninfo_string = '{0} ... ({1} bytes, too long to display)'.format(
                     versioninfo_string[:128], len(versioninfo_string))
@@ -3355,7 +3361,7 @@ class PE(object):
             elif stringfileinfo_string and stringfileinfo_string.startswith( b'VarFileInfo' ):
 
                 varfileinfo_struct = stringfileinfo_struct
-                varfileinfo_struct.name = b'VarFileInfo'
+                varfileinfo_struct.name = 'VarFileInfo'
 
                 if varfileinfo_struct.Type in (0, 1) and varfileinfo_struct.ValueLength == 0:
 
@@ -3830,7 +3836,6 @@ class PE(object):
 
         num_invalid = 0
         for idx in range(len(table)):
-
             imp_ord = None
             imp_hint = None
             imp_name = None
@@ -3838,7 +3843,6 @@ class PE(object):
             hint_name_table_rva = None
 
             if table[idx].AddressOfData:
-
                 # If imported by ordinal, we will append the ordinal number
                 #
                 if table[idx].AddressOfData & ordinal_flag:
@@ -3869,7 +3873,6 @@ class PE(object):
 
             struct_iat = None
             try:
-
                 if iat and ilt and ilt[idx].AddressOfData != iat[idx].AddressOfData:
                     imp_bound = iat[idx].AddressOfData
                     struct_iat = iat[idx]
@@ -4175,6 +4178,7 @@ class PE(object):
                     # where the import table is not contained by any section
                     # hence the RVA needs to be resolved to a raw offset
                     return offset
+                return None
             else:
                 return offset
             #raise PEFormatError("specified offset (0x%x) doesn't belong to any section." % offset)
@@ -4310,7 +4314,7 @@ class PE(object):
 
         dump.add('Flags: ')
         flags = []
-        for flag in image_flags:
+        for flag in sorted(image_flags):
             if getattr(self.FILE_HEADER, flag[0]):
                 flags.append(flag[0])
         dump.add_line(', '.join(flags))
@@ -4324,7 +4328,7 @@ class PE(object):
 
         dump.add('DllCharacteristics: ')
         flags = []
-        for flag in dll_characteristics_flags:
+        for flag in sorted(dll_characteristics_flags):
             if getattr(self.OPTIONAL_HEADER, flag[0]):
                 flags.append(flag[0])
         dump.add_line(', '.join(flags))
@@ -4339,7 +4343,7 @@ class PE(object):
             dump.add_lines(section.dump())
             dump.add('Flags: ')
             flags = []
-            for flag in section_flags:
+            for flag in sorted(section_flags):
                 if getattr(section, flag[0]):
                     flags.append(flag[0])
             dump.add_line(', '.join(flags))
@@ -4384,9 +4388,9 @@ class PE(object):
                     if hasattr(entry, 'StringTable'):
                         for st_entry in entry.StringTable:
                             [dump.add_line('  '+line) for line in st_entry.dump()]
-                            dump.add_line('  LangID: {0}'.format(st_entry.LangID))
+                            dump.add_line('  LangID: {0}'.format(st_entry.LangID.decode('ascii')))
                             dump.add_newline()
-                            for str_entry in list(st_entry.entries.items()):
+                            for str_entry in sorted(list(st_entry.entries.items())):
                                 dump.add_line( '    {0}: {1}'.format(
                                     str(str_entry[0], 'utf-8', 'backslashreplace'),
                                     str(str_entry[1], 'utf-8', 'backslashreplace') ))
@@ -4411,10 +4415,13 @@ class PE(object):
             dump.add_line('%-10s   %-10s  %s' % ('Ordinal', 'RVA', 'Name'))
             for export in self.DIRECTORY_ENTRY_EXPORT.symbols:
                 if export.address is not None:
+                    name = 'None'
+                    if export.name:
+                        name = export.name.decode('ascii')
                     dump.add('%-10d 0x%08Xh    %s' % (
-                        export.ordinal, export.address, export.name))
+                        export.ordinal, export.address, name))
                     if export.forwarder:
-                        dump.add_line(' forwarder: %s' % export.forwarder)
+                        dump.add_line(' forwarder: %s' % export.forwarder.decode('ascii'))
                     else:
                         dump.add_newline()
 
@@ -4437,12 +4444,18 @@ class PE(object):
                             dump.add('{0} Ordinal[{1}] (Imported by Ordinal)'.format(
                                 module.dll.decode('utf-8'), symbol.ordinal))
                     else:
+                        dll = module.dll
+                        symbol_name = symbol.name
+                        if isinstance(module.dll, str):
+                            dll = module.dll.encode('utf-8')
+                        if isinstance(symbol.name, str):
+                            symbol_name = symbol.name.encode('utf-8')
                         dump.add('{0}.{1} Hint[{2:d}]'.format(
-                            module.dll.decode('utf-8'),
-                            symbol.name.decode('utf-8'), symbol.hint))
+                            dll.decode('utf-8'),
+                            symbol_name.decode('utf-8'), symbol.hint))
 
                     if symbol.bound:
-                        dump.add_line(' Bound: 0x%08X' % (symbol.bound))
+                        dump.add_line(' Bound: 0x{0:08X}'.format(symbol.bound))
                     else:
                         dump.add_newline()
                 dump.add_newline()
@@ -4453,12 +4466,13 @@ class PE(object):
             for bound_imp_desc in self.DIRECTORY_ENTRY_BOUND_IMPORT:
 
                 dump.add_lines(bound_imp_desc.struct.dump())
-                dump.add_line('DLL: %s' % bound_imp_desc.name)
+                dump.add_line('DLL: {0}'.format(bound_imp_desc.name.decode('utf-8', 'backslashreplace')))
                 dump.add_newline()
 
                 for bound_imp_ref in bound_imp_desc.entries:
                     dump.add_lines(bound_imp_ref.struct.dump(), 4)
-                    dump.add_line('DLL: %s' % bound_imp_ref.name, 4)
+                    dump.add_line('DLL: {0}'.format(
+                        bound_imp_ref.name.decode('utf-8', 'backslashreplace')), 4)
                     dump.add_newline()
 
 
@@ -4472,10 +4486,10 @@ class PE(object):
                 for symbol in module.imports:
                     if symbol.import_by_ordinal is True:
                         dump.add('{0} Ordinal[{1:d}] (Imported by Ordinal)'.format(
-                            module.dll, symbol.ordinal))
+                            module.dll.decode('utf-8'), symbol.ordinal))
                     else:
                         dump.add('{0}.{1} Hint[{2}]'.format(
-                            module.dll, symbol.name, symbol.hint))
+                            module.dll.decode('utf-8'), symbol.name.decode('utf-8'), symbol.hint))
 
                     if symbol.bound:
                         dump.add_line(' Bound: 0x{0:08X}'.format(symbol.bound))
@@ -4493,7 +4507,7 @@ class PE(object):
 
                 if resource_type.name is not None:
                     name = resource_type.name.string if resource_type.name.string else ''
-                    dump.add_line('Name: [{0}]'.format(name), 2)
+                    dump.add_line('Name: [{0}]'.format(name.decode('ascii')), 2)
                 else:
                     dump.add_line('Id: [0x{0:X}] ({1})'.format(
                         resource_type.struct.Id, RESOURCE_TYPE.get(
@@ -4510,7 +4524,9 @@ class PE(object):
 
                         if resource_id.name is not None:
                             name = resource_id.name.string if resource_id.name.string else ''
-                            dump.add_line('Name: [{0}]'.format(name), 6)
+                            if isinstance(name, str):
+                                name = name.encode('ascii')
+                            dump.add_line('Name: [{0}]'.format(name.decode('ascii')), 6)
                         else:
                             dump.add_line('Id: [0x{0:X}]'.format(resource_id.struct.Id), 6)
 
@@ -4532,7 +4548,7 @@ class PE(object):
                                 dump.add_line( '[STRINGS]' , 10 )
                                 for idx, res_string in list(resource_id.directory.strings.items()):
                                     dump.add_line( '{0:6d}: {1}'.format(idx,
-                                        str(res_string.encode('unicode_escape', 'backslashreplace'),
+                                        res_string.encode('unicode-escape', 'backslashreplace').decode(
                                             'ascii')),
                                         12)
 

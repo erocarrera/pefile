@@ -110,23 +110,23 @@ class Test_pefile(unittest.TestCase):
 
                     # Do the diff again to store it for analysis.
                     diff = difflib.unified_diff(
-                        control_data.splitlines(), pe_file_data.splitlines())
+                        control_data.decode('ascii').splitlines(), pe_file_data.splitlines())
                     error_diff_f = open('error_diff.txt', 'ab')
                     error_diff_f.write(
-                        '\n________________________________________\n')
+                        b'\n________________________________________\n')
                     error_diff_f.write(
-                        'Errors for file "%s":\n' % pe_filename)
+                        'Errors for file "{0}":\n'.format(pe_filename).encode('ascii'))
                     error_diff_f.write(
-                        '\n'.join([l for l in diff if not l.startswith(' ')]))
+                        '\n'.join([l for l in diff if not l.startswith(' ')]).encode('ascii'))
                     error_diff_f.close()
                     print('Diff saved to: error_diff.txt')
 
             if diff_lines_removed_count == 0:
                 try:
-                    self.assertEqual( control_data, pe_file_data )
+                    self.assertEqual( control_data.decode('ascii'), pe_file_data )
                 except AssertionError:
                     diff = difflib.unified_diff(
-                        control_data.splitlines(), pe_file_data.splitlines())
+                        control_data.decode('ascii').splitlines(), pe_file_data.splitlines())
                     raise AssertionError( '\n'.join(diff) )
 
             os.sys.stdout.write('[%d]' % ( len(self.test_files) - idx ))
