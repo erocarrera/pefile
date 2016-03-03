@@ -789,7 +789,7 @@ class Dump(object):
 
     def get_text(self):
         """Get the text in its current state."""
-        return ''.join(bytes(b) for b in self.text)
+        return ''.join('{0}'.format(b) for b in self.text)
 
 
 STRUCT_SIZEOF_TYPES = {
@@ -811,7 +811,6 @@ class Structure(object):
         # Format is forced little endian, for big endian non Intel platforms
         self.__format__ = '<'
         self.__keys__ = []
-        #self.values = {}
         self.__format_length__ = 0
         self.__field_offsets__ = dict()
         self.__unpacked_data_elms__ = []
@@ -948,6 +947,8 @@ class Structure(object):
 
         dump.append('[%s]' % self.name)
 
+        printable_bytes = [ord(i) for i in string.printable if i not in string.whitespace]
+
         # Refer to the __set_format__ method for an explanation
         # of the following construct.
         for keys in self.__keys__:
@@ -967,9 +968,14 @@ class Structure(object):
                         val_str = val_str.encode('ascii', 'backslashreplace')
                     except:
                         pass
-                    val_str = ''.join(
-                            [i if (i in string.printable and i not in string.whitespace) else
-                                '\\x{0:02x}'.format(ord(i)) for i in val_str.rstrip('\x00')])
+                    if isinstance(val_str[0], int):
+                        val_str = ''.join(
+                                [chr(i) if (i in printable_bytes) else
+                                 '\\x{0:02x}'.format(i) for i in val_str.rstrip(b'\x00')])
+                    else:
+                        val_str = ''.join(
+                                [i if (ord(i) in printable_bytes) else
+                                 '\\x{0:02x}'.format(ord(i)) for i in val_str.rstrip(b'\x00')])
 
                 dump.append('0x%-8X 0x%-3X %-30s %s' % (
                     self.__field_offsets__[key] + self.__file_offset__,
@@ -1181,7 +1187,7 @@ class SectionStructure(Structure):
         occurences = array.array('L', [0]*256)
 
         for x in data:
-            occurences[ord(x)] += 1
+            occurences[x if isinstance(x, int) else ord(x)] += 1
 
         entropy = 0
         for x in occurences:
@@ -4486,9 +4492,10 @@ class PE(object):
             for resource_type in self.DIRECTORY_ENTRY_RESOURCE.entries:
 
                 if resource_type.name is not None:
-                    dump.add_line('Name: [%s]' % resource_type.name, 2)
+                    name = resource_type.name.string if resource_type.name.string else ''
+                    dump.add_line('Name: [{0}]'.format(name), 2)
                 else:
-                    dump.add_line('Id: [0x%X] (%s)' % (
+                    dump.add_line('Id: [0x{0:X}] ({1})'.format(
                         resource_type.struct.Id, RESOURCE_TYPE.get(
                             resource_type.struct.Id, '-')),
                         2)
@@ -4502,9 +4509,10 @@ class PE(object):
                     for resource_id in resource_type.directory.entries:
 
                         if resource_id.name is not None:
-                            dump.add_line('Name: [%s]' % resource_id.name, 6)
+                            name = resource_id.name.string if resource_id.name.string else ''
+                            dump.add_line('Name: [{0}]'.format(name), 6)
                         else:
-                            dump.add_line('Id: [0x%X]' % resource_id.struct.Id, 6)
+                            dump.add_line('Id: [0x{0:X}]'.format(resource_id.struct.Id), 6)
 
                         dump.add_lines(resource_id.struct.dump(), 6)
 
