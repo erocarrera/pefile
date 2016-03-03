@@ -3604,6 +3604,7 @@ class PE(object):
         """Walk and parse the delay import directory."""
 
         import_descs =  []
+        error_count = 0
         while True:
             try:
                 # If the RVA is invalid all would blow up. Some PEs seem to be
@@ -3634,6 +3635,7 @@ class PE(object):
             if rva > import_desc.pINT or rva > import_desc.pIAT:
                 max_len = max(rva-import_desc.pINT, rva-import_desc.pIAT)
 
+            import_data = []
             try:
                 import_data =  self.parse_imports(
                     import_desc.pINT,
@@ -3643,12 +3645,18 @@ class PE(object):
             except PEFormatError as e:
                 self.__warnings.append(
                     'Error parsing the Delay import directory. '
-                    'Invalid import data at RVA: 0x%x (%s)' % ( rva, e.value) )
+                    'Invalid import data at RVA: 0x{0:x} ({1})'.format(
+                        rva, e.value))
+
+            if error_count > 5:
+                self.__warnings.append(
+                    'Too may errors parsing the Delay import directory. '
+                    'Invalid import data at RVA: 0x{0:x}'.format(rva) )
                 break
 
             if not import_data:
+                error_count += 1
                 continue
-
 
             dll = self.get_string_at_rva(import_desc.szName)
             if not is_valid_dos_filename(dll):
@@ -3701,6 +3709,7 @@ class PE(object):
         """Walk and parse the import directory."""
 
         import_descs =  []
+        error_count = 0
         while True:
             try:
                 # If the RVA is invalid all would blow up. Some EXEs seem to be
@@ -3729,6 +3738,7 @@ class PE(object):
             if rva > import_desc.OriginalFirstThunk or rva > import_desc.FirstThunk:
                 max_len = max(rva-import_desc.OriginalFirstThunk, rva-import_desc.FirstThunk)
 
+            import_data = []
             try:
                 import_data =  self.parse_imports(
                     import_desc.OriginalFirstThunk,
@@ -3738,10 +3748,17 @@ class PE(object):
             except PEFormatError as e:
                 self.__warnings.append(
                     'Error parsing the import directory. '
-                    'Invalid Import data at RVA: 0x%x (%s)' % ( rva, e.value ) )
+                    'Invalid Import data at RVA: 0x{0:x} ({1})'.format(
+                        rva, e.value))
+
+            if error_count > 5:
+                self.__warnings.append(
+                    'Too may errors parsing the import directory. '
+                    'Invalid import data at RVA: 0x{0:x}'.format(rva) )
                 break
 
             if not import_data:
+                error_count += 1
                 continue
 
             dll = self.get_string_at_rva(import_desc.Name)
@@ -3778,7 +3795,9 @@ class PE(object):
 
 
 
-    def parse_imports(self, original_first_thunk, first_thunk, forwarder_chain, max_length=None):
+    def parse_imports(
+            self, original_first_thunk, first_thunk,
+            forwarder_chain, max_length=None):
         """Parse the imported symbols.
 
         It will fill a list, which will be available as the dictionary
@@ -3808,9 +3827,12 @@ class PE(object):
         # OC Patch:
         # Would crash if IAT or ILT had None type
         if (not iat or len(iat)==0) and (not ilt or len(ilt)==0):
-            raise PEFormatError(
-                'Invalid Import Table information. '
-                'Both ILT and IAT appear to be broken.')
+            self.__warnings.append(
+                'Damaged Import Table information. '
+                'ILT and/or IAT appear to be broken. '
+                'OriginalFirstThunk: 0x{0:x} FirstThunk: 0x{1:x}'.format(
+                    original_first_thunk, first_thunk))
+            return []
 
         table = None
         if ilt:
