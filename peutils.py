@@ -426,7 +426,7 @@ class SignatureDatabase(object):
         # Helper function to parse the signature bytes
         #
         def to_byte(value) :
-            if value == '??' or value == '?0' :
+            if '?' in value::
                 return value
             return int (value, 16)
 
