@@ -33,7 +33,7 @@ from builtins import zip
 from past.utils import old_div
 
 __author__ = 'Ero Carrera'
-__version__ = '2016.03.04'
+__version__ = '2016.3.4'
 __contact__ = 'ero.carrera@gmail.com'
 
 import os
