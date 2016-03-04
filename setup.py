@@ -51,7 +51,7 @@ setup(name = 'pefile',
     author = pefile.__author__,
     author_email = pefile.__contact__,
     url = 'https://github.com/erocarrera/pefile',
-    download_url='https://github.com/erocarrera/pefile/tarball/master',
+    download_url='https://github.com/erocarrera/pefile/releases/download/v2016.3.4/pefile-2016.3.4.tar.gz',
     keywords = ['pe', 'exe', 'dll', 'pefile', 'pecoff'],
     classifiers = [
         'Development Status :: 5 - Production/Stable',
