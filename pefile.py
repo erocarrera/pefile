@@ -47,39 +47,10 @@ import array
 import mmap
 import ordlookup
 
-sha1, sha256, sha512, md5 = None, None, None, None
-
-try:
-    import hashlib
-    sha1 = hashlib.sha1
-    sha256 = hashlib.sha256
-    sha512 = hashlib.sha512
-    md5 = hashlib.md5
-except ImportError:
-    try:
-        import sha
-        sha1 = sha.new
-    except ImportError:
-        pass
-    try:
-        import md5
-        md5 = md5.new
-    except ImportError:
-        pass
-
-try:
-    enumerate
-except NameError:
-    def enumerate(iter):
-        L = list(iter)
-        return list(zip(list(range(0, len(L))), L))
-
-# Handler for Unicode errors.
-def handler(err):
-    start = err.start
-    end = err.end
-    return (u''.join([u'\\x{0:02x}'.format(ord(err.object[i])) for i in range(start,end)]),end)
-codecs.register_error('hexreplace', handler)
+from hashlib import sha1
+from hashlib import sha256
+from hashlib import sha512
+from hashlib import md5
 
 def count_zeroes(data):
     try:
@@ -135,7 +106,6 @@ directory_entry_types = [
 
 DIRECTORY_ENTRY = dict(
     [(e[1], e[0]) for e in directory_entry_types]+directory_entry_types)
-
 
 image_characteristics = [
     ('IMAGE_FILE_RELOCS_STRIPPED',          0x0001),
@@ -658,58 +628,30 @@ class UnicodeStringWrapperPostProcessor(object):
         self.rva_ptr = rva_ptr
         self.string = None
 
-
     def get_rva(self):
         """Get the RVA of the string."""
-
         return self.rva_ptr
-
 
     def __str__(self):
         """Return the escaped UTF-8 representation of the string."""
-
         if self.string:
             return self.string
 
         return ''
 
-
     def invalidate(self):
         """Make this instance None, to express it's no known string type."""
-
         self = None
 
-
     def render_pascal_16(self):
-
         self.string = self.pe.get_string_u_at_rva(
             self.rva_ptr+2,
             max_length=self.get_pascal_16_length())
 
-
-    def ask_pascal_16(self, next_rva_ptr):
-        """The next RVA is taken to be the one immediately following this one.
-
-        Such RVA could indicate the natural end of the string and will be checked
-        with the possible length contained in the first word.
-        """
-
-        length = self.get_pascal_16_length()
-
-        if length == old_div((next_rva_ptr - (self.rva_ptr+2)), 2):
-            self.length = length
-            return True
-
-        return False
-
-
     def get_pascal_16_length(self):
-
         return self.__get_word_value_at_rva(self.rva_ptr)
 
-
     def __get_word_value_at_rva(self, rva):
-
         try:
             data = self.pe.get_data(self.rva_ptr, 2)
         except PEFormatError as e:
@@ -720,25 +662,19 @@ class UnicodeStringWrapperPostProcessor(object):
 
         return struct.unpack('<H', data)[0]
 
-
-
     def ask_unicode_16(self, next_rva_ptr):
         """The next RVA is taken to be the one immediately following this one.
 
         Such RVA could indicate the natural end of the string and will be checked
         to see if there's a Unicode NULL character there.
         """
-
         if self.__get_word_value_at_rva(next_rva_ptr-2) == 0:
             self.length = next_rva_ptr - self.rva_ptr
             return True
 
         return False
 
-
     def render_unicode_16(self):
-        """"""
-
         self.string = self.pe.get_string_u_at_rva(self.rva_ptr)
 
 
