@@ -1,5 +1,4 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
 """pefile, Portable Executable reader module
 
 All the PE file basic structures are available with their default names as
@@ -8,9 +7,9 @@ attributes of the instance returned.
 Processed elements such as the import table are made available with lowercase
 names, to differentiate them from the upper case basic structure names.
 
-pefile has been tested against the limits of valid PE headers, that is,
-malware. Lots of packed malware attempt to abuse the format way beyond its
-standard use. To the best of my knowledge most of the abuses are handled
+pefile has been tested against many edge cases such as corrupted and malformed
+PEs as well as malware, which often attempts to abuse the format way beyond its
+standard use. To the best of my knowledge most of the abuse is handled
 gracefully.
 
 Copyright (c) 2005-2016 Ero Carrera <ero.carrera@gmail.com>
@@ -20,6 +19,7 @@ All rights reserved.
 For detailed copyright information see the file COPYING in the root of the
 distribution archive.
 """
+
 from __future__ import division
 from __future__ import print_function
 from past.builtins import cmp

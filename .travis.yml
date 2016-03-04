@@ -10,10 +10,10 @@ install:
 - pip install -r requirements.txt
 script:
 - chmod +x ./run_tests.py ./setup.py
-- ./setup.py test
-- ./setup.py build
-- ./setup.py sdist
-- ./setup.py bdist
+- python setup.py test
+- python setup.py build
+- python setup.py sdist
+- python setup.py bdist
 - mkdir -p ${PWD}/tmp/lib/python2.7/site-packages/ && PYTHONPATH=${PWD}/tmp/lib/python2.7/site-packages/
   ./setup.py install --prefix=${PWD}/tmp/
 - coverage run --source=pefile --omit="*_test*,*__init__*,*test_lib*" ./run_tests.py
