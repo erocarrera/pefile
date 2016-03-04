@@ -5,7 +5,7 @@ import sys
 
 try:
     from setuptools import setup, Command
-except ImportError, excp:
+except ImportError as excp:
     from distutils.core import setup, Command
 
 from unittest import TestLoader, TextTestRunner
