@@ -1,4 +1,5 @@
 #!/usr/bin/python
+# -*- coding: utf-8 -*-
 """pefile, Portable Executable reader module
 
 All the PE file basic structures are available with their default names as

@@ -1,7 +1,6 @@
+# -*- coding: utf-8 -*-
 from __future__ import print_function
 from builtins import range
-#!/usr/bin/python
-# -*- coding: utf-8 -*-
 
 import os
 import difflib
