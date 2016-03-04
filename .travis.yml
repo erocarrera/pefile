@@ -8,6 +8,7 @@ before_install:
 - tar jxf tests/test_data.tar.bz2 -C tests
 install:
 - pip install -r requirements.txt
+- pip install coveralls
 script:
 - chmod +x ./run_tests.py ./setup.py
 - python setup.py test
