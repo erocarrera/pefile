@@ -1,5 +1,4 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
 
 import os
 import sys
@@ -65,4 +64,8 @@ setup(name = 'pefile',
     long_description = "\n".join(pefile.__doc__.split('\n')),
     cmdclass={"test": TestCommand},
     py_modules = ['pefile', 'peutils'],
-    packages = ['ordlookup'] )
+    packages = ['ordlookup'],
+    install_requires=[
+          'future',
+    ],
+)
