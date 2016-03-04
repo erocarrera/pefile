@@ -36,6 +36,10 @@ pefile runs in several pipelines scanning hundreds of thousands of new PE files 
 
 pefile is self-contained. It has no dependecies and it is endianness independent, it works on OS X, Windows, and Linux.
 
+## Recent changes
+
+Prompted by the move to GitHub, the need to support Python 3 in addition to resoling a slew of pending issues (some having to do with the old versioning scheme), _pefile_ has changed its version number scheme and from now on it will be using the release date as its version.
+
 ## Projects and products using _pefile_
 
   * [Exe Dump Utility](http://utilitymill.com/utility/Exe_Dump_Utility) a web-based _pefile_
