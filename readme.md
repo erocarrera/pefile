@@ -1,8 +1,8 @@
 # pefile
-[![Build Status (master)](https://travis-ci.org/erocarrera/pefile.svg?branch=master)](https://travis-ci.org/erocarrera/pefile)
-[![Build Status (development)](https://travis-ci.org/erocarrera/pefile.svg?branch=develop)](https://travis-ci.org/erocarrera/pefile)
-[![Coverage Status (master)](https://coveralls.io/repos/erocarrera/pefile/badge.svg?branch=master)](https://coveralls.io/r/erocarrera/pefile?branch=master)
-[![Coverage Status (development)](https://coveralls.io/repos/erocarrera/pefile/badge.svg?branch=develop)](https://coveralls.io/r/erocarrera/pefile?branch=develop)
+|Master|Develop|
+|------|-------|
+|[![Build Status (master)](https://travis-ci.org/erocarrera/pefile.svg?branch=master)](https://travis-ci.org/erocarrera/pefile)|[![Build Status (development)](https://travis-ci.org/erocarrera/pefile.svg?branch=develop)](https://travis-ci.org/erocarrera/pefile)|
+|[![Coverage Status (master)](https://coveralls.io/repos/erocarrera/pefile/badge.svg?branch=master)](https://coveralls.io/r/erocarrera/pefile?branch=master)|[![Coverage Status (development)](https://coveralls.io/repos/erocarrera/pefile/badge.svg?branch=develop)](https://coveralls.io/r/erocarrera/pefile?branch=develop)|
 
 
 _pefile_ is a multi-platform Python module to parse and work with [Portable Executable (aka PE) files](http://en.wikipedia.org/wiki/Portable_Executable). Most of the information contained in the PE headers is accessible as well as all sections' details and their data.
