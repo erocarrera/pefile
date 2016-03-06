@@ -1,0 +1,7 @@
+include *.py
+include LICENSE
+exclude run_tests.py
+exclude requirements.txt
+exclude README.md
+recursive-include ordlookup *.py
+prune tests
