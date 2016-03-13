@@ -3639,7 +3639,7 @@ class PE(object):
 
                 impstrs.append('%s.%s' % (libname.lower(),funcname.lower()))
 
-        return hashlib.md5( ','.join( impstrs ) ).hexdigest()
+        return md5( ','.join( impstrs ) ).hexdigest()
 
 
     def parse_import_directory(self, rva, size):
