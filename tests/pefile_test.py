@@ -54,7 +54,7 @@ class Test_pefile(unittest.TestCase):
                     'Assuming first run and generating...') % (
                     os.path.basename(control_data_filename) ))
                 control_data_f = open( control_data_filename, 'wb')
-                control_data_f.write( pe_file_data )
+                control_data_f.write( pe_file_data.encode('utf-8') )
                 continue
 
             control_data_f = open(control_data_filename, 'rb')

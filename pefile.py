@@ -984,15 +984,11 @@ class SectionStructure(Structure):
         else:
             end = offset + self.SizeOfRawData
 
-        # FIX for corrupted IAT where data to be read is less than what is expected
-        # because ouside current section.
-        # Examples:
-        # SHA256: 63e23206d243bc38516079372fae014ae98b74489f5862bed3d289d42ba81ba9
-        # SHA256: efc55670c4bdb510b5d0da47c787c54c67d13339d02442bfbd5f8f531e54dc6a
-        pe_last_sect = self.pe.sections[len(self.pe.sections)-1]
-        if end > pe_last_sect.PointerToRawData + pe_last_sect.SizeOfRawData:
-            end = pe_last_sect.PointerToRawData + pe_last_sect.SizeOfRawData
-
+        # PointerToRawData is not adjusted here as we might want to read any possible extra bytes
+        # that might get cut off by aligning the start (and hence cutting something off the end)
+        #
+        if end > self.PointerToRawData + self.SizeOfRawData:
+            end = self.PointerToRawData + self.SizeOfRawData
         return self.pe.__data__[offset:end]
 
 
