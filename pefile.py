@@ -2083,9 +2083,16 @@ class PE(object):
         DANS = 0x536E6144 # 'DanS' as dword
         RICH = 0x68636952 # 'Rich' as dword
 
+        rich_index = self.__data__.find(
+            'Rich', 0x80, self.OPTIONAL_HEADER.struct.offset)
+        if rich_index == -1:
+            return None
+
         # Read a block of data
         try:
-            rich_data = self.get_data(0x80, 0x80)
+            # The end of the structure is 8 bytes after the start of the Rich
+            # string.
+            rich_data = self.get_data(0x80, rich_index + 8)
             if len(rich_data) != 0x80:
                 return None
             data = list(struct.unpack("<32I", rich_data))
