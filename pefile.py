@@ -5354,3 +5354,10 @@ class PE(object):
             return section_alignment * ( old_div(val, section_alignment) )
         return val
 
+
+if __name__ == '__main__':
+    import sys
+    if not sys.argv[1:]:
+        print('pefile.py <filename>')
+    else:
+        print(PE(sys.argv[1]).dump_info())
