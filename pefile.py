@@ -892,7 +892,7 @@ class Structure(object):
             for key in keys:
 
                 val = getattr(self, key)
-                if isinstance(val, int) or isinstance(val, int):
+                if isinstance(val, (int, long)):
                     val_str = '0x%-8X' % (val)
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
@@ -2487,10 +2487,12 @@ class PE(object):
     def parse_directory_tls(self, rva, size):
         """"""
 
-        if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
-            format = self.__IMAGE_TLS_DIRECTORY_format__
+        # By default let's pretend the format is a 32-bit PE. It may help
+        # produce some output for files where the Magic in the Optional Header
+        # is incorrect.
+        format = self.__IMAGE_TLS_DIRECTORY_format__
 
-        elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
+        if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
             format = self.__IMAGE_TLS_DIRECTORY64_format__
 
         try:
