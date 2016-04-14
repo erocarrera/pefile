@@ -23,7 +23,7 @@ distribution archive.
 
 from __future__ import division
 from __future__ import print_function
-from past.builtins import cmp
+from past.builtins import cmp, long
 from builtins import bytes
 from builtins import chr
 from builtins import object
