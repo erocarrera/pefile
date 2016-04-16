@@ -3621,7 +3621,7 @@ class PE(object):
         if not hasattr(self, "DIRECTORY_ENTRY_IMPORT"):
             return ""
         for entry in self.DIRECTORY_ENTRY_IMPORT:
-            libname = entry.dll.lower()
+            libname = entry.dll.lower().decode('utf-8')
             parts = libname.rsplit('.', 1)
             if len(parts) > 1 and parts[1] in exts:
                 libname = parts[0]
@@ -3633,14 +3633,14 @@ class PE(object):
                     if not funcname:
                         raise Exception("Unable to look up ordinal %s:%04x" % (entry.dll, imp.ordinal))
                 else:
-                    funcname = imp.name
+                    funcname = imp.name.decode('utf-8')
 
                 if not funcname:
                     continue
 
                 impstrs.append('%s.%s' % (libname.lower(),funcname.lower()))
 
-        return md5( ','.join( impstrs ) ).hexdigest()
+        return md5( ','.join( impstrs ).encode('ascii') ).hexdigest()
 
 
     def parse_import_directory(self, rva, size):
