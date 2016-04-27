@@ -3097,7 +3097,7 @@ class PE(object):
                 versioninfo_string = self.get_string_u_at_rva(ustr_offset)
             else:
                 versioninfo_string = self.get_string_u_at_rva(
-                    ustr_offset, section_end - ustr_offset)
+                    ustr_offset, (section_end - ustr_offset) >> 1)
         except PEFormatError as excp:
             self.__warnings.append(
                 'Error parsing the version information, '
