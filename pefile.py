@@ -4198,18 +4198,34 @@ class PE(object):
             data = self.get_data(rva, 2)
         except PEFormatError as e:
             return None
+        # max_length is the maximum count of 16bit characters
+        # needs to be doubled to get size in bytes
+        max_length <<= 1
 
-        s = u''
-        for idx in range(max_length):
-            data = self.get_data(rva+2*idx, 2)
-            try:
-                uchr = struct.unpack(b'<H', data)[0]
-            except struct.error:
+        requested = min(max_length, 256)
+        data = self.get_data(rva, requested)
+        # try to find null-termination
+        null_index = -1
+        while True:
+            null_index = data.find(b'\x00\x00', null_index + 1)
+            if null_index == -1:
+                data_length = len(data)
+                if data_length < requested or data_length == max_length:
+                    null_index = len(data) >> 1
+                    break
+                else:
+                    # Request remaining part of data limited by max_length
+                    data += self.get_data(rva + data_length, max_length - data_length)
+                    null_index = requested - 1
+                    requested = max_length
+
+            elif null_index % 2 == 0:
+                null_index >>= 1
                 break
 
-            if uchr == 0:
-                break
-            s += chr(uchr)
+        # convert selected part of the string to unicode
+        uchrs = struct.unpack('<{:d}H'.format(null_index), data[:null_index * 2])
+        s = u''.join(map(chr, uchrs))
 
         return s.encode('ascii', 'backslashreplace')
 
