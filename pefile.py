@@ -3622,7 +3622,7 @@ class PE(object):
             return ""
         for entry in self.DIRECTORY_ENTRY_IMPORT:
             libname = entry.dll.lower()
-            parts = libname.rsplit('.', 1)
+            parts = libname.rsplit(b'.', 1)
             if len(parts) > 1 and parts[1] in exts:
                 libname = parts[0]
 
@@ -3638,9 +3638,9 @@ class PE(object):
                 if not funcname:
                     continue
 
-                impstrs.append('%s.%s' % (libname.lower(),funcname.lower()))
+                impstrs.append(b'%s.%s' % (libname.lower(),funcname.lower()))
 
-        return md5( ','.join( impstrs ) ).hexdigest()
+        return md5(b','.join(impstrs)).hexdigest()
 
 
     def parse_import_directory(self, rva, size):
