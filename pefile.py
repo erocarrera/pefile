@@ -3622,7 +3622,7 @@ class PE(object):
             return ""
         for entry in self.DIRECTORY_ENTRY_IMPORT:
             libname = entry.dll.lower()
-            parts = libname.rsplit('.', 1)
+            parts = libname.rsplit(b'.', 1)
             if len(parts) > 1 and parts[1] in exts:
                 libname = parts[0]
 
