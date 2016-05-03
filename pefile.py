@@ -3638,7 +3638,7 @@ class PE(object):
                 if not funcname:
                     continue
 
-                impstrs.append('%s.%s' % (libname.lower(),funcname.lower()))
+                impstrs.append(b'%s.%s' % (libname.lower(),funcname.lower()))
 
         return md5(b','.join(impstrs)).hexdigest()
 
