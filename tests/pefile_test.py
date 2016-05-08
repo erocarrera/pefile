@@ -408,6 +408,20 @@ class Test_pefile(unittest.TestCase):
         self.assertRaises( Exception, pefile.PE, control_file_pe )
 
 
+    def test_driver_check(self):
+        """Test the is_driver check"""
+
+        control_file_pe = os.path.join(
+            REGRESSION_TESTS_DIR,
+            '075356de51afac92d1c20ba53c966fa145172897a96cfdb1b3bb369edb376a77_driver')
+
+        pe_fast = pefile.PE(control_file_pe, fast_load=True)
+        pe_full = pefile.PE(control_file_pe, fast_load=False)
+
+        # Ensure the rebased image is the same as the pre-generated one.
+        self.assertEqual( pe_fast.is_driver(), pe_full.is_driver() )
+
+
     def test_rebased_image(self):
         """Test correctness of rebased images"""
 

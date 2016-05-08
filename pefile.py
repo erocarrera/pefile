@@ -5233,21 +5233,32 @@ class PE(object):
 
         # This is not reliable either...
         #
-        # if any( (section.Characteristics & SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_NOT_PAGED']) for section in self.sections ):
+        # if any((section.Characteristics &
+        #           SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_NOT_PAGED']) for
+        #        section in self.sections ):
         #    return True
 
-        if hasattr(self, 'DIRECTORY_ENTRY_IMPORT'):
+        # If the import directory was not parsed (fast_load = True); do it now.
+        if not hasattr(self, 'DIRECTORY_ENTRY_IMPORT'):
+            self.parse_data_directories(directories=[
+                DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT']])
 
-            # If it imports from "ntoskrnl.exe" or other kernel components it should be a driver
-            #
-            if set( ('ntoskrnl.exe', 'hal.dll', 'ndis.sys', 'bootvid.dll', 'kdcom.dll' ) ).intersection( [ imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT ] ):
-                return True
+        # self.DIRECTORY_ENTRY_IMPORT will now exist, although it may be empty.
+        # If it imports from "ntoskrnl.exe" or other kernel components it should
+        # be a driver
+        #
+        system_DLLs = set(
+            ('ntoskrnl.exe', 'hal.dll', 'ndis.sys', 'bootvid.dll', 'kdcom.dll'))
+        if system_DLLs.intersection(
+                [imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT]):
+            return True
 
         return False
 
 
     def get_overlay_data_start_offset(self):
-        """Get the offset of data appended to the file and not contained within the area described in the headers."""
+        """Get the offset of data appended to the file and not contained within
+        the area described in the headers."""
 
         largest_offset_and_size = (0, 0)
 
