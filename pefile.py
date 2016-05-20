@@ -3621,7 +3621,7 @@ class PE(object):
         if not hasattr(self, "DIRECTORY_ENTRY_IMPORT"):
             return ""
         for entry in self.DIRECTORY_ENTRY_IMPORT:
-            libname = entry.dll.lower()
+            libname = entry.dll.decode().lower()
             parts = libname.rsplit('.', 1)
             if len(parts) > 1 and parts[1] in exts:
                 libname = parts[0]
@@ -3638,9 +3638,10 @@ class PE(object):
                 if not funcname:
                     continue
 
+                funcname = funcname.decode()
                 impstrs.append('%s.%s' % (libname.lower(),funcname.lower()))
 
-        return md5( ','.join( impstrs ) ).hexdigest()
+        return md5( ','.join( impstrs ).encode() ).hexdigest()
 
 
     def parse_import_directory(self, rva, size):
