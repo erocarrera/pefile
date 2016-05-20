@@ -3638,7 +3638,8 @@ class PE(object):
                 if not funcname:
                     continue
 
-                funcname = funcname.decode()
+                if isinstance(funcname, bytes):
+                    funcname = funcname.decode()
                 impstrs.append('%s.%s' % (libname.lower(),funcname.lower()))
 
         return md5( ','.join( impstrs ).encode() ).hexdigest()
