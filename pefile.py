@@ -3621,7 +3621,10 @@ class PE(object):
         if not hasattr(self, "DIRECTORY_ENTRY_IMPORT"):
             return ""
         for entry in self.DIRECTORY_ENTRY_IMPORT:
-            libname = entry.dll.decode().lower()
+            if isinstance(entry.dll, bytes):
+                libname = entry.dll.decode().lower()
+            else:
+                libname = entry.dll.lower()
             parts = libname.rsplit('.', 1)
             if len(parts) > 1 and parts[1] in exts:
                 libname = parts[0]
