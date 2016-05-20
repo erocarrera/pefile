@@ -3107,7 +3107,7 @@ class PE(object):
 
 
         # If the structure does not contain the expected name, it's assumed to be invalid
-        if versioninfo_string != b'VS_VERSION_INFO':
+        if versioninfo_string is not None and versioninfo_string != b'VS_VERSION_INFO':
             if isinstance(versioninfo_string, bytes):
                 versioninfo_string = versioninfo_string.decode('utf-8', 'backslashreplace')
             else:
@@ -3126,7 +3126,8 @@ class PE(object):
         # The the Key attribute to point to the unicode string identifying the structure
         self.VS_VERSIONINFO.Key = versioninfo_string
 
-
+        if versioninfo_string is None:
+            versioninfo_string = ''
         # Process the fixed version information, get the offset and structure
         fixedfileinfo_offset = self.dword_align(
             versioninfo_struct.sizeof() + 2 * (len(versioninfo_string) + 1),
