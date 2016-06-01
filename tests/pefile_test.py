@@ -149,8 +149,34 @@ class Test_pefile(unittest.TestCase):
         self.assertEqual(pe_full.dump_info(), pe.dump_info())
 
 
+    def test_imphash(self):
+        """Test imphash values."""
+
+        self.assertEqual(
+            pefile.PE(os.path.join(
+                REGRESSION_TESTS_DIR, 'mfc40.dll')).get_imphash(),
+            'ef3d32741141a9ffde06721c65ea07b6')
+
+        self.assertEqual(
+            pefile.PE(os.path.join(
+                REGRESSION_TESTS_DIR, 'kernel32.dll')).get_imphash(),
+            '239b8e3d4f9d1860d6ce5efb07b02e2a')
+
+        self.assertEqual(
+            pefile.PE(os.path.join(
+                REGRESSION_TESTS_DIR,
+                '66c74e4c9dbd1d33b22f63cd0318b72dea88f9dbb4d36a3383d3da20b037d42e'
+                )).get_imphash(),
+            'a781de574e0567285ee1233bf6a57cc0')
+
+        self.assertEqual(
+            pefile.PE(os.path.join(
+                REGRESSION_TESTS_DIR, '64bit_Binaries/cmd.exe')).get_imphash(),
+            'd0058544e4588b1b2290b7f4d830eb0a')
+
+
     def test_write_header_fields(self):
-        """Verify correct field data modification"""
+        """Verify correct field data modification."""
 
         # Test version information writing
         control_file = os.path.join(REGRESSION_TESTS_DIR, 'MSVBVM60.DLL')
