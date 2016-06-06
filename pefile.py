@@ -2748,18 +2748,20 @@ class PE(object):
                         ___IMAGE_DEBUG_MISC_format__,
                         dbg_type_data,
                         dbg_type_offset)
-
-                # The Unicode bool should be set to 0 or 1.
-                if dbg_type_partial.Unicode in (0, 1):
-                    data_size = (
-                        dbg_type_size -
-                        Structure(___IMAGE_DEBUG_MISC_format__).sizeof())
-                    ___IMAGE_DEBUG_MISC_format__[1].append(
-                            '{0}s,Data'.format(data_size))
-                    dbg_type = self.__unpack_data__(
-                            ___IMAGE_DEBUG_MISC_format__,
-                            dbg_type_data,
-                            dbg_type_offset)
+                
+                # Check, if dbg_type_partial is not None to avoid crash
+                if dbg_type_partial:
+                    # The Unicode bool should be set to 0 or 1.
+                    if dbg_type_partial.Unicode in (0, 1):
+                        data_size = (
+                            dbg_type_size -
+                            Structure(___IMAGE_DEBUG_MISC_format__).sizeof())
+                        ___IMAGE_DEBUG_MISC_format__[1].append(
+                                '{0}s,Data'.format(data_size))
+                        dbg_type = self.__unpack_data__(
+                                ___IMAGE_DEBUG_MISC_format__,
+                                dbg_type_data,
+                                dbg_type_offset)
 
             debug.append(
                 DebugData(
