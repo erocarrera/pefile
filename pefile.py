@@ -2707,8 +2707,14 @@ class PE(object):
                     pdbFileName_size = (
                         dbg_type_size -
                         Structure(__CV_INFO_PDB70_format__).sizeof())
-                    __CV_INFO_PDB70_format__[1].append(
-                        '{0}s,PdbFileName'.format(pdbFileName_size))
+
+                    # pdbFileName_size can be negative here, as seen in the malware sample with hash
+                    # MD5:    7c297600870d026c014d42596bb9b5fd
+                    # SHA256: 83f4e63681fcba8a9d7bbb1688c71981b1837446514a1773597e0192bba9fac3
+                    # Checking for positive size here to ensure proper parsing.
+                    if pdbFileName_size > 0:
+                        __CV_INFO_PDB70_format__[1].append(
+                            '{0}s,PdbFileName'.format(pdbFileName_size))
                     dbg_type = self.__unpack_data__(
                         __CV_INFO_PDB70_format__,
                         dbg_type_data,
@@ -2725,9 +2731,12 @@ class PE(object):
                         dbg_type_size -
                         Structure(__CV_INFO_PDB20_format__).sizeof())
 
-                    # Add the last variable-length string field.
-                    __CV_INFO_PDB20_format__[1].append(
-                        '{0}s,PdbFileName'.format(pdbFileName_size))
+                    # As with the PDB 7.0 case, ensuring a positive size for pdbFileName_size
+                    # to ensure proper parsing.
+                    if pdbFileName_size > 0:
+                        # Add the last variable-length string field.
+                        __CV_INFO_PDB20_format__[1].append(
+                            '{0}s,PdbFileName'.format(pdbFileName_size))
                     dbg_type = self.__unpack_data__(
                         __CV_INFO_PDB20_format__,
                         dbg_type_data,
@@ -2749,17 +2758,28 @@ class PE(object):
                         dbg_type_data,
                         dbg_type_offset)
 
-                # The Unicode bool should be set to 0 or 1.
-                if dbg_type_partial.Unicode in (0, 1):
-                    data_size = (
-                        dbg_type_size -
-                        Structure(___IMAGE_DEBUG_MISC_format__).sizeof())
-                    ___IMAGE_DEBUG_MISC_format__[1].append(
-                            '{0}s,Data'.format(data_size))
-                    dbg_type = self.__unpack_data__(
-                            ___IMAGE_DEBUG_MISC_format__,
-                            dbg_type_data,
-                            dbg_type_offset)
+                # Need to check that dbg_type_partial contains a correctly unpacked data
+                # structure, as the malware sample with the following hash
+                # MD5:    5e7d6707d693108de5a303045c17d95b
+                # SHA256: 5dd94a95025f3b6e3dd440d52f7c6d2964fdd1aa119e0ee92e38c7bf83829e5c
+                # contains a value of None for dbg_type_partial after unpacking, presumably
+                # due to a malformed DEBUG entry.
+                if dbg_type_partial:
+                    # The Unicode bool should be set to 0 or 1.
+                    if dbg_type_partial.Unicode in (0, 1):
+                        data_size = (
+                            dbg_type_size -
+                            Structure(___IMAGE_DEBUG_MISC_format__).sizeof())
+
+                        # As with the PDB case, ensuring a positive size for data_size here
+                        # to ensure proper parsing.
+                        if data_size > 0:
+                            ___IMAGE_DEBUG_MISC_format__[1].append(
+                                    '{0}s,Data'.format(data_size))
+                        dbg_type = self.__unpack_data__(
+                                ___IMAGE_DEBUG_MISC_format__,
+                                dbg_type_data,
+                                dbg_type_offset)
 
             debug.append(
                 DebugData(
@@ -3126,7 +3146,16 @@ class PE(object):
             if isinstance(versioninfo_string, bytes):
                 versioninfo_string = versioninfo_string.decode('utf-8', 'backslashreplace')
             else:
-                versioninfo_string = versioninfo_string.encode('utf-8', 'backslashreplace')
+                # In the malware sample with hash
+                # MD5:    1f59fae39652aecb54df03f137c0e8ec
+                # SHA256: 0eac34fb346442853c604e43bdddb3319db285dab67ec5a9c7c43d5ea2882244
+                # versioninfo_string has a value of None here, and therefore throws an exception
+                # when the encode function is called.
+                if versioninfo_string:
+                    versioninfo_string = versioninfo_string.encode('utf-8', 'backslashreplace')
+                # Adding a default string for the versioninfo_string == None case
+                else:
+                    versioninfo_string = 'No VS_VERSION_INFO string'
             if len(versioninfo_string) > 128:
                 versioninfo_string = '{0} ... ({1} bytes, too long to display)'.format(
                     versioninfo_string[:128], len(versioninfo_string))
