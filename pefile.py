@@ -4239,8 +4239,12 @@ class PE(object):
             return ''
 
         s = data[offset:]
-
-        return s[:s.find(bytes('\0', 'ascii'))]
+        end = s.find(bytes('\0', 'ascii'))
+        if end >= 0:
+            return s[:end]
+        else:
+            # No null byte found: Return everything
+            return s
 
     def get_string_u_at_rva(self, rva, max_length = 2**16):
         """Get an Unicode string located at the given address."""
