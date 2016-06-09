@@ -408,7 +408,7 @@ class SignatureDatabase(object):
                 # Get the data for a file
                 #
                 try:
-                    sig_f = file( filename, 'rt' )
+                    sig_f = open( filename, 'rt' )
                     sig_data = sig_f.read()
                     sig_f.close()
                 except IOError:
@@ -582,6 +582,3 @@ def is_probably_packed( pe ):
         has_significant_amount_of_compressed_data = True
 
     return has_significant_amount_of_compressed_data
-
-
-
