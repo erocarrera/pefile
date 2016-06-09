@@ -24,7 +24,7 @@ def _read_doc():
     this module directly.
     """
     with open('pefile.py', 'r', encoding='utf-8') as f:
-        tree = ast.parse(f.read())
+        tree = ast.parse(f.read().encode('ascii', 'backslashreplace'))
     return ast.get_docstring(tree)
 
 
