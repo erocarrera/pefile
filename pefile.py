@@ -1394,7 +1394,8 @@ if 'lowercase' not in string.__dict__: # Python 3.x
         # ''.join(chr(c) for c in range(128, 256))
 else: # Python 2.x
     allowed_filename = bytes(string.lowercase + string.uppercase + string.digits +
-        b"!#$%&'()-@^_`{}~+,.;=[]" + bytes(range(128, 256)))
+        b"!#$%&'()-@^_`{}~+,.;=[]")
+        # + bytes(range(128, 256)))
 
 
 def is_valid_dos_filename(s):
