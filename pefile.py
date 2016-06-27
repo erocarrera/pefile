@@ -1396,12 +1396,14 @@ else: # Python 2.x
     allowed_filename = bytes(string.lowercase + string.uppercase + string.digits +
         b"!#$%&'()-@^_`{}~+,.;=[]" + bytes(range(128, 256)))
 
+
 def is_valid_dos_filename(s):
     if s is None or not isinstance(s, (str, bytes)):
         return False
-    for c in s:
-        # Allow path separators as import names can contain directories.
-        if c not in allowed_filename and c not in b'\\/':
+    # Allow path separators as import names can contain directories.
+    allowed = allowed_filename + b'\\/'
+    for c in set(s):
+        if c not in allowed:
             return False
     return True
 
