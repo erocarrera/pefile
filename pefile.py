@@ -68,6 +68,11 @@ fast_load = False
 # files. Strings longer than 1MB should be rather rare.
 MAX_STRING_LENGTH = 0x100000 # 2^20
 
+# Limit maximum length for specific string types separately
+MAX_IMPORT_NAME_LENGTH = 0x200
+MAX_DLL_LENGTH = 0x200
+MAX_SYMBOL_NAME_LENGTH = 0x200
+
 IMAGE_DOS_SIGNATURE             = 0x5A4D
 IMAGE_DOSZM_SIGNATURE           = 0x4D5A
 IMAGE_NE_SIGNATURE              = 0x454E
@@ -983,7 +988,6 @@ class SectionStructure(Structure):
             end = offset + length
         else:
             end = offset + self.SizeOfRawData
-
         # PointerToRawData is not adjusted here as we might want to read any possible extra bytes
         # that might get cut off by aligning the start (and hence cutting something off the end)
         #
@@ -3507,7 +3511,7 @@ class PE(object):
                 if max_failed_entries_before_giving_up <= 0:
                     break
 
-            symbol_name = self.get_string_at_rva( symbol_name_address )
+            symbol_name = self.get_string_at_rva(symbol_name_address, MAX_SYMBOL_NAME_LENGTH)
             if not is_valid_function_name(symbol_name):
                 break
             try:
@@ -3642,7 +3646,7 @@ class PE(object):
                 error_count += 1
                 continue
 
-            dll = self.get_string_at_rva(import_desc.szName)
+            dll = self.get_string_at_rva(import_desc.szName, MAX_DLL_LENGTH)
             if not is_valid_dos_filename(dll):
                 dll = '*invalid*'
 
@@ -3751,7 +3755,7 @@ class PE(object):
                     error_count += 1
                     continue
 
-            dll = self.get_string_at_rva(import_desc.Name)
+            dll = self.get_string_at_rva(import_desc.Name, MAX_DLL_LENGTH)
             if not is_valid_dos_filename(dll):
                 dll = '*invalid*'
 
@@ -3870,7 +3874,7 @@ class PE(object):
                         data = self.get_data(hint_name_table_rva, 2)
                         # Get the Hint
                         imp_hint = self.get_word_from_data(data, 0)
-                        imp_name = self.get_string_at_rva(table[idx].AddressOfData+2)
+                        imp_name = self.get_string_at_rva(table[idx].AddressOfData+2, MAX_IMPORT_NAME_LENGTH)
                         if not is_valid_function_name(imp_name):
                             imp_name = '*invalid*'
 
@@ -4219,7 +4223,7 @@ class PE(object):
         return s.get_offset_from_rva(rva)
 
 
-    def get_string_at_rva(self, rva):
+    def get_string_at_rva(self, rva, max_length=MAX_STRING_LENGTH):
         """Get an ASCII string located at the given address."""
 
         if rva is None:
@@ -4227,9 +4231,8 @@ class PE(object):
 
         s = self.get_section_by_rva(rva)
         if not s:
-            return self.get_string_from_data(0, self.__data__[rva:rva+MAX_STRING_LENGTH])
-
-        return self.get_string_from_data(0, s.get_data(rva, length=MAX_STRING_LENGTH) )
+            return self.get_string_from_data(0, self.__data__[rva:rva+max_length])
+        return self.get_string_from_data(0, s.get_data(rva, length=max_length))
 
 
     def get_string_from_data(self, offset, data):
