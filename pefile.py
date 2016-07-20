@@ -4007,7 +4007,7 @@ class PE(object):
             # to be legitimate data.
             # Seen in PE with SHA256:
             # 5945bb6f0ac879ddf61b1c284f3b8d20c06b228e75ae4f571fa87f5b9512902c
-            if thunk_data.AddressOfData >= start_rva and thunk_data.AddressOfData <= rva:
+            if thunk_data and thunk_data.AddressOfData >= start_rva and thunk_data.AddressOfData <= rva:
                 self.__warnings.append(
                     'Error parsing the import table. '
                     'AddressOfData overlaps with THUNK_DATA for '
