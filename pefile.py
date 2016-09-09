@@ -940,7 +940,7 @@ class Structure(object):
                         except exceptions.ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
                 else:
-                    val = bytes([b for b in val if b != 0])
+                    val = ''.join(filter(lambda c:c != '\0', str(val)))
 
                 dump_dict[key] = {'FileOffset': self.__field_offsets__[key] + self.__file_offset__,
                                   'Offset': self.__field_offsets__[key],
@@ -4849,7 +4849,7 @@ class PE(object):
                                     resource_id_list.append(resource_lang_dict)
                             if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
                                 for idx, res_string in list(resource_id.directory.strings.items()):
-                                    resource_id_list.append(convert_to_printable(res_string))
+                                    resource_id_list.append(res_string)
 
 
         if ( hasattr(self, 'DIRECTORY_ENTRY_TLS') and
