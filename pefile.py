@@ -3460,75 +3460,74 @@ class PE(object):
         max_failed_entries_before_giving_up = 10
 
         section = self.get_section_by_rva(export_dir.AddressOfNames)
-        if not section:
+        if section is not None:
+            safety_boundary = section.VirtualAddress + len(section.get_data()) - export_dir.AddressOfNames
+
+            for i in range( min( export_dir.NumberOfNames, old_div(safety_boundary,4)) ):
+
+                symbol_ordinal = self.get_word_from_data(
+                    address_of_name_ordinals, i)
+
+                if symbol_ordinal is not None and symbol_ordinal*4 < len(address_of_functions):
+                    symbol_address = self.get_dword_from_data(
+                        address_of_functions, symbol_ordinal)
+                else:
+                    # Corrupt? a bad pointer... we assume it's all
+                    # useless, no exports
+                    return None
+
+                if symbol_address is None or symbol_address == 0:
+                    continue
+
+                # If the function's RVA points within the export directory
+                # it will point to a string with the forwarded symbol's string
+                # instead of pointing the the function start address.
+
+                if symbol_address >= rva and symbol_address < rva+size:
+                    forwarder_str = self.get_string_at_rva(symbol_address)
+                    try:
+                        forwarder_offset = self.get_offset_from_rva( symbol_address )
+                    except PEFormatError:
+                        continue
+                else:
+                    if forwarded_only:
+                        continue
+                    forwarder_str = None
+                    forwarder_offset = None
+
+                symbol_name_address = self.get_dword_from_data(address_of_names, i)
+
+                if symbol_name_address is None:
+                    max_failed_entries_before_giving_up -= 1
+                    if max_failed_entries_before_giving_up <= 0:
+                        break
+
+                symbol_name = self.get_string_at_rva( symbol_name_address )
+                if not is_valid_function_name(symbol_name):
+                    break
+                try:
+                    symbol_name_offset = self.get_offset_from_rva( symbol_name_address )
+                except PEFormatError:
+                    max_failed_entries_before_giving_up -= 1
+                    if max_failed_entries_before_giving_up <= 0:
+                        break
+                    continue
+
+                exports.append(
+                    ExportData(
+                        pe = self,
+                        ordinal = export_dir.Base+symbol_ordinal,
+                        ordinal_offset = self.get_offset_from_rva( export_dir.AddressOfNameOrdinals + 2*i ),
+                        address = symbol_address,
+                        address_offset = self.get_offset_from_rva( export_dir.AddressOfFunctions + 4*symbol_ordinal ),
+                        name = symbol_name,
+                        name_offset = symbol_name_offset,
+                        forwarder = forwarder_str,
+                        forwarder_offset = forwarder_offset ))
+        else:
             self.__warnings.append(
                 'RVA AddressOfNames in the export directory points to an invalid address: %x' %
                 export_dir.AddressOfNames)
-            return
-        else:
-            safety_boundary = section.VirtualAddress + len(section.get_data()) - export_dir.AddressOfNames
-
-        for i in range( min( export_dir.NumberOfNames, old_div(safety_boundary,4)) ):
-
-            symbol_ordinal = self.get_word_from_data(
-                address_of_name_ordinals, i)
-
-            if symbol_ordinal is not None and symbol_ordinal*4 < len(address_of_functions):
-                symbol_address = self.get_dword_from_data(
-                    address_of_functions, symbol_ordinal)
-            else:
-                # Corrupt? a bad pointer... we assume it's all
-                # useless, no exports
-                return None
-
-            if symbol_address is None or symbol_address == 0:
-                continue
-
-            # If the function's RVA points within the export directory
-            # it will point to a string with the forwarded symbol's string
-            # instead of pointing the the function start address.
-
-            if symbol_address >= rva and symbol_address < rva+size:
-                forwarder_str = self.get_string_at_rva(symbol_address)
-                try:
-                    forwarder_offset = self.get_offset_from_rva( symbol_address )
-                except PEFormatError:
-                    continue
-            else:
-                if forwarded_only:
-                    continue
-                forwarder_str = None
-                forwarder_offset = None
-
-            symbol_name_address = self.get_dword_from_data(address_of_names, i)
-
-            if symbol_name_address is None:
-                max_failed_entries_before_giving_up -= 1
-                if max_failed_entries_before_giving_up <= 0:
-                    break
-
-            symbol_name = self.get_string_at_rva( symbol_name_address )
-            if not is_valid_function_name(symbol_name):
-                break
-            try:
-                symbol_name_offset = self.get_offset_from_rva( symbol_name_address )
-            except PEFormatError:
-                max_failed_entries_before_giving_up -= 1
-                if max_failed_entries_before_giving_up <= 0:
-                    break
-                continue
-
-            exports.append(
-                ExportData(
-                    pe = self,
-                    ordinal = export_dir.Base+symbol_ordinal,
-                    ordinal_offset = self.get_offset_from_rva( export_dir.AddressOfNameOrdinals + 2*i ),
-                    address = symbol_address,
-                    address_offset = self.get_offset_from_rva( export_dir.AddressOfFunctions + 4*symbol_ordinal ),
-                    name = symbol_name,
-                    name_offset = symbol_name_offset,
-                    forwarder = forwarder_str,
-                    forwarder_offset = forwarder_offset ))
 
         ordinals = [exp.ordinal for exp in exports]
 
