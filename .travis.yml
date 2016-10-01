@@ -3,9 +3,7 @@ python:
 - '2.7'
 - '3.5'
 before_install:
-- openssl aes-256-cbc -K $encrypted_5f282b249fcf_key -iv $encrypted_5f282b249fcf_iv
-  -in tests/test_data.tar.bz2.enc -out tests/test_data.tar.bz2 -d
-- tar jxf tests/test_data.tar.bz2 -C tests
+- if test -n "$encrypted_5f282b249fcf_key" && test -n "$encrypted_5f282b249fcf_iv"; then openssl aes-256-cbc -K $encrypted_5f282b249fcf_key -iv $encrypted_5f282b249fcf_iv -in tests/test_data.tar.bz2.enc -out tests/test_data.tar.bz2 -d && tar jxf tests/test_data.tar.bz2 -C tests; fi
 install:
 - pip install -r requirements.txt
 - pip install coveralls
