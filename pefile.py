@@ -38,6 +38,7 @@ __contact__ = 'ero.carrera@gmail.com'
 
 import os
 import struct
+import sys
 import codecs
 import time
 import math
@@ -1388,20 +1389,23 @@ class BoundImportRefData(DataContainer):
 #
 # The filename length is not checked because the DLLs filename
 # can be longer that the 8.3
-if 'lowercase' not in string.__dict__: # Python 3.x
+if sys.version_info >= (3,): # Python 3.x
     allowed_filename = bytes(string.ascii_lowercase + string.ascii_uppercase +
         string.digits + "!#$%&'()-@^_`{}~+,.;=[]", 'ascii') #+
         # ''.join(chr(c) for c in range(128, 256))
 else: # Python 2.x
     allowed_filename = bytes(string.lowercase + string.uppercase + string.digits +
-        b"!#$%&'()-@^_`{}~+,.;=[]" + bytes(range(128, 256)))
+        b"!#$%&'()-@^_`{}~+,.;=[]")
+        # + bytes(range(128, 256)))
+
 
 def is_valid_dos_filename(s):
     if s is None or not isinstance(s, (str, bytes)):
         return False
-    for c in s:
-        # Allow path separators as import names can contain directories.
-        if c not in allowed_filename and c not in b'\\/':
+    # Allow path separators as import names can contain directories.
+    allowed = allowed_filename + b'\\/'
+    for c in set(s):
+        if c not in allowed:
             return False
     return True
 
@@ -1410,16 +1414,18 @@ def is_valid_dos_filename(s):
 # function names. If the symbol's characters don't fall within this charset
 # we will assume the name is invalid
 #
-if 'lowercase' not in string.__dict__: # Python 3.x
+if sys.version_info >= (3,): # Python 3.x
     allowed_function_name = bytes(string.ascii_lowercase + string.ascii_uppercase +
         string.digits + '_?@$()<>', 'ascii')
 else:
     allowed_function_name = bytes(string.lowercase + string.uppercase +
         string.digits + '_?@$()<>')
+
+
 def is_valid_function_name(s):
     if s is None or not isinstance(s, (str, bytes)):
         return False
-    for c in s:
+    for c in set(s):
         if c not in allowed_function_name:
             return False
     return True
@@ -3644,7 +3650,7 @@ class PE(object):
 
             dll = self.get_string_at_rva(import_desc.szName)
             if not is_valid_dos_filename(dll):
-                dll = '*invalid*'
+                dll = b'*invalid*'
 
             if dll:
                 for symbol in import_data:
@@ -4466,23 +4472,22 @@ class PE(object):
                 dump.add_lines(module.struct.dump())
                 dump.add_newline()
                 for symbol in module.imports:
-
+                    dll = module.dll
+                    symbol_name = symbol.name
+                    if isinstance(module.dll, str):
+                        dll = module.dll.encode('utf-8')
+                    if isinstance(symbol.name, str):
+                        symbol_name = symbol.name.encode('utf-8')
                     if symbol.import_by_ordinal is True:
                         if symbol.name is not None:
                             dump.add('{0}.{1} Ordinal[{2}] (Imported by Ordinal)'.format(
-                                     module.dll.decode('utf-8'),
-                                     symbol.name.decode('utf-8'),
+                                     dll.decode('utf-8'),
+                                     symbol_name.decode('utf-8'),
                                      symbol.ordinal))
                         else:
                             dump.add('{0} Ordinal[{1}] (Imported by Ordinal)'.format(
-                                module.dll.decode('utf-8'), symbol.ordinal))
+                                dll.decode('utf-8'), symbol.ordinal))
                     else:
-                        dll = module.dll
-                        symbol_name = symbol.name
-                        if isinstance(module.dll, str):
-                            dll = module.dll.encode('utf-8')
-                        if isinstance(symbol.name, str):
-                            symbol_name = symbol.name.encode('utf-8')
                         dump.add('{0}.{1} Hint[{2:d}]'.format(
                             dll.decode('utf-8'),
                             symbol_name.decode('utf-8'), symbol.hint))
