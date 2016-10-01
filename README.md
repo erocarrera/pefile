@@ -49,6 +49,7 @@ Prompted by the move to GitHub, the need to support Python 3 in addition to reso
   * [Offensive Computing](http://www.offensivecomputing.net/)
   * [Immunity Debugger 1.1](https://www.openrce.org/blog/view/882/Immunity_Debugger_v1.1_Release)
   * [PyInstaller](http://www.pyinstaller.org/)
+  * [Cuckoo](http://docs.cuckoosandbox.org/en/latest/)
 
 ## Additional resources
 
