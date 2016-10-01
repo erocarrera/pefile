@@ -13,6 +13,8 @@ REGRESSION_TESTS_DIR = 'tests/test_files'
 
 class Test_pefile(unittest.TestCase):
 
+    maxDiff = None
+
     def setUp(self):
         self.test_files = self._load_test_files()
 
@@ -54,14 +56,14 @@ class Test_pefile(unittest.TestCase):
                     'Assuming first run and generating...') % (
                     os.path.basename(control_data_filename) ))
                 control_data_f = open( control_data_filename, 'wb')
-                control_data_f.write( pe_file_data.encode('utf-8') )
+                control_data_f.write( pe_file_data.encode('utf-8', 'backslashreplace') )
                 continue
 
             control_data_f = open(control_data_filename, 'rb')
             control_data = control_data_f.read()
             control_data_f.close()
 
-            pe_file_data_hash = sha256(pe_file_data.encode('ascii')).hexdigest()
+            pe_file_data_hash = sha256(pe_file_data.encode('utf-8', 'backslashreplace')).hexdigest()
             control_data_hash = sha256(control_data).hexdigest()
 
             diff_lines_added_count = 0
@@ -72,7 +74,7 @@ class Test_pefile(unittest.TestCase):
                 print('Hash differs for [%s]' % os.path.basename(pe_filename))
 
                 diff = difflib.ndiff(
-                    control_data.decode('ascii').splitlines(), pe_file_data.splitlines())
+                    control_data.decode('utf-8').splitlines(), pe_file_data.splitlines())
 
                 # check the diff
                 for line in diff:
@@ -109,23 +111,23 @@ class Test_pefile(unittest.TestCase):
 
                     # Do the diff again to store it for analysis.
                     diff = difflib.unified_diff(
-                        control_data.decode('ascii').splitlines(), pe_file_data.splitlines())
+                        control_data.decode('utf-8').splitlines(), pe_file_data.splitlines())
                     error_diff_f = open('error_diff.txt', 'ab')
                     error_diff_f.write(
                         b'\n________________________________________\n')
                     error_diff_f.write(
-                        'Errors for file "{0}":\n'.format(pe_filename).encode('ascii'))
+                        'Errors for file "{0}":\n'.format(pe_filename).encode('utf-8', 'backslashreplace'))
                     error_diff_f.write(
-                        '\n'.join([l for l in diff if not l.startswith(' ')]).encode('ascii'))
+                        '\n'.join([l for l in diff if not l.startswith(' ')]).encode('utf-8', 'backslashreplace'))
                     error_diff_f.close()
                     print('Diff saved to: error_diff.txt')
 
             if diff_lines_removed_count == 0:
                 try:
-                    self.assertEqual( control_data.decode('ascii'), pe_file_data )
+                    self.assertEqual( control_data.decode('utf-8'), pe_file_data )
                 except AssertionError:
                     diff = difflib.unified_diff(
-                        control_data.decode('ascii').splitlines(), pe_file_data.splitlines())
+                        control_data.decode('utf-8').splitlines(), pe_file_data.splitlines())
                     raise AssertionError( '\n'.join(diff) )
 
             os.sys.stdout.write('[%d]' % ( len(self.test_files) - idx ))
@@ -209,7 +211,7 @@ class Test_pefile(unittest.TestCase):
 
         # Verify all modifications in the file were the ones we just made
         #
-        self.assertEqual(''.join(differences).encode('ascii'),  str1+str2+str3)
+        self.assertEqual(''.join(differences).encode('utf-8', 'backslashreplace'),  str1+str2+str3)
 
 
     def test_nt_headers_exception(self):

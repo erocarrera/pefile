@@ -569,7 +569,7 @@ def parse_strings(data, counter, l):
         i += 2
         if len_ != 0 and 0 <= len_*2 <= len(data):
             try:
-                l[counter] = bytes(data[i: i + len_ * 2]).decode('utf-16')
+                l[counter] = b(data[i: i + len_ * 2]).decode('utf-16le')
             except UnicodeDecodeError:
                 error_count += 1
                 pass
@@ -611,6 +611,27 @@ def power_of_two(val):
     return val != 0 and (val & (val-1)) == 0
 
 
+# These come from the great article[1] which contains great insights on
+# working with unicode in both Python 2 and 3.
+# [1]: http://python3porting.com/problems.html
+if os.sys.version_info < (3,):
+    def handler(err):
+        start = err.start
+        end = err.end
+        return (u"".join([u"\\x{0:02x}".format(ord(err.object[i])) for i in range(start,end)]),end)
+    import codecs
+    codecs.register_error('backslashreplace_', handler)
+    def b(x):
+        return x
+else:
+    import codecs
+    codecs.register_error('backslashreplace_', codecs.lookup_error('backslashreplace'))
+    def b(x):
+        if isinstance(x, bytes):
+            return x
+        return codecs.cp1252_1_encode(x)[0]
+
+
 FILE_ALIGNEMNT_HARDCODED_VALUE = 0x200
 FileAlignment_Warning = False # We only want to print the warning once
 SectionAlignment_Warning = False # We only want to print the warning once
@@ -634,10 +655,12 @@ class UnicodeStringWrapperPostProcessor(object):
 
     def __str__(self):
         """Return the escaped UTF-8 representation of the string."""
-        if self.string:
-            return self.string
+        return self.decode('utf-8', 'backslashreplace')
 
-        return ''
+    def decode(self, *args):
+        if not self.string:
+            return ''
+        return self.string.decode(*args)
 
     def invalidate(self):
         """Make this instance None, to express it's no known string type."""
@@ -714,7 +737,7 @@ class Dump(object):
 
         The text can be indented with the optional argument 'indent'.
         """
-        self.text.append('{0}{1}'.format(' '*indent, txt))
+        self.text.append(u'{0}{1}'.format(' '*indent, txt))
 
     def add_header(self, txt):
         """Adds a header element."""
@@ -726,7 +749,7 @@ class Dump(object):
 
     def get_text(self):
         """Get the text in its current state."""
-        return ''.join('{0}'.format(b) for b in self.text)
+        return u''.join(u'{0}'.format(b) for b in self.text)
 
 
 STRUCT_SIZEOF_TYPES = {
@@ -828,7 +851,7 @@ class Structure(object):
 
     def __unpack__(self, data):
 
-        data = bytes(data)
+        data = b(data)
 
         if len(data) > self.__format_length__:
             data = data[:self.__format_length__]
@@ -940,7 +963,7 @@ class Structure(object):
                         except exceptions.ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
                 else:
-                    val = bytes([b for b in val if b != 0])
+                    val = b([b for b in val if b != 0])
 
                 dump_dict[key] = {'FileOffset': self.__field_offsets__[key] + self.__file_offset__,
                                   'Offset': self.__field_offsets__[key],
@@ -1389,17 +1412,18 @@ class BoundImportRefData(DataContainer):
 # The filename length is not checked because the DLLs filename
 # can be longer that the 8.3
 if 'lowercase' not in string.__dict__: # Python 3.x
-    allowed_filename = bytes(string.ascii_lowercase + string.ascii_uppercase +
-        string.digits + "!#$%&'()-@^_`{}~+,.;=[]", 'ascii') #+
-        # ''.join(chr(c) for c in range(128, 256))
+    allowed_filename = b(
+        string.ascii_lowercase + string.ascii_uppercase +
+        string.digits + "!#$%&'()-@^_`{}~+,.;=[]")
 else: # Python 2.x
-    allowed_filename = bytes(string.lowercase + string.uppercase + string.digits +
-        b"!#$%&'()-@^_`{}~+,.;=[]" + bytes(range(128, 256)))
+    allowed_filename = b(
+        string.lowercase + string.uppercase + string.digits +
+        b"!#$%&'()-@^_`{}~+,.;=[]" + b(bytes(range(128, 256))))
 
 def is_valid_dos_filename(s):
     if s is None or not isinstance(s, (str, bytes)):
         return False
-    for c in s:
+    for c in b(s):
         # Allow path separators as import names can contain directories.
         if c not in allowed_filename and c not in b'\\/':
             return False
@@ -1411,15 +1435,18 @@ def is_valid_dos_filename(s):
 # we will assume the name is invalid
 #
 if 'lowercase' not in string.__dict__: # Python 3.x
-    allowed_function_name = bytes(string.ascii_lowercase + string.ascii_uppercase +
-        string.digits + '_?@$()<>', 'ascii')
-else:
-    allowed_function_name = bytes(string.lowercase + string.uppercase +
+    allowed_function_name = b(
+        string.ascii_lowercase + string.ascii_uppercase +
         string.digits + '_?@$()<>')
+else:
+    allowed_function_name = b(
+        string.lowercase + string.uppercase +
+        string.digits + b'_?@$()<>')
+
 def is_valid_function_name(s):
     if s is None or not isinstance(s, (str, bytes)):
         return False
-    for c in s:
+    for c in b(s):
         if c not in allowed_function_name:
             return False
     return True
@@ -2188,20 +2215,22 @@ class PE(object):
                                 lengths = st_entry.entries_lengths[key]
 
                                 if len( entry ) > lengths[1]:
-                                    l = entry.decode('unicode-escape').encode('utf-16le')
+                                    l = entry.decode('utf-8').encode('utf-16le')
                                     file_data[offsets[1]:offsets[1]+lengths[1]*2 ] = l[:lengths[1]*2]
                                 else:
-                                    encoded_data = entry.decode('unicode-escape').encode('utf-16le')
+                                    encoded_data = entry.decode('utf-8').encode('utf-16le')
                                     file_data[offsets[1]:offsets[1]+len(encoded_data)] = encoded_data
 
         new_file_data = file_data
-
-        if filename:
-            f = open(filename, 'wb+')
-            f.write(new_file_data)
-            f.close()
-        else:
+        if not filename:
             return new_file_data
+
+        f = open(filename, 'wb+')
+        f.write(new_file_data)
+        f.close()
+        return
+
+
 
 
     def parse_sections(self, offset):
@@ -3127,12 +3156,16 @@ class PE(object):
                 section.SizeOfRawData, section.Misc_VirtualSize)
 
         versioninfo_string = None
+        # These should return 'utf-8' encoded strings to make the latter
+        # comparisons a bit easier.
         try:
             if section_end is None:
-                versioninfo_string = self.get_string_u_at_rva(ustr_offset)
+                versioninfo_string = self.get_string_u_at_rva(
+                    ustr_offset, encoding='utf-8')
             else:
                 versioninfo_string = self.get_string_u_at_rva(
-                    ustr_offset, (section_end - ustr_offset) >> 1)
+                    ustr_offset, (section_end - ustr_offset) >> 1,
+                    encoding='utf-8')
         except PEFormatError as excp:
             self.__warnings.append(
                 'Error parsing the version information, '
@@ -3141,24 +3174,31 @@ class PE(object):
                 ustr_offset ) )
 
 
-        # If the structure does not contain the expected name, it's assumed to be invalid
-        if versioninfo_string is not None and versioninfo_string != b'VS_VERSION_INFO':
+        # If the structure does not contain the expected name, it's assumed to
+        # be invalid
+        if (versioninfo_string is not None and
+            versioninfo_string != b'VS_VERSION_INFO'):
             if isinstance(versioninfo_string, bytes):
-                versioninfo_string = versioninfo_string.decode('utf-8', 'backslashreplace')
+                versioninfo_string = versioninfo_string.decode(
+                    'latin-1', 'backslashreplace')
             else:
                 # In the malware sample with hash
                 # MD5:    1f59fae39652aecb54df03f137c0e8ec
                 # SHA256: 0eac34fb346442853c604e43bdddb3319db285dab67ec5a9c7c43d5ea2882244
-                # versioninfo_string has a value of None here, and therefore throws an exception
-                # when the encode function is called.
+                # versioninfo_string has a value of None here, and therefore
+                # throws an exception when the encode function is called.
                 if versioninfo_string:
-                    versioninfo_string = versioninfo_string.encode('utf-8', 'backslashreplace')
+                    versioninfo_string = versioninfo_string.encode(
+                        'utf-16le', 'backslashreplace')
                 # Adding a default string for the versioninfo_string == None case
                 else:
                     versioninfo_string = 'No VS_VERSION_INFO string'
             if len(versioninfo_string) > 128:
-                versioninfo_string = '{0} ... ({1} bytes, too long to display)'.format(
-                    versioninfo_string[:128], len(versioninfo_string))
+                versioninfo_string = \
+                    '{0} ... ({1} bytes, too long to display)'.format(
+                        versioninfo_string[:128].encode(
+                            'ascii', 'backslashreplace'),
+                        len(versioninfo_string))
             self.__warnings.append('Invalid VS_VERSION_INFO block: {0}'.format(
                 versioninfo_string))
             return
@@ -3644,7 +3684,7 @@ class PE(object):
 
             dll = self.get_string_at_rva(import_desc.szName)
             if not is_valid_dos_filename(dll):
-                dll = '*invalid*'
+                dll = b('*invalid*')
 
             if dll:
                 for symbol in import_data:
@@ -3749,11 +3789,12 @@ class PE(object):
 
                 if not import_data:
                     error_count += 1
+                    # TODO: do not continue here
                     continue
 
             dll = self.get_string_at_rva(import_desc.Name)
             if not is_valid_dos_filename(dll):
-                dll = '*invalid*'
+                dll = b('*invalid*')
 
             if dll:
                 for symbol in import_data:
@@ -3768,13 +3809,14 @@ class PE(object):
                         dll = dll))
 
         if not dllnames_only:
-            suspicious_imports = set([ b'LoadLibrary', b'GetProcAddress' ])
+            suspicious_imports = set([ u'LoadLibrary', u'GetProcAddress' ])
             suspicious_imports_count = 0
             total_symbols = 0
             for imp_dll in import_descs:
                 for symbol in imp_dll.imports:
                     for suspicious_symbol in suspicious_imports:
-                        if symbol and symbol.name and symbol.name.startswith( suspicious_symbol ):
+                        if symbol and symbol.name and symbol.name.startswith(
+                            b(suspicious_symbol)):
                             suspicious_imports_count += 1
                             break
                     total_symbols += 1
@@ -3872,7 +3914,7 @@ class PE(object):
                         imp_hint = self.get_word_from_data(data, 0)
                         imp_name = self.get_string_at_rva(table[idx].AddressOfData+2)
                         if not is_valid_function_name(imp_name):
-                            imp_name = '*invalid*'
+                            imp_name = b('*invalid*')
 
                         name_offset = self.get_offset_from_rva(table[idx].AddressOfData+2)
                     except PEFormatError as e:
@@ -3911,7 +3953,7 @@ class PE(object):
             # Some PEs appear to interleave valid and invalid imports. Instead of
             # aborting the parsing altogether we will simply skip the invalid entries.
             # Although if we see 1000 invalid entries and no legit ones, we abort.
-            if imp_name == '*invalid*':
+            if imp_name == b('*invalid*'):
                 if num_invalid > 1000 and num_invalid == idx:
                     raise PEFormatError('Too many invalid names, aborting parsing.')
                 num_invalid += 1
@@ -4211,7 +4253,7 @@ class PE(object):
             # point to overlay data or otherwise data present
             # but not contained in any section. In those
             # cases the RVA should equal the offset
-            if rva<len(self.__data__):
+            if rva < len(self.__data__):
                 return rva
 
             raise PEFormatError('data at RVA can\'t be fetched. Corrupt header?')
@@ -4231,22 +4273,21 @@ class PE(object):
 
         return self.get_string_from_data(0, s.get_data(rva, length=MAX_STRING_LENGTH) )
 
+    def get_bytes_from_data(self, offset, data):
+        """."""
+        if offset > len(data):
+            return b''
+        return data[offset:]
 
     def get_string_from_data(self, offset, data):
-        """Get an ASCII string from within the data."""
-
-        if offset > len(data):
-            return ''
-
-        s = data[offset:]
-        end = s.find(bytes('\0', 'ascii'))
+        """Get an ASCII string from data."""
+        s = self.get_bytes_from_data(offset, data)
+        end = s.find(b'\0')
         if end >= 0:
-            return s[:end]
-        else:
-            # No null byte found: Return everything
-            return s
+            s = s[:end]
+        return s #.decode('ascii', 'backslashreplace')
 
-    def get_string_u_at_rva(self, rva, max_length = 2**16):
+    def get_string_u_at_rva(self, rva, max_length = 2**16, encoding=None):
         """Get an Unicode string located at the given address."""
 
         try:
@@ -4284,7 +4325,10 @@ class PE(object):
         uchrs = struct.unpack('<{:d}H'.format(null_index), data[:null_index * 2])
         s = u''.join(map(chr, uchrs))
 
-        return s.encode('ascii', 'backslashreplace')
+        if encoding:
+            return b(s.encode(encoding, 'backslashreplace'))
+
+        return b(s.encode('utf-8', 'backslashreplace'))
 
 
     def get_section_by_offset(self, offset):
@@ -4312,14 +4356,13 @@ class PE(object):
         return self.dump_info()
 
 
-    def print_info(self):
+    def print_info(self, encoding='utf-8'):
         """Print all the PE header information in a human readable from."""
-        print(self.dump_info())
+        print(self.dump_info(), encoding=encoding)
 
 
-    def dump_info(self, dump=None):
+    def dump_info(self, dump=None, encoding='ascii'):
         """Dump all the PE header information into human readable string."""
-
 
         if dump is None:
             dump = Dump()
@@ -4420,13 +4463,27 @@ class PE(object):
 
                     if hasattr(entry, 'StringTable'):
                         for st_entry in entry.StringTable:
-                            [dump.add_line('  '+line) for line in st_entry.dump()]
-                            dump.add_line('  LangID: {0}'.format(st_entry.LangID.decode('ascii')))
+                            [dump.add_line(u'  '+line) for line in st_entry.dump()]
+                            dump.add_line(u'  LangID: {0}'.format(
+                                st_entry.LangID.decode(encoding, 'backslashreplace_')))
                             dump.add_newline()
                             for str_entry in sorted(list(st_entry.entries.items())):
-                                dump.add_line( '    {0}: {1}'.format(
-                                    str(str_entry[0], 'utf-8', 'backslashreplace'),
-                                    str(str_entry[1], 'utf-8', 'backslashreplace') ))
+                                # try:
+                                dump.add_line( u'    {0}: {1}'.format(
+                                    str_entry[0].decode(encoding, 'backslashreplace_'),
+                                    str_entry[1].decode(encoding, 'backslashreplace_')))
+                                # except Exception as excp:
+                                #     dump.add_line( u'    {0}: {1}'.format(
+                                #         repr(str_entry[0]),
+                                #         repr(str_entry[1])))
+                                    # print('Encoding:', encoding)
+                                    # print('Failed. Types:', type(str_entry[0]), type(str_entry[1]))
+                                    # print(repr(str_entry[0]))
+                                    # str_entry[0].decode(encoding, 'backslashreplace')
+                                    # print(repr(str_entry[1]))
+                                    # str_entry[1].decode(encoding, 'backslashreplace')
+                                    # raise excp
+
                         dump.add_newline()
 
                     elif hasattr(entry, 'Var'):
@@ -4434,8 +4491,8 @@ class PE(object):
                             if hasattr(var_entry, 'entry'):
                                 [dump.add_line('  '+line) for line in var_entry.dump()]
                                 dump.add_line(
-                                    '    {0}: {1}'.format(
-                                        str(list(var_entry.entry.keys())[0],
+                                    u'    {0}: {1}'.format(
+                                        list(var_entry.entry.keys())[0].decode(
                                             'utf-8', 'backslashreplace'),
                                         list(var_entry.entry.values())[0]))
 
@@ -4445,16 +4502,17 @@ class PE(object):
             dump.add_header('Exported symbols')
             dump.add_lines(self.DIRECTORY_ENTRY_EXPORT.struct.dump())
             dump.add_newline()
-            dump.add_line('%-10s   %-10s  %s' % ('Ordinal', 'RVA', 'Name'))
+            dump.add_line(u'%-10s   %-10s  %s' % ('Ordinal', 'RVA', 'Name'))
             for export in self.DIRECTORY_ENTRY_EXPORT.symbols:
                 if export.address is not None:
-                    name = 'None'
+                    name = b('None')
                     if export.name:
-                        name = export.name.decode('ascii')
-                    dump.add('%-10d 0x%08Xh    %s' % (
-                        export.ordinal, export.address, name))
+                        name = export.name
+                    dump.add(u'%-10d 0x%08Xh    %s' % (
+                        export.ordinal, export.address, name.decode(encoding)))
                     if export.forwarder:
-                        dump.add_line(' forwarder: %s' % export.forwarder.decode('ascii'))
+                        dump.add_line(u' forwarder: {0}'.format(
+                            export.forwarder.decode(encoding)))
                     else:
                         dump.add_newline()
 
@@ -4464,28 +4522,32 @@ class PE(object):
             dump.add_header('Imported symbols')
             for module in self.DIRECTORY_ENTRY_IMPORT:
                 dump.add_lines(module.struct.dump())
+                # dump.add('  Name -> {0}'.format(
+                #     self.get_string_at_rva(module.struct.Name).decode(encoding)))
+                # dump.add_newline()
                 dump.add_newline()
                 for symbol in module.imports:
 
                     if symbol.import_by_ordinal is True:
                         if symbol.name is not None:
                             dump.add('{0}.{1} Ordinal[{2}] (Imported by Ordinal)'.format(
-                                     module.dll.decode('utf-8'),
-                                     symbol.name.decode('utf-8'),
+                                     module.dll.decode(encoding),
+                                     symbol.name.decode(encoding),
                                      symbol.ordinal))
                         else:
                             dump.add('{0} Ordinal[{1}] (Imported by Ordinal)'.format(
-                                module.dll.decode('utf-8'), symbol.ordinal))
+                                module.dll.decode(encoding), symbol.ordinal))
                     else:
-                        dll = module.dll
-                        symbol_name = symbol.name
-                        if isinstance(module.dll, str):
-                            dll = module.dll.encode('utf-8')
-                        if isinstance(symbol.name, str):
-                            symbol_name = symbol.name.encode('utf-8')
+                        # dll = module.dll
+                        # symbol_name = symbol.name
+                        # if isinstance(module.dll, str):
+                        #     dll = module.dll.encode('utf-8')
+                        # if isinstance(symbol.name, str):
+                        #     symbol_name = symbol.name.encode('utf-8')
                         dump.add('{0}.{1} Hint[{2:d}]'.format(
-                            dll.decode('utf-8'),
-                            symbol_name.decode('utf-8'), symbol.hint))
+                            module.dll.decode(encoding),
+                            symbol.name.decode(encoding),
+                            symbol.hint))
 
                     if symbol.bound:
                         dump.add_line(' Bound: 0x{0:08X}'.format(symbol.bound))
@@ -4499,13 +4561,14 @@ class PE(object):
             for bound_imp_desc in self.DIRECTORY_ENTRY_BOUND_IMPORT:
 
                 dump.add_lines(bound_imp_desc.struct.dump())
-                dump.add_line('DLL: {0}'.format(bound_imp_desc.name.decode('utf-8', 'backslashreplace')))
+                dump.add_line('DLL: {0}'.format(
+                    bound_imp_desc.name.decode(encoding)))
                 dump.add_newline()
 
                 for bound_imp_ref in bound_imp_desc.entries:
                     dump.add_lines(bound_imp_ref.struct.dump(), 4)
                     dump.add_line('DLL: {0}'.format(
-                        bound_imp_ref.name.decode('utf-8', 'backslashreplace')), 4)
+                        bound_imp_ref.name.decode(encoding)), 4)
                     dump.add_newline()
 
 
@@ -4519,10 +4582,12 @@ class PE(object):
                 for symbol in module.imports:
                     if symbol.import_by_ordinal is True:
                         dump.add('{0} Ordinal[{1:d}] (Imported by Ordinal)'.format(
-                            module.dll.decode('utf-8'), symbol.ordinal))
+                            module.dll.decode(encoding),
+                            symbol.ordinal))
                     else:
                         dump.add('{0}.{1} Hint[{2}]'.format(
-                            module.dll.decode('utf-8'), symbol.name.decode('utf-8'), symbol.hint))
+                            module.dll.decode(encoding),
+                            symbol.name.decode(encoding), symbol.hint))
 
                     if symbol.bound:
                         dump.add_line(' Bound: 0x{0:08X}'.format(symbol.bound))
@@ -4539,10 +4604,12 @@ class PE(object):
             for resource_type in self.DIRECTORY_ENTRY_RESOURCE.entries:
 
                 if resource_type.name is not None:
-                    name = resource_type.name.string if resource_type.name.string else ''
-                    dump.add_line('Name: [{0}]'.format(name.decode('ascii')), 2)
+                    # name = str(resource_type.name) #.string if resource_type.name.string else ''
+                    dump.add_line(u'Name: [{0}]'.format(
+                        resource_type.name.decode(encoding, 'backslashreplace')
+                        ), 2)
                 else:
-                    dump.add_line('Id: [0x{0:X}] ({1})'.format(
+                    dump.add_line(u'Id: [0x{0:X}] ({1})'.format(
                         resource_type.struct.Id, RESOURCE_TYPE.get(
                             resource_type.struct.Id, '-')),
                         2)
@@ -4556,10 +4623,9 @@ class PE(object):
                     for resource_id in resource_type.directory.entries:
 
                         if resource_id.name is not None:
-                            name = resource_id.name.string if resource_id.name.string else ''
-                            if isinstance(name, str):
-                                name = name.encode('ascii')
-                            dump.add_line('Name: [{0}]'.format(name.decode('ascii')), 6)
+                            dump.add_line(u'Name: [{0}]'.format(
+                                resource_id.name.decode(
+                                    'utf-8', 'backslashreplace')), 6)
                         else:
                             dump.add_line('Id: [0x{0:X}]'.format(resource_id.struct.Id), 6)
 
@@ -4570,7 +4636,7 @@ class PE(object):
 
                             for resource_lang in resource_id.directory.entries:
                                 if hasattr(resource_lang, 'data'):
-                                    dump.add_line('\\--- LANG [%d,%d][%s,%s]' % (
+                                    dump.add_line(u'\\--- LANG [%d,%d][%s,%s]' % (
                                         resource_lang.data.lang,
                                         resource_lang.data.sublang,
                                         LANG.get(resource_lang.data.lang, '*unknown*'),
@@ -4578,11 +4644,13 @@ class PE(object):
                                     dump.add_lines(resource_lang.struct.dump(), 10)
                                     dump.add_lines(resource_lang.data.struct.dump(), 12)
                             if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
-                                dump.add_line( '[STRINGS]' , 10 )
+                                dump.add_line(u'[STRINGS]' , 10 )
                                 for idx, res_string in list(resource_id.directory.strings.items()):
                                     dump.add_line( '{0:6d}: {1}'.format(idx,
-                                        res_string.encode('unicode-escape', 'backslashreplace').decode(
-                                            'ascii')),
+                                        res_string.encode(
+                                            'unicode-escape',
+                                            'backslashreplace').decode(
+                                                'ascii')),
                                         12)
 
                 dump.add_newline()
@@ -5226,6 +5294,13 @@ class PE(object):
         # assigning values to header fields as those are not automatically
         # updated upon assignment.
         #
+        # data = self.write()
+        # print('{0}'.format(len(data)))
+        # for idx, b in enumerate(data):
+        #     if b != ord(self.__data__[idx]) or (idx > 1244440 and idx < 1244460):
+        #         print('Idx: {0} G {1:02x} {3} B {2:02x}'.format(
+        #             idx, ord(self.__data__[idx]), b,
+        #             self.__data__[idx], chr(b)))
         self.__data__ = self.write()
 
         # Get the offset to the CheckSum field in the OptionalHeader
