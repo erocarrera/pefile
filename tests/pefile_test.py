@@ -1,15 +1,37 @@
 # -*- coding: utf-8 -*-
 from __future__ import print_function
-from builtins import range
 
-import os
 import difflib
 from hashlib import sha256
+import os
+import sys
 import unittest
 
 import pefile
 
 REGRESSION_TESTS_DIR = 'tests/test_files'
+
+
+def skipUnlessHasTestFile(path_segments):
+  """Decorator to skip a test if the test file does not exist.
+
+  Args:
+    path_segments (list[str]): path segments inside the test data directory.
+
+  Returns:
+    function: to invoke.
+  """
+  path = os.path.join(u'test_data', *path_segments)
+  if os.path.exists(path):
+    return lambda function: function
+
+  if sys.version_info[0] < 3:
+    path = path.encode(u'utf-8')
+
+  # Note that the message should be of type str which is different for
+  # different versions of Python.
+  return unittest.skip('missing test file: {0:s}'.format(path))
+
 
 class Test_pefile(unittest.TestCase):
 
@@ -132,6 +154,7 @@ class Test_pefile(unittest.TestCase):
             os.sys.stdout.flush()
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'MSVBVM60.DLL'])
     def test_selective_loading_integrity(self):
         """Verify integrity of loading the separate elements of the file as
         opposed to do a single pass.
@@ -149,6 +172,10 @@ class Test_pefile(unittest.TestCase):
         self.assertEqual(pe_full.dump_info(), pe.dump_info())
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'mfc40.dll'])
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'kernel32.dll'])
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, '66c74e4c9dbd1d33b22f63cd0318b72dea88f9dbb4d36a3383d3da20b037d42e'])
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, '64bit_Binaries', 'cmd.exe'])
     def test_imphash(self):
         """Test imphash values."""
 
@@ -175,6 +202,7 @@ class Test_pefile(unittest.TestCase):
             'd0058544e4588b1b2290b7f4d830eb0a')
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'MSVBVM60.DLL'])
     def test_write_header_fields(self):
         """Verify correct field data modification."""
 
@@ -212,6 +240,7 @@ class Test_pefile(unittest.TestCase):
         self.assertEqual(''.join(differences).encode('ascii'),  str1+str2+str3)
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'MSVBVM60.DLL'])
     def test_nt_headers_exception(self):
         """pefile should fail parsing invalid data (missing NT headers)"""
 
@@ -252,6 +281,7 @@ class Test_pefile(unittest.TestCase):
         self.assertRaises( pefile.PEFormatError, pefile.PE, data=data )
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'empty_file'])
     def test_empty_file_exception(self):
         """pefile should fail parsing empty files."""
 
@@ -260,6 +290,7 @@ class Test_pefile(unittest.TestCase):
         self.assertRaises( pefile.PEFormatError, pefile.PE, control_file )
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'MSVBVM60.DLL'])
     def test_relocated_memory_mapped_image(self):
         """Test different rebasing methods produce the same image"""
 
@@ -292,6 +323,7 @@ class Test_pefile(unittest.TestCase):
 
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, '924C62EF97E0B4939E9047B866037BB5BDDA92F9DA6D22F5DEEFC540856CDC0D.bin__aleph_overlapping_sections'])
     def test_entry_point_retrieval_with_overlapping_sections(self):
         # Versions up to and including 114 would not handle overlapping
         # sections correctly. A section size could push the end address
@@ -317,6 +349,7 @@ class Test_pefile(unittest.TestCase):
         self.assertEqual( entry_point_data, good_ep_data )
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'BackDoor.Poison.ex_bad_section_and_file_aligments_broke_pefile_1.2.10-93'])
     def test_entry_point_retrieval_with_unusual_aligments(self):
         # Fixed a bug in pefile <= 1.2.10-93. Fixed in revision 94
         # http://code.google.com/p/pefile/source/detail?r=94
@@ -344,6 +377,7 @@ class Test_pefile(unittest.TestCase):
             self.assertEqual([ord(i) for i in entry_point_data], good_ep_data)
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'unconventional_PointerToRawData_values'])
     def test_entry_point_retrieval_with_unusual_PointerToRawData_values(self):
         # Fixed a bug in pefile <= 1.2.10-106. Fixed in revision 107
         # http://code.google.com/p/pefile/source/detail?r=107
@@ -369,6 +403,7 @@ class Test_pefile(unittest.TestCase):
             self.assertEqual([ord(i) for i in entry_point_data], good_ep_data)
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, '031.vxe_pefile_1.2.10-95_dword_alignment_was_not_ok_for_VS_VERSIONINFO'])
     def test_VS_VERSIONINFO_dword_aligment(self):
         # Fixed a bug in pefile < 1.2.10-96. Fixed in revision 96:
         # http://code.google.com/p/pefile/source/detail?r=96
@@ -388,6 +423,9 @@ class Test_pefile(unittest.TestCase):
                 vs_fixedfileinfo_signature, good_vs_fixedfileinfo_signature)
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, '0x90_with_overlay_data.exe'])
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, '0x90.exe'])
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'sectionless.exe_corkami_issue_51'])
     def test_get_overlay_and_trimming(self):
         """Test method to retrieve overlay data and trim the PE"""
 
@@ -424,6 +462,7 @@ class Test_pefile(unittest.TestCase):
         # Ensure the overlay data is correct (should not be any in this case).
         self.assertEqual( pe.get_overlay(), None )
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'fake_PE_no_read_permissions_issue_53'])
     def test_unable_to_read_file(self):
         """Attempting to open a file without read permission for the user
         should result in and error message.
@@ -434,6 +473,7 @@ class Test_pefile(unittest.TestCase):
         self.assertRaises( Exception, pefile.PE, control_file_pe )
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, '075356de51afac92d1c20ba53c966fa145172897a96cfdb1b3bb369edb376a77_driver'])
     def test_driver_check(self):
         """Test the is_driver check"""
 
@@ -448,6 +488,8 @@ class Test_pefile(unittest.TestCase):
         self.assertEqual( pe_fast.is_driver(), pe_full.is_driver() )
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'pefile_unittest_data__resurrel_malware_rebased_0x400000'])
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'e05916.ex_'])
     def test_rebased_image(self):
         """Test correctness of rebased images"""
 
@@ -467,6 +509,11 @@ class Test_pefile(unittest.TestCase):
         self.assertEqual( rebased_data, control_file_data )
 
 
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'MSVBVM60.DLL'])
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'checksum', '0031709440C539B47E34B524AF3900248DD35274_bad_checksum'])
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'checksum', '009763E904C053C1803B26EC0D817AF497DA1BB2_bad_checksum'])
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'checksum', '00499E3A70A324160A3FE935F10BFB699ACB0954'])
+    @skipUnlessHasTestFile([REGRESSION_TESTS_DIR, 'checksum', '0011FEECD53D06A6C68C531E0DA7A61C692E76BF'])
     def test_checksum(self):
         """Verify correct calculation of checksum"""
 

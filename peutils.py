@@ -10,16 +10,12 @@ For detailed copyright information see the file COPYING in
 the root of the distribution archive.
 """
 from __future__ import division
-from future import standard_library
-standard_library.install_aliases()
-from builtins import range
-from past.utils import old_div
-from builtins import object
 
 import os
 import re
 import string
 import urllib.request, urllib.parse, urllib.error
+
 import pefile
 
 __author__ = 'Ero Carrera'
@@ -578,7 +574,7 @@ def is_probably_packed( pe ):
         if s_entropy > 7.4:
             total_compressed_data += s_length
 
-    if (old_div((1.0 * total_compressed_data),total_pe_data_length)) > .2:
+    if ((1.0 * total_compressed_data) / total_pe_data_length) > 0.2:
         has_significant_amount_of_compressed_data = True
 
     return has_significant_amount_of_compressed_data
