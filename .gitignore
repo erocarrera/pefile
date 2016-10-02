@@ -1,5 +1,10 @@
 # Files to ignore by git.
 
+.gitignore
+*.bak
+.coverage
+tests/test_files/*
+
 # Back-up files
 *~
 *.swp
