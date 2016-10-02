@@ -4157,7 +4157,7 @@ class PE(object):
 
         s = self.get_section_by_rva(rva)
 
-        if length is not None:
+        if length:
             end = rva + length
         else:
             end = None
@@ -4277,10 +4277,7 @@ class PE(object):
             if null_index == -1:
                 data_length = len(data)
                 if data_length < requested or data_length == max_length:
-                    null_index = data_length >> 1
-                    break
-                elif data_length < max_length:
-                    null_index = max_length >> 1
+                    null_index = len(data) >> 1
                     break
                 else:
                     # Request remaining part of data limited by max_length
@@ -4289,7 +4286,7 @@ class PE(object):
                     requested = max_length
 
             elif null_index % 2 == 0:
-                null_index = min(null_index, max_length) >> 1
+                null_index >>= 1
                 break
 
         # convert selected part of the string to unicode
