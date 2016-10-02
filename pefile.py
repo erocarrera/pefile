@@ -23,6 +23,14 @@ distribution archive.
 
 from __future__ import division
 from __future__ import print_function
+from past.builtins import cmp, long
+from builtins import bytes
+from builtins import chr
+from builtins import object
+from builtins import range
+from builtins import str
+from builtins import zip
+from past.utils import old_div
 
 __author__ = 'Ero Carrera'
 __version__ = '2016.3.28'
@@ -1129,7 +1137,7 @@ class SectionStructure(Structure):
         entropy = 0
         for x in occurences:
             if x:
-                p_x = float(x) / len(data)
+                p_x = old_div(float(x), len(data))
                 entropy -= p_x*math.log(p_x, 2)
 
         return entropy
@@ -2110,8 +2118,7 @@ class PE(object):
         result ["values"] = headervalues
 
         data = data[4:]
-        number_of_words, _ = divmod(len(data), 2)
-        for i in range(number_of_words):
+        for i in range(old_div(len(data), 2)):
 
             # Stop until the Rich footer signature is found
             #
@@ -2452,10 +2459,8 @@ class PE(object):
 
             forwarder_refs = []
             # 8 is the size of __IMAGE_BOUND_IMPORT_DESCRIPTOR_format__
-            number_of_refs, _ = divmod(safety_boundary, 8)
-            number_of_refs = min(
-                bnd_descr.NumberOfModuleForwarderRefs, number_of_refs)
-            for idx in range(number_of_refs):
+            for idx in range(min(bnd_descr.NumberOfModuleForwarderRefs,
+                                 old_div(safety_boundary,8))):
                 # Both structures IMAGE_BOUND_IMPORT_DESCRIPTOR and
                 # IMAGE_BOUND_FORWARDER_REF have the same size.
                 bnd_frwd_ref = self.__unpack_data__(
@@ -2632,8 +2637,7 @@ class PE(object):
 
         entries = []
         offsets_and_type = []
-        number_of_words, _ = divmod(len(data), 2)
-        for idx in range(number_of_words):
+        for idx in range( old_div(len(data), 2) ):
 
             entry = self.__unpack_data__(
                 self.__IMAGE_BASE_RELOCATION_ENTRY_format__,
@@ -2672,8 +2676,7 @@ class PE(object):
         dbg_size = Structure(self.__IMAGE_DEBUG_DIRECTORY_format__).sizeof()
 
         debug = []
-        number_of_debug_entries, _ = divmod(size, dbg_size)
-        for idx in range(number_of_debug_entries):
+        for idx in range(old_div(size,dbg_size)):
             try:
                 data = self.get_data(rva+dbg_size*idx, dbg_size)
             except PEFormatError as e:
@@ -3479,9 +3482,7 @@ class PE(object):
         else:
             safety_boundary = section.VirtualAddress + len(section.get_data()) - export_dir.AddressOfNames
 
-        number_of_names, _ = divmod(safety_boundary, 4)
-        number_of_names = min(export_dir.NumberOfNames, number_of_names)
-        for i in range(number_of_names):
+        for i in range( min( export_dir.NumberOfNames, old_div(safety_boundary,4)) ):
 
             symbol_ordinal = self.get_word_from_data(
                 address_of_name_ordinals, i)
@@ -3558,9 +3559,7 @@ class PE(object):
 
         safety_boundary = section.VirtualAddress + len(section.get_data()) - export_dir.AddressOfFunctions
 
-        number_of_functions, _ = divmod(safety_boundary, 4)
-        number_of_functions = min(export_dir.NumberOfFunctions, number_of_functions)
-        for idx in range(number_of_functions):
+        for idx in range( min(export_dir.NumberOfFunctions, old_div(safety_boundary,4)) ):
 
             if not idx+export_dir.Base in ordinals:
                 try:
@@ -5251,14 +5250,11 @@ class PE(object):
         remainder = len(self.__data__) % 4
         data_len = len(self.__data__) + ((4-remainder) * ( remainder != 0 ))
 
-        number_of_dwords, _ = divmod(data_len, 4)
-        checksum_dword_index, _ = divmod(checksum_offset, 4)
-        for i in range(number_of_dwords):
+        for i in range( old_div(data_len, 4) ):
             # Skip the checksum field
-            if i == checksum_dword_index:
+            if i == old_div(checksum_offset, 4):
                 continue
-
-            if i+1 == number_of_dwords and remainder:
+            if i+1 == (old_div(data_len, 4)) and remainder:
                 dword = struct.unpack('I', self.__data__[i*4:]+ ('\0' * (4-remainder)) )[0]
             else:
                 dword = struct.unpack('I', self.__data__[ i*4 : i*4+4 ])[0]
@@ -5421,9 +5417,7 @@ class PE(object):
 
         if file_alignment < FILE_ALIGNEMNT_HARDCODED_VALUE:
             return val
-
-        val, _ = divmod(val, 0x200)
-        return val * 0x200
+        return (old_div(val, 0x200)) * 0x200
 
 
     # According to the document:
@@ -5451,8 +5445,7 @@ class PE(object):
         #    section_alignment = 0x80
 
         if section_alignment and val % section_alignment:
-            number_of_sections, _ = divmod(val, section_alignment)
-            return section_alignment * number_of_sections
+            return section_alignment * ( old_div(val, section_alignment) )
         return val
 
 
