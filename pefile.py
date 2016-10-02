@@ -5312,7 +5312,7 @@ class PE(object):
                 dword = struct.unpack('I', self.__data__[ i*4 : i*4+4 ])[0]
             # Optimized the calculation (thanks to Emmanuel Bourg for pointing it out!)
             checksum += dword
-            if checksum > 2**32:
+            if checksum >= 2**32:
                 checksum = (checksum & 0xffffffff) + (checksum >> 32)
 
         checksum = (checksum & 0xffff) + (checksum >> 16)
