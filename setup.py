@@ -95,4 +95,7 @@ setup(name = 'pefile',
     cmdclass={"test": TestCommand},
     py_modules = ['pefile', 'peutils'],
     packages = ['ordlookup'],
+    install_requires=[
+          'future',
+    ],
 )
