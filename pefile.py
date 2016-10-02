@@ -630,7 +630,7 @@ else:
     def b(x):
         if isinstance(x, bytes):
             return x
-        return codecs.cp1252_1_encode(x)[0]
+        return codecs.encode(x, 'cp1252')
 
 
 FILE_ALIGNEMNT_HARDCODED_VALUE = 0x200
@@ -4534,12 +4534,12 @@ class PE(object):
                     if symbol.import_by_ordinal is True:
                         if symbol.name is not None:
                             dump.add('{0}.{1} Ordinal[{2}] (Imported by Ordinal)'.format(
-                                     dll.decode('utf-8'),
-                                     symbol_name.decode('utf-8'),
+                                     module.dll.decode('utf-8'),
+                                     symbol.name.decode('utf-8'),
                                      symbol.ordinal))
                         else:
                             dump.add('{0} Ordinal[{1}] (Imported by Ordinal)'.format(
-                                dll.decode('utf-8'), symbol.ordinal))
+                                module.dll.decode('utf-8'), symbol.ordinal))
                     else:
                         dump.add('{0}.{1} Hint[{2:d}]'.format(
                             module.dll.decode(encoding),
