@@ -5388,6 +5388,11 @@ class PE(object):
             self.parse_data_directories(directories=[
                 DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT']])
 
+        # If there's still no import directory (the PE doesn't have one or it's
+        # malformed), give up.
+        if not hasattr(self, 'DIRECTORY_ENTRY_IMPORT'):
+            return False
+
         # self.DIRECTORY_ENTRY_IMPORT will now exist, although it may be empty.
         # If it imports from "ntoskrnl.exe" or other kernel components it should
         # be a driver
