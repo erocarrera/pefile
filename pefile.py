@@ -3163,53 +3163,41 @@ class PE(object):
                 section.SizeOfRawData, section.Misc_VirtualSize)
 
         versioninfo_string = None
-        # These should return 'utf-8' encoded strings to make the latter
-        # comparisons a bit easier.
+        # These should return 'ascii' decoded data. For the case when it's
+        # garbled data the ascii string will retain the byte values while
+        # encoding it to something else may yield values that don't match the
+        # file's contents.
         try:
             if section_end is None:
                 versioninfo_string = self.get_string_u_at_rva(
-                    ustr_offset, encoding='utf-8')
+                    ustr_offset, encoding='ascii')
             else:
                 versioninfo_string = self.get_string_u_at_rva(
                     ustr_offset, (section_end - ustr_offset) >> 1,
-                    encoding='utf-8')
+                    encoding='ascii')
         except PEFormatError as excp:
             self.__warnings.append(
                 'Error parsing the version information, '
                 'attempting to read VS_VERSION_INFO string. Can\'t '
                 'read unicode string at offset 0x%x' % (
-                ustr_offset ) )
+                ustr_offset))
 
 
         # If the structure does not contain the expected name, it's assumed to
         # be invalid
         if (versioninfo_string is not None and
             versioninfo_string != b'VS_VERSION_INFO'):
-            if isinstance(versioninfo_string, bytes):
-                versioninfo_string = versioninfo_string.decode(
-                    'latin-1', 'backslashreplace')
-            else:
-                # In the malware sample with hash
-                # MD5:    1f59fae39652aecb54df03f137c0e8ec
-                # SHA256: 0eac34fb346442853c604e43bdddb3319db285dab67ec5a9c7c43d5ea2882244
-                # versioninfo_string has a value of None here, and therefore
-                # throws an exception when the encode function is called.
-                if versioninfo_string:
-                    versioninfo_string = versioninfo_string.encode(
-                        'utf-16le', 'backslashreplace')
-                # Adding a default string for the versioninfo_string == None case
-                else:
-                    versioninfo_string = 'No VS_VERSION_INFO string'
             if len(versioninfo_string) > 128:
+                excerpt = versioninfo_string[:128].decode('ascii')
+                # Don't leave any half-escaped characters
+                excerpt = excerpt[:excerpt.rfind('\\u')]
                 versioninfo_string = \
-                    '{0} ... ({1} bytes, too long to display)'.format(
-                        versioninfo_string[:128].encode(
-                            'ascii', 'backslashreplace'),
-                        len(versioninfo_string))
+                    b('{0} ... ({1} bytes, too long to display)'.format(
+                        excerpt,
+                        len(versioninfo_string)))
             self.__warnings.append('Invalid VS_VERSION_INFO block: {0}'.format(
-                versioninfo_string))
+                versioninfo_string.decode('ascii').replace('\00', '\\00')))
             return
-
 
         # Set the PE object's VS_VERSIONINFO to this one
         self.VS_VERSIONINFO = versioninfo_struct
@@ -4528,10 +4516,11 @@ class PE(object):
             dump.add_header('Imported symbols')
             for module in self.DIRECTORY_ENTRY_IMPORT:
                 dump.add_lines(module.struct.dump())
-                # TODO(ero): uncomment once everything else is fixed
-                # dump.add('  Name -> {0}'.format(
-                #     self.get_string_at_rva(module.struct.Name).decode(encoding)))
-                # dump.add_newline()
+                # Print the name of the DLL if there are no imports.
+                if not module.imports:
+                    dump.add('  Name -> {0}'.format(
+                        self.get_string_at_rva(module.struct.Name).decode(encoding)))
+                    dump.add_newline()
                 dump.add_newline()
                 for symbol in module.imports:
                     if symbol.import_by_ordinal is True:
