@@ -4141,7 +4141,7 @@ class PE(object):
             padding_length = VirtualAddress_adj - len(mapped_data)
 
             if padding_length>0:
-                mapped_data += '\0'*padding_length
+                mapped_data += b'\0'*padding_length
             elif padding_length<0:
                 mapped_data = mapped_data[:padding_length]
 
