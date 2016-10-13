@@ -637,8 +637,8 @@ else:
     import codecs
     codecs.register_error('backslashreplace_', codecs.lookup_error('backslashreplace'))
     def b(x):
-        if isinstance(x, bytes):
-            return x
+        if isinstance(x, (bytes, bytearray)):
+            return bytes(x)
         return codecs.encode(x, 'cp1252')
 
 
