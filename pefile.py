@@ -5311,7 +5311,7 @@ class PE(object):
             if i == old_div(checksum_offset, 4):
                 continue
             if i+1 == (old_div(data_len, 4)) and remainder:
-                dword = struct.unpack('I', self.__data__[i*4:]+ ('\0' * (4-remainder)) )[0]
+                dword = struct.unpack('I', self.__data__[i*4:]+ (b'\0' * (4-remainder)) )[0]
             else:
                 dword = struct.unpack('I', self.__data__[ i*4 : i*4+4 ])[0]
             # Optimized the calculation (thanks to Emmanuel Bourg for pointing it out!)
