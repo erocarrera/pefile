@@ -932,7 +932,7 @@ class Structure(object):
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
                             val_str += ' [%s UTC]' % time.asctime(time.gmtime(val))
-                        except exceptions.ValueError as e:
+                        except ValueError as e:
                             val_str += ' [INVALID TIME]'
                 else:
                     val_str = bytearray(val)
@@ -963,7 +963,7 @@ class Structure(object):
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
                             val = '0x%-8X [%s UTC]' % (val, time.asctime(time.gmtime(val)))
-                        except exceptions.ValueError as e:
+                        except ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
                 else:
                     val = b([b for b in val if b != 0])
