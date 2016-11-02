@@ -566,6 +566,28 @@ def get_sublang_name_for_lang( lang_value, sublang_value ):
     return SUBLANG.get(sublang_value, ['*unknown*'])[0]
 
 
+def convert_to_printable(s):
+    """Convert string to printable string.
+    @param s: string.
+    @return: sanitized string.
+    """
+    printable = True
+    for c in s:
+        if c not in string.printable:
+            printable = False
+            break
+    if printable:
+        return s
+    else:
+        new_string = ''
+        for c in s:
+            if c in string.printable:
+                new_string += c
+            else:
+                new_string += "\\x%02x" % ord(c)
+        return new_string
+
+
 # Ange Albertini's code to process resources' strings
 #
 def parse_strings(data, counter, l):
