@@ -959,7 +959,7 @@ class Structure(object):
             for key in keys:
 
                 val = getattr(self, key)
-                if isinstance(val, int) or isinstance(val, int):
+                if isinstance(val, (int, long)):
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
                             val = '0x%-8X [%s UTC]' % (val, time.asctime(time.gmtime(val)))
@@ -1806,6 +1806,19 @@ class PE(object):
         elif data:
             self.__data__ = data
             self.__from_file = False
+
+        for byte, byte_count in Counter(bytearray(self.__data__)).items():
+            # Only report the cases where a byte makes up for more than 50% (if
+            # zero) or 15% (if non-zero) of the file's contents. There are
+            # legitimate PEs where 0x00 bytes are close to 50% of the whole
+            # file's contents.
+            if (byte == 0 and 1.0 * byte_count / len(self.__data__) > 0.5) or (
+                byte != 0 and 1.0 * byte_count / len(self.__data__) > 0.15):
+                self.__warnings.append(
+                    ("Byte 0x{0:02x} makes up {1:.4f}% of the file's contents."
+                    " This may indicate truncation / malformation.").format(
+                        byte, 100.0 * byte_count / len(self.__data__)))
+
 
         dos_header_data = self.__data__[:64]
         if len(dos_header_data) != 64:
@@ -3739,7 +3752,8 @@ class PE(object):
             try:
                 # If the RVA is invalid all would blow up. Some EXEs seem to be
                 # specially nasty and have an invalid RVA.
-                data = self.get_data(rva, Structure(self.__IMAGE_IMPORT_DESCRIPTOR_format__).sizeof() )
+                data = self.get_data(rva, Structure(
+                        self.__IMAGE_IMPORT_DESCRIPTOR_format__).sizeof() )
             except PEFormatError as e:
                 self.__warnings.append(
                     'Error parsing the import directory at RVA: 0x%x' % ( rva ) )
