@@ -1750,6 +1750,7 @@ class PE(object):
             ((isinstance(mmap.mmap, type) and isinstance(self.__data__, mmap.mmap)) or
            'mmap.mmap' in repr(type(self.__data__))) ):
                 self.__data__.close()
+                del self.__data__
 
 
     def __unpack_data__(self, format, data, file_offset):
