@@ -2125,7 +2125,7 @@ class PE(object):
         RICH = 0x68636952 # 'Rich' as dword
 
         rich_index = self.__data__.find(
-            'Rich', 0x80, self.OPTIONAL_HEADER.struct.offset)
+            b'Rich', 0x80, self.OPTIONAL_HEADER.get_file_offset())
         if rich_index == -1:
             return None
 
@@ -5316,7 +5316,7 @@ class PE(object):
 
         # Get the offset to the CheckSum field in the OptionalHeader
         # (The offset is the same in PE32 and PE32+)
-        checksum_offset = self.OPTIONAL_HEADER.__file_offset__ + 0x40 # 64
+        checksum_offset = self.OPTIONAL_HEADER.get_file_offset() + 0x40 # 64
 
         checksum = 0
         # Verify the data is dword-aligned. Add padding if needed
