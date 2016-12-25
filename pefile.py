@@ -2135,9 +2135,10 @@ class PE(object):
             # The end of the structure is 8 bytes after the start of the Rich
             # string.
             rich_data = self.get_data(0x80, rich_index + 8)
-            if len(rich_data) != 0x80:
+            data = list(struct.unpack(
+                    '<{0}I'.format(int(len(rich_data)/4)), rich_data))
+            if b'RICH' not in data:
                 return None
-            data = list(struct.unpack("<32I", rich_data))
         except PEFormatError:
             return None
 
