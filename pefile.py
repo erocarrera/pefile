@@ -981,7 +981,7 @@ class Structure(object):
             for key in keys:
 
                 val = getattr(self, key)
-                if isinstance(val, int) or isinstance(val, int):
+                if isinstance(val, (int, long)):
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
                             val = '0x%-8X [%s UTC]' % (val, time.asctime(time.gmtime(val)))
@@ -1772,6 +1772,7 @@ class PE(object):
             ((isinstance(mmap.mmap, type) and isinstance(self.__data__, mmap.mmap)) or
            'mmap.mmap' in repr(type(self.__data__))) ):
                 self.__data__.close()
+                del self.__data__
 
 
     def __unpack_data__(self, format, data, file_offset):
@@ -1828,6 +1829,19 @@ class PE(object):
         elif data:
             self.__data__ = data
             self.__from_file = False
+
+        for byte, byte_count in Counter(bytearray(self.__data__)).items():
+            # Only report the cases where a byte makes up for more than 50% (if
+            # zero) or 15% (if non-zero) of the file's contents. There are
+            # legitimate PEs where 0x00 bytes are close to 50% of the whole
+            # file's contents.
+            if (byte == 0 and 1.0 * byte_count / len(self.__data__) > 0.5) or (
+                byte != 0 and 1.0 * byte_count / len(self.__data__) > 0.15):
+                self.__warnings.append(
+                    ("Byte 0x{0:02x} makes up {1:.4f}% of the file's contents."
+                    " This may indicate truncation / malformation.").format(
+                        byte, 100.0 * byte_count / len(self.__data__)))
+
 
         dos_header_data = self.__data__[:64]
         if len(dos_header_data) != 64:
@@ -2133,12 +2147,20 @@ class PE(object):
         DANS = 0x536E6144 # 'DanS' as dword
         RICH = 0x68636952 # 'Rich' as dword
 
+        rich_index = self.__data__.find(
+            b'Rich', 0x80, self.OPTIONAL_HEADER.get_file_offset())
+        if rich_index == -1:
+            return None
+
         # Read a block of data
         try:
-            rich_data = self.get_data(0x80, 0x80)
-            if len(rich_data) != 0x80:
+            # The end of the structure is 8 bytes after the start of the Rich
+            # string.
+            rich_data = self.get_data(0x80, rich_index + 8)
+            data = list(struct.unpack(
+                    '<{0}I'.format(int(len(rich_data)/4)), rich_data))
+            if b'RICH' not in data:
                 return None
-            data = list(struct.unpack("<32I", rich_data))
         except PEFormatError:
             return None
 
@@ -3761,7 +3783,8 @@ class PE(object):
             try:
                 # If the RVA is invalid all would blow up. Some EXEs seem to be
                 # specially nasty and have an invalid RVA.
-                data = self.get_data(rva, Structure(self.__IMAGE_IMPORT_DESCRIPTOR_format__).sizeof() )
+                data = self.get_data(rva, Structure(
+                        self.__IMAGE_IMPORT_DESCRIPTOR_format__).sizeof() )
             except PEFormatError as e:
                 self.__warnings.append(
                     'Error parsing the import directory at RVA: 0x%x' % ( rva ) )
@@ -5317,7 +5340,7 @@ class PE(object):
 
         # Get the offset to the CheckSum field in the OptionalHeader
         # (The offset is the same in PE32 and PE32+)
-        checksum_offset = self.OPTIONAL_HEADER.__file_offset__ + 0x40 # 64
+        checksum_offset = self.OPTIONAL_HEADER.get_file_offset() + 0x40 # 64
 
         checksum = 0
         # Verify the data is dword-aligned. Add padding if needed

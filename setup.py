@@ -52,14 +52,6 @@ class TestCommand(Command):
   def finalize_options(self):
     pass
 
-
-# build_msi does not support the 1.2.10-139 versioning schema
-# (or 1.2.10.139), hence the revision number is stripped.
-pefile_version = _read_attr('__version__')
-if 'bdist_msi' in sys.argv:
-    pefile_version, _, _ = pefile_version.partition('-')
-
-
 class TestCommand(Command):
   """Run tests."""
   user_options = []
@@ -76,7 +68,7 @@ class TestCommand(Command):
 
 
 setup(name = 'pefile',
-    version = pefile_version,
+    version = _read_attr('__version__'),
     description = 'Python PE parsing module',
     author = _read_attr('__author__'),
     author_email = _read_attr('__contact__'),
@@ -85,12 +77,12 @@ setup(name = 'pefile',
     keywords = ['pe', 'exe', 'dll', 'pefile', 'pecoff'],
     classifiers = [
         'Development Status :: 5 - Production/Stable',
-    	'Intended Audience :: Developers',
-    	'Intended Audience :: Science/Research',
-    	'Natural Language :: English',
-    	'Operating System :: OS Independent',
-    	'Programming Language :: Python',
-    	'Topic :: Software Development :: Libraries :: Python Modules'],
+        'Intended Audience :: Developers',
+        'Intended Audience :: Science/Research',
+        'Natural Language :: English',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python',
+        'Topic :: Software Development :: Libraries :: Python Modules'],
     long_description = "\n".join(_read_doc().split('\n')),
     cmdclass={"test": TestCommand},
     py_modules = ['pefile', 'peutils'],
