@@ -45,7 +45,7 @@ import re
 import string
 import array
 import mmap
-from . import ordlookup
+import ordlookup
 
 from collections import Counter
 from hashlib import sha1
