@@ -3201,6 +3201,10 @@ class PE(object):
                 'read unicode string at offset 0x%x' % (
                 ustr_offset))
 
+        if versioninfo_string == None:
+            self.__warnings.append('Invalid VS_VERSION_INFO block: {0}'.format(
+                versioninfo_string))
+            return
 
         # If the structure does not contain the expected name, it's assumed to
         # be invalid
