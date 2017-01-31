@@ -3834,8 +3834,12 @@ class PE(object):
             for imp_dll in import_descs:
                 for symbol in imp_dll.imports:
                     for suspicious_symbol in suspicious_imports:
-                        if symbol and symbol.name and symbol.name.startswith(
-                            b(suspicious_symbol)):
+                        if not symbol or not symbol.name:
+                            continue
+                        name = symbol.name
+                        if type(symbol.name) == bytes:
+                            name = symbol.name.decode('utf-8')
+                        if name.startswith(suspicious_symbol):
                             suspicious_imports_count += 1
                             break
                     total_symbols += 1
