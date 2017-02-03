@@ -1727,8 +1727,8 @@ class PE(object):
 
         self.PE_TYPE = None
 
-        if  not name and not data:
-            return
+        if name is None and data is None:
+            raise ValueError('must either supply name or data')
 
         # This list will keep track of all the structures created.
         # That will allow for an easy iteration through the list
@@ -1781,7 +1781,7 @@ class PE(object):
         through the instance's attributes.
         """
 
-        if fname:
+        if fname is not None:
             stat = os.stat(fname)
             if stat.st_size == 0:
                 raise PEFormatError('The file is empty')
@@ -1804,7 +1804,7 @@ class PE(object):
             finally:
                 if fd is not None:
                     fd.close()
-        elif data:
+        elif data is not None:
             self.__data__ = data
             self.__from_file = False
 
