@@ -4,6 +4,7 @@
 *.bak
 .coverage
 tests/test_files/*
+venv*
 
 # Back-up files
 *~

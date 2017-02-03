@@ -30,7 +30,6 @@ from builtins import object
 from builtins import range
 from builtins import str
 from builtins import zip
-from past.utils import old_div
 
 __author__ = 'Ero Carrera'
 __version__ = '2016.3.28'
@@ -48,10 +47,13 @@ import array
 import mmap
 import ordlookup
 
+from collections import Counter
 from hashlib import sha1
 from hashlib import sha256
 from hashlib import sha512
 from hashlib import md5
+
+PY3 = sys.version_info > (3,)
 
 def count_zeroes(data):
     try:
@@ -624,7 +626,7 @@ def power_of_two(val):
 # These come from the great article[1] which contains great insights on
 # working with unicode in both Python 2 and 3.
 # [1]: http://python3porting.com/problems.html
-if os.sys.version_info < (3,):
+if not PY3:
     def handler(err):
         start = err.start
         end = err.end
@@ -933,19 +935,10 @@ class Structure(object):
                         except exceptions.ValueError as e:
                             val_str += ' [INVALID TIME]'
                 else:
-                    val_str = val
-                    try:
-                        val_str = val_str.encode('ascii', 'backslashreplace')
-                    except:
-                        pass
-                    if isinstance(val_str[0], int):
-                        val_str = ''.join(
-                                [chr(i) if (i in printable_bytes) else
-                                 '\\x{0:02x}'.format(i) for i in val_str.rstrip(b'\x00')])
-                    else:
-                        val_str = ''.join(
-                                [i if (ord(i) in printable_bytes) else
-                                 '\\x{0:02x}'.format(ord(i)) for i in val_str.rstrip(b'\x00')])
+                    val_str = bytearray(val)
+                    val_str = ''.join(
+                            [chr(i) if (i in printable_bytes) else
+                             '\\x{0:02x}'.format(i) for i in val_str.rstrip(b'\x00')])
 
                 dump.append('0x%-8X 0x%-3X %-30s %s' % (
                     self.__field_offsets__[key] + self.__file_offset__,
@@ -966,7 +959,7 @@ class Structure(object):
             for key in keys:
 
                 val = getattr(self, key)
-                if isinstance(val, int) or isinstance(val, int):
+                if isinstance(val, (int, long)):
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
                             val = '0x%-8X [%s UTC]' % (val, time.asctime(time.gmtime(val)))
@@ -1000,6 +993,8 @@ class SectionStructure(Structure):
         addresses where the PE file would be loaded by default.
         It is then possible to retrieve code and data by its real
         addresses as it would be if loaded.
+
+        Returns bytes() under Python 3.x and set() under 2.7
         """
 
         PointerToRawData_adj = self.pe.adjust_FileAlignment( self.PointerToRawData,
@@ -1152,16 +1147,12 @@ class SectionStructure(Structure):
         if len(data) == 0:
             return 0.0
 
-        occurences = array.array('L', [0]*256)
-
-        for x in data:
-            occurences[x if isinstance(x, int) else ord(x)] += 1
+        occurences = Counter(bytearray(data))
 
         entropy = 0
-        for x in occurences:
-            if x:
-                p_x = old_div(float(x), len(data))
-                entropy -= p_x*math.log(p_x, 2)
+        for x in occurences.values():
+            p_x = float(x) / len(data)
+            entropy -= p_x*math.log(p_x, 2)
 
         return entropy
 
@@ -1421,7 +1412,7 @@ class BoundImportRefData(DataContainer):
 # The filename length is not checked because the DLLs filename
 # can be longer that the 8.3
 
-if sys.version_info >= (3,): # Python 3.x
+if PY3:
     allowed_filename = b(
         string.ascii_lowercase + string.ascii_uppercase +
         string.digits + "!#$%&'()-@^_`{}~+,.;=[]")
@@ -1445,7 +1436,7 @@ def is_valid_dos_filename(s):
 # function names. If the symbol's characters don't fall within this charset
 # we will assume the name is invalid
 #
-if sys.version_info >= (3,): # Python 3.x
+if PY3:
     allowed_function_name = b(
         string.ascii_lowercase + string.ascii_uppercase +
         string.digits + '_?@$()<>')
@@ -1759,6 +1750,7 @@ class PE(object):
             ((isinstance(mmap.mmap, type) and isinstance(self.__data__, mmap.mmap)) or
            'mmap.mmap' in repr(type(self.__data__))) ):
                 self.__data__.close()
+                del self.__data__
 
 
     def __unpack_data__(self, format, data, file_offset):
@@ -1815,6 +1807,19 @@ class PE(object):
         elif data:
             self.__data__ = data
             self.__from_file = False
+
+        for byte, byte_count in Counter(bytearray(self.__data__)).items():
+            # Only report the cases where a byte makes up for more than 50% (if
+            # zero) or 15% (if non-zero) of the file's contents. There are
+            # legitimate PEs where 0x00 bytes are close to 50% of the whole
+            # file's contents.
+            if (byte == 0 and 1.0 * byte_count / len(self.__data__) > 0.5) or (
+                byte != 0 and 1.0 * byte_count / len(self.__data__) > 0.15):
+                self.__warnings.append(
+                    ("Byte 0x{0:02x} makes up {1:.4f}% of the file's contents."
+                    " This may indicate truncation / malformation.").format(
+                        byte, 100.0 * byte_count / len(self.__data__)))
+
 
         dos_header_data = self.__data__[:64]
         if len(dos_header_data) != 64:
@@ -2120,12 +2125,20 @@ class PE(object):
         DANS = 0x536E6144 # 'DanS' as dword
         RICH = 0x68636952 # 'Rich' as dword
 
+        rich_index = self.__data__.find(
+            b'Rich', 0x80, self.OPTIONAL_HEADER.get_file_offset())
+        if rich_index == -1:
+            return None
+
         # Read a block of data
         try:
-            rich_data = self.get_data(0x80, 0x80)
-            if len(rich_data) != 0x80:
+            # The end of the structure is 8 bytes after the start of the Rich
+            # string.
+            rich_data = self.get_data(0x80, rich_index + 8)
+            data = list(struct.unpack(
+                    '<{0}I'.format(int(len(rich_data)/4)), rich_data))
+            if b'RICH' not in data:
                 return None
-            data = list(struct.unpack("<32I", rich_data))
         except PEFormatError:
             return None
 
@@ -2142,7 +2155,7 @@ class PE(object):
         result ["values"] = headervalues
 
         data = data[4:]
-        for i in range(old_div(len(data), 2)):
+        for i in range(int(len(data) / 2)):
 
             # Stop until the Rich footer signature is found
             #
@@ -2486,7 +2499,7 @@ class PE(object):
             forwarder_refs = []
             # 8 is the size of __IMAGE_BOUND_IMPORT_DESCRIPTOR_format__
             for idx in range(min(bnd_descr.NumberOfModuleForwarderRefs,
-                                 old_div(safety_boundary,8))):
+                                 int(safety_boundary / 8))):
                 # Both structures IMAGE_BOUND_IMPORT_DESCRIPTOR and
                 # IMAGE_BOUND_FORWARDER_REF have the same size.
                 bnd_frwd_ref = self.__unpack_data__(
@@ -2509,8 +2522,9 @@ class PE(object):
                 # Names shorted than 4 characters will be taken as invalid as well.
 
                 if name_str:
-                    invalid_chars = [c for c in name_str if
-                                     (chr(c) if isinstance(c, int) else c) not in string.printable]
+                    invalid_chars = [
+                        c for c in bytearray(name_str) if
+                            chr(c) not in string.printable]
                     if len(name_str) > 256 or invalid_chars:
                         break
 
@@ -2523,8 +2537,9 @@ class PE(object):
                 0, self.__data__[offset : offset + MAX_STRING_LENGTH])
 
             if name_str:
-                invalid_chars = [c for c in name_str if
-                                 (chr(c) if isinstance(c, int) else c) not in string.printable]
+                invalid_chars = [
+                    c for c in bytearray(name_str) if
+                        chr(c) not in string.printable]
                 if len(name_str) > 256 or invalid_chars:
                     break
 
@@ -2663,7 +2678,7 @@ class PE(object):
 
         entries = []
         offsets_and_type = []
-        for idx in range( old_div(len(data), 2) ):
+        for idx in range( int(len(data) / 2) ):
 
             entry = self.__unpack_data__(
                 self.__IMAGE_BASE_RELOCATION_ENTRY_format__,
@@ -2702,7 +2717,7 @@ class PE(object):
         dbg_size = Structure(self.__IMAGE_DEBUG_DIRECTORY_format__).sizeof()
 
         debug = []
-        for idx in range(old_div(size,dbg_size)):
+        for idx in range(int(size / dbg_size)):
             try:
                 data = self.get_data(rva+dbg_size*idx, dbg_size)
             except PEFormatError as e:
@@ -3507,7 +3522,9 @@ class PE(object):
         else:
             safety_boundary = section.VirtualAddress + len(section.get_data()) - export_dir.AddressOfNames
 
-        for i in range( min( export_dir.NumberOfNames, old_div(safety_boundary,4)) ):
+        for i in range(min(
+                export_dir.NumberOfNames,
+                int(safety_boundary / 4))):
 
             symbol_ordinal = self.get_word_from_data(
                 address_of_name_ordinals, i)
@@ -3584,7 +3601,9 @@ class PE(object):
 
         safety_boundary = section.VirtualAddress + len(section.get_data()) - export_dir.AddressOfFunctions
 
-        for idx in range( min(export_dir.NumberOfFunctions, old_div(safety_boundary,4)) ):
+        for idx in range(min(
+                export_dir.NumberOfFunctions,
+                int(safety_boundary / 4))):
 
             if not idx+export_dir.Base in ordinals:
                 try:
@@ -3742,7 +3761,8 @@ class PE(object):
             try:
                 # If the RVA is invalid all would blow up. Some EXEs seem to be
                 # specially nasty and have an invalid RVA.
-                data = self.get_data(rva, Structure(self.__IMAGE_IMPORT_DESCRIPTOR_format__).sizeof() )
+                data = self.get_data(rva, Structure(
+                        self.__IMAGE_IMPORT_DESCRIPTOR_format__).sizeof() )
             except PEFormatError as e:
                 self.__warnings.append(
                     'Error parsing the import directory at RVA: 0x%x' % ( rva ) )
@@ -5298,7 +5318,7 @@ class PE(object):
 
         # Get the offset to the CheckSum field in the OptionalHeader
         # (The offset is the same in PE32 and PE32+)
-        checksum_offset = self.OPTIONAL_HEADER.__file_offset__ + 0x40 # 64
+        checksum_offset = self.OPTIONAL_HEADER.get_file_offset() + 0x40 # 64
 
         checksum = 0
         # Verify the data is dword-aligned. Add padding if needed
@@ -5306,11 +5326,11 @@ class PE(object):
         remainder = len(self.__data__) % 4
         data_len = len(self.__data__) + ((4-remainder) * ( remainder != 0 ))
 
-        for i in range( old_div(data_len, 4) ):
+        for i in range( int(data_len / 4) ):
             # Skip the checksum field
-            if i == old_div(checksum_offset, 4):
+            if i == int(checksum_offset / 4):
                 continue
-            if i+1 == (old_div(data_len, 4)) and remainder:
+            if i+1 == (int(data_len / 4)) and remainder:
                 dword = struct.unpack('I', self.__data__[i*4:]+ (b'\0' * (4-remainder)) )[0]
             else:
                 dword = struct.unpack('I', self.__data__[ i*4 : i*4+4 ])[0]
@@ -5478,7 +5498,7 @@ class PE(object):
 
         if file_alignment < FILE_ALIGNEMNT_HARDCODED_VALUE:
             return val
-        return (old_div(val, 0x200)) * 0x200
+        return (int(val / 0x200)) * 0x200
 
 
     # According to the document:
@@ -5506,7 +5526,7 @@ class PE(object):
         #    section_alignment = 0x80
 
         if section_alignment and val % section_alignment:
-            return section_alignment * ( old_div(val, section_alignment) )
+            return section_alignment * ( int(val / section_alignment) )
         return val
 
 

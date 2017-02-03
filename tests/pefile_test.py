@@ -150,6 +150,9 @@ class Test_pefile(unittest.TestCase):
         # Verify both methods obtained the same results.
         self.assertEqual(pe_full.dump_info(), pe.dump_info())
 
+        pe.close()
+        pe_full.close()
+
 
     def test_imphash(self):
         """Test imphash values."""
@@ -213,6 +216,7 @@ class Test_pefile(unittest.TestCase):
         #
         self.assertEqual(''.join(differences).encode('utf-8', 'backslashreplace'),  str1+str2+str3)
 
+        pe.close()
 
     def test_nt_headers_exception(self):
         """pefile should fail parsing invalid data (missing NT headers)"""
