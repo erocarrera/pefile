@@ -2137,7 +2137,7 @@ class PE(object):
             rich_data = self.get_data(0x80, rich_index + 8)
             data = list(struct.unpack(
                     '<{0}I'.format(int(len(rich_data)/4)), rich_data))
-            if b'RICH' not in data:
+            if RICH not in data:
                 return None
         except PEFormatError:
             return None
