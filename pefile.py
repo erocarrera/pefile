@@ -4141,7 +4141,7 @@ class PE(object):
 
             # Miscellaneous integrity tests.
             # Some packer will set these to bogus values to make tools go nuts.
-            if section.Misc_VirtualSize == 0 or section.SizeOfRawData == 0:
+            if section.Misc_VirtualSize == 0 and section.SizeOfRawData == 0:
                 continue
 
             if section.SizeOfRawData > len(self.__data__):
