@@ -46,6 +46,7 @@ import string
 import array
 import mmap
 import ordlookup
+from io import open
 
 from collections import Counter
 from hashlib import sha1
@@ -2248,10 +2249,8 @@ class PE(object):
         new_file_data = file_data
         if not filename:
             return new_file_data
-
-        f = open(filename, 'wb+')
-        f.write(new_file_data)
-        f.close()
+        with open(filename, 'wb+') as f:
+            f.write(new_file_data)
         return
 
 
@@ -4161,7 +4160,7 @@ class PE(object):
             padding_length = VirtualAddress_adj - len(mapped_data)
 
             if padding_length>0:
-                mapped_data += '\0'*padding_length
+                mapped_data += b'\0'*padding_length
             elif padding_length<0:
                 mapped_data = mapped_data[:padding_length]
 

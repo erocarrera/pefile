@@ -52,7 +52,7 @@ class SignatureDatabase(object):
         # RegExp to match a signature block
         #
         self.parse_sig = re.compile(
-            '\[(.*?)\]\s+?signature\s*=\s*(.*?)(\s+\?\?)*\s*ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)', re.S)
+            b'\[(.*?)\]\s+?signature\s*=\s*(.*?)(\s+\?\?)*\s*ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)', re.S)
 
         # Signature information
         #
@@ -325,7 +325,7 @@ class SignatureDatabase(object):
         # Walk the bytes in the data and match them
         # against the signature
         #
-        for idx, byte in enumerate ( [ord (b) for b in data] ):
+        for idx, byte in enumerate (data):
 
             # If the tree is exhausted...
             #
@@ -408,7 +408,7 @@ class SignatureDatabase(object):
                 # Get the data for a file
                 #
                 try:
-                    sig_f = open( filename, 'rt' )
+                    sig_f = open( filename, 'rb' )
                     sig_data = sig_f.read()
                     sig_f.close()
                 except IOError:
@@ -426,7 +426,7 @@ class SignatureDatabase(object):
         # Helper function to parse the signature bytes
         #
         def to_byte(value) :
-            if '?' in value:
+            if b'?' in value:
                 return value
             return int (value, 16)
 
@@ -442,7 +442,7 @@ class SignatureDatabase(object):
 
             ep_only = ep_only.strip().lower()
 
-            signature = signature.replace('\\n', '').strip()
+            signature = signature.replace(b'\\n', b'').strip()
 
             signature_bytes = [to_byte(b) for b in signature.split()]
 
