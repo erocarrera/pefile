@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """pefile, Portable Executable reader module
 
@@ -642,7 +642,16 @@ else:
     def b(x):
         if isinstance(x, bytes):
             return x
-        return codecs.encode(x, 'cp1252')
+        if isinstance(x, (list, tuple)):
+            to_return = []
+            for entry in x:
+                if isinstance(entry, (int, bytes)):
+                    to_return.append(entry)
+                else:
+                    to_return.append(codecs.encode(entry, 'cp1252'))
+            return to_return
+        else:
+            return codecs.encode(x, 'cp1252')
 
 
 FILE_ALIGNEMNT_HARDCODED_VALUE = 0x200
