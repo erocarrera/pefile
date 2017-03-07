@@ -1434,6 +1434,8 @@ else: # Python 2.x
 def is_valid_dos_filename(s):
     if s is None or not isinstance(s, (str, bytes)):
         return False
+    if isinstance(s, str):
+        s = s.encode()
     # Allow path separators as import names can contain directories.
     allowed = allowed_filename + b'\\/'
     for c in set(s):
@@ -1458,6 +1460,8 @@ else:
 def is_valid_function_name(s):
     if s is None or not isinstance(s, (str, bytes)):
         return False
+    if isinstance(s, str):
+        s = s.encode()
     for c in set(s):
         if c not in allowed_function_name:
             return False
@@ -3836,14 +3840,14 @@ class PE(object):
                         dll = dll))
 
         if not dllnames_only:
-            suspicious_imports = set([ u'LoadLibrary', u'GetProcAddress' ])
+            suspicious_imports = set([ 'LoadLibrary', 'GetProcAddress' ])
             suspicious_imports_count = 0
             total_symbols = 0
             for imp_dll in import_descs:
                 for symbol in imp_dll.imports:
                     for suspicious_symbol in suspicious_imports:
-                        if symbol and symbol.name and symbol.name.startswith(
-                            b(suspicious_symbol)):
+                        if symbol and symbol.name and symbol.name.startswith(suspicious_symbol):
+
                             suspicious_imports_count += 1
                             break
                     total_symbols += 1
@@ -4311,7 +4315,7 @@ class PE(object):
         end = s.find(b'\0')
         if end >= 0:
             s = s[:end]
-        return s #.decode('ascii', 'backslashreplace')
+        return s.decode(errors='ignore') #.decode('ascii', 'backslashreplace')
 
     def get_string_u_at_rva(self, rva, max_length = 2**16, encoding=None):
         """Get an Unicode string located at the given address."""
@@ -4777,10 +4781,7 @@ class PE(object):
             if sha512 is not None:
                 section_dict['SHA512'] = section.get_hash_sha512()
 
-
-
-        if (hasattr(self, 'OPTIONAL_HEADER') and
-            hasattr(self.OPTIONAL_HEADER, 'DATA_DIRECTORY') ):
+        if (hasattr(self, 'OPTIONAL_HEADER') and hasattr(self.OPTIONAL_HEADER, 'DATA_DIRECTORY')):
 
             dump_dict['Directories'] = list()
 
@@ -4803,22 +4804,19 @@ class PE(object):
                     if hasattr(entry, 'StringTable'):
                         stringtable_dict = dict()
                         for st_entry in entry.StringTable:
-                            [fileinfo_list.append(line) for line in st_entry.dump_dict()]
                             stringtable_dict['LangID'] = st_entry.LangID
                             for str_entry in list(st_entry.entries.items()):
-                                stringtable_dict[str_entry[0]] = str_entry[1]
+                                stringtable_dict[str_entry[0].decode(errors='ignore')] = str_entry[1].decode(errors='ignore')
                         fileinfo_list.append(stringtable_dict)
-
 
                     elif hasattr(entry, 'Var'):
                         for var_entry in entry.Var:
                             var_dict = dict()
                             if hasattr(var_entry, 'entry'):
-                                [fileinfo_list.append(line) for line in var_entry.dump_dict()]
-                                var_dict[list(var_entry.entry.keys())[0]] = list(
-                                    var_entry.entry.values())[0]
+                                for v_entry in var_entry.entry.items():
+                                    var_dict[v_entry[0].decode(errors='ignore')] = v_entry[1]
                                 fileinfo_list.append(var_dict)
-
+                dump_dict['File Info'] = fileinfo_list
 
         if hasattr(self, 'DIRECTORY_ENTRY_EXPORT'):
             dump_dict['Exported symbols'] = list()
