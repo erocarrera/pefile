@@ -4934,8 +4934,11 @@ class PE(object):
                                     resource_lang_dict.update(resource_lang.data.struct.dump_dict())
                                     resource_id_list.append(resource_lang_dict)
                             if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
+                                resource_id_strings_list = list()
                                 for idx, res_string in list(resource_id.directory.strings.items()):
-                                    resource_id_list.append(convert_to_printable(res_string))
+                                    resource_id_strings_list.append(res_string)
+                                if resource_id_strings_list:
+                                    resource_id_list.append({'Strings': resource_id_strings_list})
 
 
         if ( hasattr(self, 'DIRECTORY_ENTRY_TLS') and
