@@ -3298,7 +3298,7 @@ class PE(object):
 
 
             # Parse a StringFileInfo entry
-            if stringfileinfo_string and stringfileinfo_string.startswith(b'StringFileInfo'):
+            if stringfileinfo_string and stringfileinfo_string.startswith('StringFileInfo'):
 
                 if stringfileinfo_struct.Type in (0,1) and stringfileinfo_struct.ValueLength == 0:
 
@@ -3407,7 +3407,7 @@ class PE(object):
                             break
 
             # Parse a VarFileInfo entry
-            elif stringfileinfo_string and stringfileinfo_string.startswith( b'VarFileInfo' ):
+            elif stringfileinfo_string and stringfileinfo_string.startswith( 'VarFileInfo' ):
 
                 varfileinfo_struct = stringfileinfo_struct
                 varfileinfo_struct.name = 'VarFileInfo'
@@ -4357,8 +4357,7 @@ class PE(object):
 
         if encoding:
             return b(s.encode(encoding, 'backslashreplace'))
-
-        return b(s.encode('utf-8', 'backslashreplace'))
+        return s
 
 
     def get_section_by_offset(self, offset):
@@ -4806,7 +4805,7 @@ class PE(object):
                         for st_entry in entry.StringTable:
                             stringtable_dict['LangID'] = st_entry.LangID
                             for str_entry in list(st_entry.entries.items()):
-                                stringtable_dict[str_entry[0].decode(errors='ignore')] = str_entry[1].decode(errors='ignore')
+                                stringtable_dict[str_entry[0]] = str_entry[1]
                         fileinfo_list.append(stringtable_dict)
 
                     elif hasattr(entry, 'Var'):
@@ -4814,7 +4813,7 @@ class PE(object):
                             var_dict = dict()
                             if hasattr(var_entry, 'entry'):
                                 for v_entry in var_entry.entry.items():
-                                    var_dict[v_entry[0].decode(errors='ignore')] = v_entry[1]
+                                    var_dict[v_entry[0]] = v_entry[1]
                                 fileinfo_list.append(var_dict)
                 dump_dict['File Info'] = fileinfo_list
 
