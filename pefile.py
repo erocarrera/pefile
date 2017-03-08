@@ -47,6 +47,7 @@ import array
 import mmap
 import ordlookup
 from io import open
+from datetime import datetime
 
 from collections import Counter
 from hashlib import sha1
@@ -967,12 +968,15 @@ class Structure(object):
         # of the following construct.
         for keys in self.__keys__:
             for key in keys:
-
+                unix_ts = 0
+                isotime = ''
                 val = getattr(self, key)
                 if isinstance(val, (int, long)):
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
+                            unix_ts = val
                             val = '0x%-8X [%s UTC]' % (val, time.asctime(time.gmtime(val)))
+                            isotime = datetime.fromtimestamp(unix_ts).isoformat()
                         except exceptions.ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
                 else:
@@ -981,6 +985,8 @@ class Structure(object):
                 dump_dict[key] = {'FileOffset': self.__field_offsets__[key] + self.__file_offset__,
                                   'Offset': self.__field_offsets__[key],
                                   'Value': val}
+                if unix_ts:
+                    dump_dict[key].update({"Unix Timestamp": unix_ts, 'ISO Time': isotime})
 
         return dump_dict
 
