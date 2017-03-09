@@ -23,13 +23,12 @@ distribution archive.
 
 from __future__ import division
 from __future__ import print_function
-from past.builtins import cmp, long
+from past.builtins import long
 from builtins import bytes
 from builtins import chr
 from builtins import object
 from builtins import range
 from builtins import str
-from builtins import zip
 
 __author__ = 'Ero Carrera'
 __version__ = '2016.3.28'
@@ -41,9 +40,7 @@ import sys
 import codecs
 import time
 import math
-import re
 import string
-import array
 import mmap
 import ordlookup
 from io import open
@@ -58,12 +55,12 @@ from hashlib import md5
 PY3 = sys.version_info > (3,)
 
 def count_zeroes(data):
-    try:
-        # newbytes' count() takes a str in Python 2
-        count = data.count('\0')
-    except TypeError:
+    if PY3:
         # bytes' count() takes an int in Python 3
         count = data.count(0)
+    else:
+        # newbytes' count() takes a str in Python 2
+        count = data.count('\0')
     return count
 
 fast_load = False
