@@ -640,7 +640,7 @@ else:
     def b(x):
         if isinstance(x, bytes):
             return x
-        if isinstance(x, (list, tuple)):
+        elif isinstance(x, (list, tuple)):
             to_return = []
             for entry in x:
                 if isinstance(entry, (int, bytes)):
@@ -976,8 +976,11 @@ class Structure(object):
                             isotime = datetime.fromtimestamp(unix_ts).isoformat()
                         except exceptions.ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
-                else:
-                    val = b([b for b in val if b != 0])
+                elif isinstance(val, bytes):
+                    val = val.rstrip(b'\x00').decode(errors='ignore')
+                    if not val:
+                        # FIXME: somewhat sketchy, but it only happen in 'DOS_HEADER'
+                        val = 0
 
                 dump_dict[key] = {'FileOffset': self.__field_offsets__[key] + self.__file_offset__,
                                   'Offset': self.__field_offsets__[key],
@@ -1045,6 +1048,9 @@ class SectionStructure(Structure):
                 self.__dict__['Characteristics'] |= SECTION_CHARACTERISTICS[name]
             else:
                 self.__dict__['Characteristics'] ^= SECTION_CHARACTERISTICS[name]
+
+        elif name == 'Name':
+            val = val.rstrip(b'\x00').decode()
 
         self.__dict__[name] = val
 
@@ -4496,14 +4502,11 @@ class PE(object):
                     if hasattr(entry, 'StringTable'):
                         for st_entry in entry.StringTable:
                             [dump.add_line(u'  '+line) for line in st_entry.dump()]
-                            dump.add_line(u'  LangID: {0}'.format(
-                                st_entry.LangID.decode(encoding, 'backslashreplace_')))
+                            dump.add_line(u'  LangID: {0}'.format(st_entry.LangID))
                             dump.add_newline()
                             for str_entry in sorted(list(st_entry.entries.items())):
                                 # try:
-                                dump.add_line( u'    {0}: {1}'.format(
-                                    str_entry[0].decode(encoding, 'backslashreplace_'),
-                                    str_entry[1].decode(encoding, 'backslashreplace_')))
+                                dump.add_line( u'    {0}: {1}'.format(str_entry[0], str_entry[1]))
                                 # except Exception as excp:
                                 #     dump.add_line( u'    {0}: {1}'.format(
                                 #         repr(str_entry[0]),
@@ -4521,12 +4524,8 @@ class PE(object):
                     elif hasattr(entry, 'Var'):
                         for var_entry in entry.Var:
                             if hasattr(var_entry, 'entry'):
-                                [dump.add_line('  '+line) for line in var_entry.dump()]
-                                dump.add_line(
-                                    u'    {0}: {1}'.format(
-                                        list(var_entry.entry.keys())[0].decode(
-                                            'utf-8', 'backslashreplace'),
-                                        list(var_entry.entry.values())[0]))
+                                [dump.add_line('  ' + line) for line in var_entry.dump()]
+                                dump.add_line(u'    {0}: {1}'.format(list(var_entry.entry.keys())[0], list(var_entry.entry.values())[0]))
 
                         dump.add_newline()
 
@@ -4540,8 +4539,7 @@ class PE(object):
                     name = b('None')
                     if export.name:
                         name = export.name
-                    dump.add(u'%-10d 0x%08Xh    %s' % (
-                        export.ordinal, export.address, name.decode(encoding)))
+                    dump.add(u'%-10d 0x%08Xh    %s' % (export.ordinal, export.address, name))
                     if export.forwarder:
                         dump.add_line(u' forwarder: {0}'.format(
                             export.forwarder.decode(encoding)))
@@ -4568,13 +4566,9 @@ class PE(object):
                                      symbol.name.decode('utf-8'),
                                      symbol.ordinal))
                         else:
-                            dump.add('{0} Ordinal[{1}] (Imported by Ordinal)'.format(
-                                module.dll.decode('utf-8'), symbol.ordinal))
+                            dump.add('{0} Ordinal[{1}] (Imported by Ordinal)'.format(module.dll, symbol.ordinal))
                     else:
-                        dump.add('{0}.{1} Hint[{2:d}]'.format(
-                            module.dll.decode(encoding),
-                            symbol.name.decode(encoding),
-                            symbol.hint))
+                        dump.add('{0}.{1} Hint[{2:d}]'.format(module.dll, symbol.name, symbol.hint))
 
                     if symbol.bound:
                         dump.add_line(' Bound: 0x{0:08X}'.format(symbol.bound))
