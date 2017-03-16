@@ -2105,6 +2105,9 @@ class PE(object):
                 self.RICH_HEADER = RichHeader()
                 self.RICH_HEADER.checksum = rich_header.get('checksum', None)
                 self.RICH_HEADER.values = rich_header.get('values', None)
+                self.RICH_HEADER.key = rich_header.get('key' None)
+                self.RICH_HEADER.raw_data = rich_header.get('raw_data', None)
+                self.RICH_HEADER.clear_data = rich_header.get('clear_data', None)
             else:
                 self.RICH_HEADER = None
 
@@ -2137,10 +2140,22 @@ class PE(object):
             rich_data = self.get_data(0x80, rich_index + 8)
             data = list(struct.unpack(
                     '<{0}I'.format(int(len(rich_data)/4)), rich_data))
-            if b'RICH' not in data:
+            if 0x68636952 not in data:
                 return None
         except PEFormatError:
             return None
+
+        # get key, raw_data and clear_data
+        key = struct.pack('<L', data[data.index(0x68636952)+1])
+        result = {"key": key}
+        
+        raw_data = rich_data[:rich_data.find('Rich')]
+        resulti ["raw_data"] = raw_data
+
+        clear_data = bytearray()
+        for i in range(len(raw_data)):
+            clear_data.append((ord(raw_data[i]) ^ ord(key[i % len(key)])))
+        result ["clear_data"] = bytes(clear_data)
 
         # the checksum should be present 3 times after the DanS signature
         #
@@ -2150,7 +2165,7 @@ class PE(object):
             or data[3] != checksum):
             return None
 
-        result = {"checksum": checksum}
+        result ["checksum"] = checksum
         headervalues = []
         result ["values"] = headervalues
 
