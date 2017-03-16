@@ -2140,13 +2140,13 @@ class PE(object):
             rich_data = self.get_data(0x80, rich_index + 8)
             data = list(struct.unpack(
                     '<{0}I'.format(int(len(rich_data)/4)), rich_data))
-            if 0x68636952 not in data:
+            if RICH not in data:
                 return None
         except PEFormatError:
             return None
 
         # get key, raw_data and clear_data
-        key = struct.pack('<L', data[data.index(0x68636952)+1])
+        key = struct.pack('<L', data[data.index(RICH)+1])
         result = {"key": key}
         
         raw_data = rich_data[:rich_data.find('Rich')]
