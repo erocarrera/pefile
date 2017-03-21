@@ -4374,6 +4374,11 @@ class PE(object):
         return self.dump_info()
 
 
+    def has_relocs(self):
+        """Checks if the PE file has relocation directory"""
+        return hasattr(self, 'DIRECTORY_ENTRY_BASERELOC')
+
+
     def print_info(self, encoding='utf-8'):
         """Print all the PE header information in a human readable from."""
         print(self.dump_info(), encoding=encoding)
@@ -4702,7 +4707,7 @@ class PE(object):
                     dump.add_lines(dbg.entry.dump(), 4)
                     dump.add_newline()
 
-        if hasattr(self, 'DIRECTORY_ENTRY_BASERELOC'):
+        if self.has_relocs():
             dump.add_header('Base relocations')
             for base_reloc in self.DIRECTORY_ENTRY_BASERELOC:
                 dump.add_lines(base_reloc.struct.dump())
@@ -4954,7 +4959,7 @@ class PE(object):
                 dbg_dict['Type'] = DEBUG_TYPE.get(dbg.struct.Type, dbg.struct.Type)
 
 
-        if hasattr(self, 'DIRECTORY_ENTRY_BASERELOC'):
+        if self.has_relocs():
             dump_dict['Base relocations'] = list()
             for base_reloc in self.DIRECTORY_ENTRY_BASERELOC:
                 base_reloc_list = list()
