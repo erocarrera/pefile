@@ -680,6 +680,8 @@ class UnicodeStringWrapperPostProcessor(object):
     def decode(self, *args):
         if not self.string:
             return ''
+        elif not isinstance(self.string, bytes):
+            return self.string
         return self.string.decode(*args)
 
     def invalidate(self):
@@ -942,6 +944,8 @@ class Structure(object):
                             val_str += ' [%s UTC]' % time.asctime(time.gmtime(val))
                         except exceptions.ValueError as e:
                             val_str += ' [INVALID TIME]'
+                elif isinstance(val, str):
+                    val_str = val
                 else:
                     val_str = bytearray(val)
                     val_str = ''.join(
@@ -2542,12 +2546,8 @@ class PE(object):
                 # a corrupt entry and abort the processing of these entries.
                 # Names shorted than 4 characters will be taken as invalid as well.
 
-                if name_str:
-                    invalid_chars = [
-                        c for c in bytearray(name_str) if
-                            chr(c) not in string.printable]
-                    if len(name_str) > 256 or invalid_chars:
-                        break
+                if not name_str:
+                    continue
 
                 forwarder_refs.append(BoundImportRefData(
                     struct = bnd_frwd_ref,
@@ -2556,13 +2556,6 @@ class PE(object):
             offset = start+bnd_descr.OffsetModuleName
             name_str = self.get_string_from_data(
                 0, self.__data__[offset : offset + MAX_STRING_LENGTH])
-
-            if name_str:
-                invalid_chars = [
-                    c for c in bytearray(name_str) if
-                        chr(c) not in string.printable]
-                if len(name_str) > 256 or invalid_chars:
-                    break
 
             if not name_str:
                 break
@@ -4562,9 +4555,7 @@ class PE(object):
                     if symbol.import_by_ordinal is True:
                         if symbol.name is not None:
                             dump.add('{0}.{1} Ordinal[{2}] (Imported by Ordinal)'.format(
-                                     module.dll.decode('utf-8'),
-                                     symbol.name.decode('utf-8'),
-                                     symbol.ordinal))
+                                     module.dll, symbol.name, symbol.ordinal))
                         else:
                             dump.add('{0} Ordinal[{1}] (Imported by Ordinal)'.format(module.dll, symbol.ordinal))
                     else:
@@ -4576,22 +4567,19 @@ class PE(object):
                         dump.add_newline()
                 dump.add_newline()
 
-
         if hasattr(self, 'DIRECTORY_ENTRY_BOUND_IMPORT'):
             dump.add_header('Bound imports')
             for bound_imp_desc in self.DIRECTORY_ENTRY_BOUND_IMPORT:
 
                 dump.add_lines(bound_imp_desc.struct.dump())
-                dump.add_line('DLL: {0}'.format(
-                    bound_imp_desc.name.decode(encoding)))
+                dump.add_line('DLL: {0}'.format(bound_imp_desc.name))
+
                 dump.add_newline()
 
                 for bound_imp_ref in bound_imp_desc.entries:
                     dump.add_lines(bound_imp_ref.struct.dump(), 4)
-                    dump.add_line('DLL: {0}'.format(
-                        bound_imp_ref.name.decode(encoding)), 4)
+                    dump.add_line('DLL: {0}'.format(bound_imp_ref.name), 4)
                     dump.add_newline()
-
 
         if hasattr(self, 'DIRECTORY_ENTRY_DELAY_IMPORT'):
             dump.add_header('Delay Imported symbols')
@@ -4603,19 +4591,16 @@ class PE(object):
                 for symbol in module.imports:
                     if symbol.import_by_ordinal is True:
                         dump.add('{0} Ordinal[{1:d}] (Imported by Ordinal)'.format(
-                            module.dll.decode(encoding),
-                            symbol.ordinal))
+                            module.dll, symbol.ordinal))
                     else:
                         dump.add('{0}.{1} Hint[{2}]'.format(
-                            module.dll.decode(encoding),
-                            symbol.name.decode(encoding), symbol.hint))
+                            module.dll, symbol.name, symbol.hint))
 
                     if symbol.bound:
                         dump.add_line(' Bound: 0x{0:08X}'.format(symbol.bound))
                     else:
                         dump.add_newline()
                 dump.add_newline()
-
 
         if hasattr(self, 'DIRECTORY_ENTRY_RESOURCE'):
             dump.add_header('Resource directory')
