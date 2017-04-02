@@ -977,7 +977,7 @@ class Structure(object):
                         try:
                             unix_ts = val
                             val = '0x%-8X [%s UTC]' % (val, time.asctime(time.gmtime(val)))
-                            isotime = datetime.fromtimestamp(unix_ts).isoformat()
+                            isotime = datetime.utcfromtimestamp(unix_ts).isoformat()
                         except exceptions.ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
                 elif isinstance(val, bytes):
