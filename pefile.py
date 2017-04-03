@@ -3018,9 +3018,16 @@ class PE(object):
                                 string_entry_size = resource_lang.data.struct.Size
                                 string_entry_id = resource_id.id
 
-                                string_entry_data = self.get_data(string_entry_rva, string_entry_size)
-                                parse_strings( string_entry_data, (int(string_entry_id) - 1) * 16, resource_strings )
-                                strings.update(resource_strings)
+                                try:
+                                    string_entry_data = self.get_data(string_entry_rva, string_entry_size)
+                                except PEFormatError:
+                                    self.__warnings.append(
+                                        'Invalid string entry data information. Can\'t read '
+                                        'data at RVA: 0x%x' % string_entry_rva)
+                                    string_entry_data = None
+                                if string_entry_data:
+                                    parse_strings( string_entry_data, (int(string_entry_id) - 1) * 16, resource_strings )
+                                    strings.update(resource_strings)
 
                             resource_id.directory.strings = resource_strings
 
