@@ -2105,7 +2105,7 @@ class PE(object):
                 self.RICH_HEADER = RichHeader()
                 self.RICH_HEADER.checksum = rich_header.get('checksum', None)
                 self.RICH_HEADER.values = rich_header.get('values', None)
-                self.RICH_HEADER.key = rich_header.get('key' None)
+                self.RICH_HEADER.key = rich_header.get('key', None)
                 self.RICH_HEADER.raw_data = rich_header.get('raw_data', None)
                 self.RICH_HEADER.clear_data = rich_header.get('clear_data', None)
             else:
@@ -2132,7 +2132,7 @@ class PE(object):
             b'Rich', 0x80, self.OPTIONAL_HEADER.get_file_offset())
         if rich_index == -1:
             return None
-
+        
         # Read a block of data
         try:
             # The end of the structure is 8 bytes after the start of the Rich
@@ -2148,11 +2148,11 @@ class PE(object):
         # get key, raw_data and clear_data
         key = struct.pack('<L', data[data.index(RICH)+1])
         result = {"key": key}
-        
-        raw_data = rich_data[:rich_data.find('Rich')]
-        resulti ["raw_data"] = raw_data
 
-        clear_data = bytearray()
+        raw_data = rich_data[:rich_data.find('Rich')]
+        result["raw_data"] = raw_data
+        
+        clear_data = bytearray() 
         for i in range(len(raw_data)):
             clear_data.append((ord(raw_data[i]) ^ ord(key[i % len(key)])))
         result ["clear_data"] = bytes(clear_data)
