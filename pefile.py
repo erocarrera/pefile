@@ -3513,13 +3513,16 @@ class PE(object):
 
         max_failed_entries_before_giving_up = 10
 
-        section = self.get_section_by_rva(export_dir.AddressOfNames)
-        if not section:
-            self.__warnings.append(
-                'RVA AddressOfNames in the export directory points to an invalid address: %x' %
-                export_dir.AddressOfNames)
-            return
+        if export_dir.NumberOfNames == 0 and export_dir.AddressOfNames == 0:
+            # No named exports
+            safety_boundary = 0
         else:
+            section = self.get_section_by_rva(export_dir.AddressOfNames)
+            if not section:
+                self.__warnings.append(
+                    'RVA AddressOfNames in the export directory points to an invalid address: %x' %
+                    export_dir.AddressOfNames)
+                return
             safety_boundary = section.VirtualAddress + len(section.get_data()) - export_dir.AddressOfNames
 
         for i in range(min(
