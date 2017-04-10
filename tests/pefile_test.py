@@ -30,9 +30,7 @@ class Test_pefile(unittest.TestCase):
         return test_files
 
     def test_pe_image_regression_test(self):
-        """Run through all the test files and make sure they are properly
-        processed.
-        """
+        """Run through all the test files and make sure they run correctly"""
 
         for idx, pe_filename in enumerate( self.test_files ):
             if pe_filename.endswith('fake_PE_no_read_permissions_issue_53'):
