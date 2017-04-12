@@ -22,11 +22,11 @@ def ordLookup(libname, ord, make_name=False):
     names = ords.get(libname.lower())
     if names == None:
         if make_name is True:
-            return 'ord%d' % ord
+            return ('ord%d' % ord).encode()
         return None
     name = names.get(ord)
     if name == None:
-        return 'ord%d' % ord
+        return ('ord%d' % ord).encode()
     return name
 
 
