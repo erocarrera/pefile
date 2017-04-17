@@ -1728,7 +1728,7 @@ class PE(object):
         self.PE_TYPE = None
 
         if name is None and data is None:
-            raise ValueError('must either supply name or data')
+            raise ValueError('Must supply either name or data')
 
         # This list will keep track of all the structures created.
         # That will allow for an easy iteration through the list
@@ -2164,7 +2164,7 @@ class PE(object):
                 # it should be followed by the checksum
                 #
                 if data[2 * i + 1] != checksum:
-                    self.__warnings.append('Rich Header corrupted')
+                    self.__warnings.append('Rich Header is malformed')
                 break
 
             # header values come by pairs
