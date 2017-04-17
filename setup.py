@@ -4,7 +4,9 @@ import ast
 import os
 import re
 import sys
-from io import open
+
+if sys.version_info.major == 3:
+    from io import open
 
 try:
     from setuptools import setup, Command
@@ -23,8 +25,12 @@ def _read_doc():
     Parse docstring from file 'pefile.py' and avoid importing
     this module directly.
     """
-    with open('pefile.py', 'r', encoding='utf-8') as f:
-        tree = ast.parse(f.read().encode('ascii', 'backslashreplace'))
+    if sys.version_info.major == 2:
+        with open('pefile.py', 'r') as f:
+            tree = ast.parse(f.read())
+    else:
+        with open('pefile.py', 'r', encoding='utf-8') as f:
+            tree = ast.parse(f.read())
     return ast.get_docstring(tree)
 
 
@@ -36,8 +42,12 @@ def _read_attr(attr_name):
     __version__, __author__, __contact__,
     """
     regex = attr_name + r"\s+=\s+'(.+)'"
-    with open('pefile.py', 'r', encoding='utf-8') as f:
-        match = re.search(regex, f.read())
+    if sys.version_info.major == 2:
+        with open('pefile.py', 'r') as f:
+            match = re.search(regex, f.read())
+    else:
+        with open('pefile.py', 'r', encoding='utf-8') as f:
+            match = re.search(regex, f.read())
     # Second item in the group is the value of attribute.
     return match.group(1)
 
