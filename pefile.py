@@ -639,8 +639,8 @@ else:
     import codecs
     codecs.register_error('backslashreplace_', codecs.lookup_error('backslashreplace'))
     def b(x):
-        if isinstance(x, bytes):
-            return x
+        if isinstance(x, (bytes, bytearray)):
+            return bytes(x)
         return codecs.encode(x, 'cp1252')
 
 
@@ -1727,8 +1727,8 @@ class PE(object):
 
         self.PE_TYPE = None
 
-        if  not name and not data:
-            return
+        if name is None and data is None:
+            raise ValueError('must either supply name or data')
 
         # This list will keep track of all the structures created.
         # That will allow for an easy iteration through the list
@@ -1781,7 +1781,7 @@ class PE(object):
         through the instance's attributes.
         """
 
-        if fname:
+        if fname is not None:
             stat = os.stat(fname)
             if stat.st_size == 0:
                 raise PEFormatError('The file is empty')
@@ -1804,7 +1804,7 @@ class PE(object):
             finally:
                 if fd is not None:
                     fd.close()
-        elif data:
+        elif data is not None:
             self.__data__ = data
             self.__from_file = False
 
@@ -2137,7 +2137,7 @@ class PE(object):
             rich_data = self.get_data(0x80, rich_index + 8)
             data = list(struct.unpack(
                     '<{0}I'.format(int(len(rich_data)/4)), rich_data))
-            if b'RICH' not in data:
+            if RICH not in data:
                 return None
         except PEFormatError:
             return None
@@ -4182,7 +4182,7 @@ class PE(object):
             padding_length = VirtualAddress_adj - len(mapped_data)
 
             if padding_length>0:
-                mapped_data += '\0'*padding_length
+                mapped_data += b'\0'*padding_length
             elif padding_length<0:
                 mapped_data = mapped_data[:padding_length]
 
@@ -5352,7 +5352,7 @@ class PE(object):
             if i == int(checksum_offset / 4):
                 continue
             if i+1 == (int(data_len / 4)) and remainder:
-                dword = struct.unpack('I', self.__data__[i*4:]+ ('\0' * (4-remainder)) )[0]
+                dword = struct.unpack('I', self.__data__[i*4:]+ (b'\0' * (4-remainder)) )[0]
             else:
                 dword = struct.unpack('I', self.__data__[ i*4 : i*4+4 ])[0]
             # Optimized the calculation (thanks to Emmanuel Bourg for pointing it out!)
