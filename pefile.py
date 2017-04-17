@@ -34,6 +34,7 @@ __author__ = 'Ero Carrera'
 __version__ = '2016.3.28'
 __contact__ = 'ero.carrera@gmail.com'
 
+import six
 import os
 import struct
 import sys
@@ -909,9 +910,9 @@ class Structure(object):
                 # is picked the loop is exited
                 if new_val != old_val:
                     break
-
+            if isinstance(new_val, six.text_type):
+                new_val = new_val.encode()
             new_values.append(new_val)
-
         return struct.pack(self.__format__, *new_values)
 
 
@@ -2269,7 +2270,7 @@ class PE(object):
                                     l = entry.decode('utf-8').encode('utf-16le')
                                     file_data[offsets[1]:offsets[1]+lengths[1]*2 ] = l[:lengths[1]*2]
                                 else:
-                                    encoded_data = entry.decode('utf-8').encode('utf-16le')
+                                    encoded_data = entry.encode('utf-16le')
                                     file_data[offsets[1]:offsets[1]+len(encoded_data)] = encoded_data
 
         new_file_data = file_data
