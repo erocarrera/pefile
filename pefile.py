@@ -566,6 +566,28 @@ def get_sublang_name_for_lang( lang_value, sublang_value ):
     return SUBLANG.get(sublang_value, ['*unknown*'])[0]
 
 
+def convert_to_printable(s):
+    """Convert string to printable string.
+    @param s: string.
+    @return: sanitized string.
+    """
+    printable = True
+    for c in s:
+        if c not in string.printable:
+            printable = False
+            break
+    if printable:
+        return s
+    else:
+        new_string = ''
+        for c in s:
+            if c in string.printable:
+                new_string += c
+            else:
+                new_string += "\\x%02x" % ord(c)
+        return new_string
+
+
 # Ange Albertini's code to process resources' strings
 #
 def parse_strings(data, counter, l):
@@ -932,7 +954,7 @@ class Structure(object):
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
                             val_str += ' [%s UTC]' % time.asctime(time.gmtime(val))
-                        except exceptions.ValueError as e:
+                        except ValueError as e:
                             val_str += ' [INVALID TIME]'
                 else:
                     val_str = bytearray(val)
@@ -963,7 +985,7 @@ class Structure(object):
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
                             val = '0x%-8X [%s UTC]' % (val, time.asctime(time.gmtime(val)))
-                        except exceptions.ValueError as e:
+                        except ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
                 else:
                     val = b([b for b in val if b != 0])
