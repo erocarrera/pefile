@@ -566,6 +566,28 @@ def get_sublang_name_for_lang( lang_value, sublang_value ):
     return SUBLANG.get(sublang_value, ['*unknown*'])[0]
 
 
+def convert_to_printable(s):
+    """Convert string to printable string.
+    @param s: string.
+    @return: sanitized string.
+    """
+    printable = True
+    for c in s:
+        if c not in string.printable:
+            printable = False
+            break
+    if printable:
+        return s
+    else:
+        new_string = ''
+        for c in s:
+            if c in string.printable:
+                new_string += c
+            else:
+                new_string += "\\x%02x" % ord(c)
+        return new_string
+
+
 # Ange Albertini's code to process resources' strings
 #
 def parse_strings(data, counter, l):
@@ -639,18 +661,9 @@ else:
     import codecs
     codecs.register_error('backslashreplace_', codecs.lookup_error('backslashreplace'))
     def b(x):
-        if isinstance(x, bytes):
-            return x
-        elif isinstance(x, (list, tuple)):
-            to_return = []
-            for entry in x:
-                if isinstance(entry, (int, bytes)):
-                    to_return.append(entry)
-                else:
-                    to_return.append(codecs.encode(entry, 'cp1252'))
-            return to_return
-        else:
-            return codecs.encode(x, 'cp1252')
+        if isinstance(x, (bytes, bytearray)):
+            return bytes(x)
+        return codecs.encode(x, 'cp1252')
 
 
 FILE_ALIGNEMNT_HARDCODED_VALUE = 0x200
@@ -943,7 +956,7 @@ class Structure(object):
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
                             val_str += ' [%s UTC]' % time.asctime(time.gmtime(val))
-                        except exceptions.ValueError as e:
+                        except ValueError as e:
                             val_str += ' [INVALID TIME]'
                 elif isinstance(val, str):
                     val_str = val
@@ -979,7 +992,7 @@ class Structure(object):
                             unix_ts = val
                             val = '0x%-8X [%s UTC]' % (val, time.asctime(time.gmtime(val)))
                             isotime = datetime.utcfromtimestamp(unix_ts).isoformat()
-                        except exceptions.ValueError as e:
+                        except ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
                 elif isinstance(val, bytes):
                     val = val.rstrip(b'\x00').decode(errors='ignore')
@@ -1755,8 +1768,8 @@ class PE(object):
 
         self.PE_TYPE = None
 
-        if  not name and not data:
-            return
+        if name is None and data is None:
+            raise ValueError('Must supply either name or data')
 
         # This list will keep track of all the structures created.
         # That will allow for an easy iteration through the list
@@ -1809,7 +1822,7 @@ class PE(object):
         through the instance's attributes.
         """
 
-        if fname:
+        if fname is not None:
             stat = os.stat(fname)
             if stat.st_size == 0:
                 raise PEFormatError('The file is empty')
@@ -1832,7 +1845,7 @@ class PE(object):
             finally:
                 if fd is not None:
                     fd.close()
-        elif data:
+        elif data is not None:
             self.__data__ = data
             self.__from_file = False
 
@@ -2165,7 +2178,7 @@ class PE(object):
             rich_data = self.get_data(0x80, rich_index + 8)
             data = list(struct.unpack(
                     '<{0}I'.format(int(len(rich_data)/4)), rich_data))
-            if b'RICH' not in data:
+            if RICH not in data:
                 return None
         except PEFormatError:
             return None
@@ -2192,7 +2205,7 @@ class PE(object):
                 # it should be followed by the checksum
                 #
                 if data[2 * i + 1] != checksum:
-                    self.__warnings.append('Rich Header corrupted')
+                    self.__warnings.append('Rich Header is malformed')
                 break
 
             # header values come by pairs
@@ -3514,11 +3527,17 @@ class PE(object):
 
         try:
             address_of_names = self.get_data(
-                export_dir.AddressOfNames, min( length_until_eof(export_dir.AddressOfNames), export_dir.NumberOfNames*4))
+                export_dir.AddressOfNames,
+                min(length_until_eof(export_dir.AddressOfNames),
+                    export_dir.NumberOfNames*4))
             address_of_name_ordinals = self.get_data(
-                export_dir.AddressOfNameOrdinals, min( length_until_eof(export_dir.AddressOfNameOrdinals), export_dir.NumberOfNames*4) )
+                export_dir.AddressOfNameOrdinals,
+                min(length_until_eof(export_dir.AddressOfNameOrdinals),
+                    export_dir.NumberOfNames*4))
             address_of_functions = self.get_data(
-                export_dir.AddressOfFunctions, min( length_until_eof(export_dir.AddressOfFunctions), export_dir.NumberOfFunctions*4) )
+                export_dir.AddressOfFunctions,
+                min(length_until_eof(export_dir.AddressOfFunctions),
+                    export_dir.NumberOfFunctions*4))
         except PEFormatError:
             self.__warnings.append(
                 'Error parsing export directory at RVA: 0x%x' % ( rva ) )
@@ -3529,36 +3548,32 @@ class PE(object):
         max_failed_entries_before_giving_up = 10
 
         section = self.get_section_by_rva(export_dir.AddressOfNames)
-        if not section:
-            self.__warnings.append(
-                'RVA AddressOfNames in the export directory points to an invalid address: %x' %
+        # Overly generous upper bound
+        safety_boundary = len(self.__data__)
+        if section:
+            safety_boundary = (
+                section.VirtualAddress + len(section.get_data()) -
                 export_dir.AddressOfNames)
-            return
-        else:
-            safety_boundary = section.VirtualAddress + len(section.get_data()) - export_dir.AddressOfNames
 
-        for i in range(min(
-                export_dir.NumberOfNames,
-                int(safety_boundary / 4))):
-
+        export_parsing_loop_completed_normally = True
+        for i in range(min(export_dir.NumberOfNames, int(safety_boundary / 4))):
             symbol_ordinal = self.get_word_from_data(
                 address_of_name_ordinals, i)
 
-            if symbol_ordinal is not None and symbol_ordinal*4 < len(address_of_functions):
+            if (symbol_ordinal is not None and
+                symbol_ordinal*4 < len(address_of_functions)):
                 symbol_address = self.get_dword_from_data(
                     address_of_functions, symbol_ordinal)
             else:
                 # Corrupt? a bad pointer... we assume it's all
                 # useless, no exports
                 return None
-
             if symbol_address is None or symbol_address == 0:
                 continue
 
             # If the function's RVA points within the export directory
             # it will point to a string with the forwarded symbol's string
             # instead of pointing the the function start address.
-
             if symbol_address >= rva and symbol_address < rva+size:
                 forwarder_str = self.get_string_at_rva(symbol_address)
                 try:
@@ -3572,22 +3587,31 @@ class PE(object):
                 forwarder_offset = None
 
             symbol_name_address = self.get_dword_from_data(address_of_names, i)
-
             if symbol_name_address is None:
                 max_failed_entries_before_giving_up -= 1
                 if max_failed_entries_before_giving_up <= 0:
+                    export_parsing_loop_completed_normally = False
                     break
 
             symbol_name = self.get_string_at_rva(symbol_name_address, MAX_SYMBOL_NAME_LENGTH)
             if not is_valid_function_name(symbol_name):
+                export_parsing_loop_completed_normally = False
                 break
             try:
-                symbol_name_offset = self.get_offset_from_rva( symbol_name_address )
+                symbol_name_offset = self.get_offset_from_rva(symbol_name_address)
             except PEFormatError:
                 max_failed_entries_before_giving_up -= 1
                 if max_failed_entries_before_giving_up <= 0:
+                    export_parsing_loop_completed_normally = False
                     break
-                continue
+                try:
+                    symbol_name_offset = self.get_offset_from_rva( symbol_name_address )
+                except PEFormatError:
+                    max_failed_entries_before_giving_up -= 1
+                    if max_failed_entries_before_giving_up <= 0:
+                        export_parsing_loop_completed_normally = False
+                        break
+                    continue
 
             exports.append(
                 ExportData(
@@ -3601,21 +3625,24 @@ class PE(object):
                     forwarder = forwarder_str,
                     forwarder_offset = forwarder_offset ))
 
+        if not export_parsing_loop_completed_normally:
+            self.__warnings.append(
+                'RVA AddressOfNames in the export directory points to an invalid address: %x' %
+                export_dir.AddressOfNames)
+
         ordinals = [exp.ordinal for exp in exports]
 
         max_failed_entries_before_giving_up = 10
 
         section = self.get_section_by_rva(export_dir.AddressOfFunctions)
-        if not section:
-            self.__warnings.append(
-                'RVA AddressOfFunctions in the export directory points to an invalid address: %x' %
+        # Overly generous upper bound
+        safety_boundary = len(self.__data__)
+        if section:
+            safety_boundary = (
+                section.VirtualAddress + len(section.get_data()) -
                 export_dir.AddressOfFunctions)
-            return
-        else:
-            safety_boundary = section.VirtualAddress + len(section.get_data()) - export_dir.AddressOfFunctions
 
-        safety_boundary = section.VirtualAddress + len(section.get_data()) - export_dir.AddressOfFunctions
-
+        export_parsing_loop_completed_normally = True
         for idx in range(min(
                 export_dir.NumberOfFunctions,
                 int(safety_boundary / 4))):
@@ -3630,6 +3657,7 @@ class PE(object):
                 if symbol_address is None:
                     max_failed_entries_before_giving_up -= 1
                     if max_failed_entries_before_giving_up <= 0:
+                        export_parsing_loop_completed_normally = False
                         break
 
                 if symbol_address == 0:
@@ -3648,9 +3676,15 @@ class PE(object):
                         name = None,
                         forwarder = forwarder_str))
 
-        return ExportDirData(
-                struct = export_dir,
-                symbols = exports)
+        if not export_parsing_loop_completed_normally:
+            self.__warnings.append(
+                'RVA AddressOfFunctions in the export directory points to an invalid address: %x' %
+                export_dir.AddressOfFunctions)
+            return
+
+        if not exports and export_dir.all_zeroes():
+            return None
+        return ExportDirData(struct = export_dir, symbols = exports)
 
 
     def dword_align(self, offset, base):
@@ -5322,7 +5356,7 @@ class PE(object):
             if i == int(checksum_offset / 4):
                 continue
             if i+1 == (int(data_len / 4)) and remainder:
-                dword = struct.unpack('I', self.__data__[i*4:]+ ('\0' * (4-remainder)) )[0]
+                dword = struct.unpack('I', self.__data__[i*4:]+ (b'\0' * (4-remainder)) )[0]
             else:
                 dword = struct.unpack('I', self.__data__[ i*4 : i*4+4 ])[0]
             # Optimized the calculation (thanks to Emmanuel Bourg for pointing it out!)
