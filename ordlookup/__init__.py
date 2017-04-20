@@ -20,12 +20,12 @@ def ordLookup(libname, ord, make_name=False):
     Lookup a name for the given ordinal if it's in our
     database.
     '''
-    names = ords.get(libname.lower())
+    names = ords.get(libname.lower().encode())
     if names is None:
         if make_name is True:
-            return b'ord%d' % ord
+            return (b'ord%d' % ord).decode()
         return None
     name = names.get(ord)
     if name is None:
-        return b'ord%d' % ord
-    return name
+        return (b'ord%d' % ord).decode()
+    return name.decode()
