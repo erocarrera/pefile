@@ -9,10 +9,11 @@ infoz.
 '''
 
 ords = {
-    b'ws2_32.dll':ws2_32.ord_names,
-    b'wsock32.dll':ws2_32.ord_names,
-    b'oleaut32.dll':oleaut32.ord_names,
+    b'ws2_32.dll': ws2_32.ord_names,
+    b'wsock32.dll': ws2_32.ord_names,
+    b'oleaut32.dll': oleaut32.ord_names,
 }
+
 
 def ordLookup(libname, ord, make_name=False):
     '''
@@ -20,7 +21,7 @@ def ordLookup(libname, ord, make_name=False):
     database.
     '''
     names = ords.get(libname.lower())
-    if names == None:
+    if names is None:
         if make_name is True:
             return (u'ord%d' % ord).encode()
         return None
@@ -28,5 +29,3 @@ def ordLookup(libname, ord, make_name=False):
     if name == None:
         return (u'ord%d' % ord).encode()
     return name
-
-
