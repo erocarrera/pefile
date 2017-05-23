@@ -1,26 +1,23 @@
 language: python
+dist: trusty
+
+cache:
+    pip: true
+
 python:
-- '2.7'
-- '3.5'
-before_install:
-- openssl aes-256-cbc -K $encrypted_83afbfb26b22_key -iv $encrypted_83afbfb26b22_iv
-  -in tests/test_data.tar.bz2.enc -out tests/test_data.tar.bz2 -d
-- tar jxf tests/test_data.tar.bz2 -C tests
+    - '2.7'
+    - '3.4'
+    - '3.5'
+    - '3.5-dev'
+    - '3.6'
+    - '3.6-dev'
+
 install:
-- pip install -r requirements.txt
-- pip install coveralls
+    - pip install -U pip pytest-cov codecov
+    - pip install -I -e .
+
 script:
-- chmod +x ./run_tests.py ./setup.py
-- python setup.py test
-- python setup.py build
-- python setup.py sdist
-- python setup.py bdist
-- python setup.py install
-- coverage run --source=pefile --omit="*_test*,*__init__*,*test_lib*" ./run_tests.py
+    - ./run_tests.sh
+
 after_success:
-- coveralls --verbose
-addons:
-  artifacts:
-    debug: true
-    paths:
-    - $(git ls-files -o | grep .txt | grep -v pefile.egg-info | tr "\n" ":")
+    - codecov

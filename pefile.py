@@ -23,13 +23,12 @@ distribution archive.
 
 from __future__ import division
 from __future__ import print_function
-from past.builtins import cmp, long
+from past.builtins import long
 from builtins import bytes
 from builtins import chr
 from builtins import object
 from builtins import range
 from builtins import str
-from builtins import zip
 
 __author__ = 'Ero Carrera'
 __version__ = '2016.3.28'
@@ -41,9 +40,8 @@ import sys
 import codecs
 import time
 import math
-import re
+import six
 import string
-import array
 import mmap
 import ordlookup
 
@@ -55,14 +53,16 @@ from hashlib import md5
 
 PY3 = sys.version_info > (3,)
 
+
 def count_zeroes(data):
-    try:
-        # newbytes' count() takes a str in Python 2
-        count = data.count('\0')
-    except TypeError:
+    if PY3:
         # bytes' count() takes an int in Python 3
         count = data.count(0)
+    else:
+        # newbytes' count() takes a str in Python 2
+        count = data.count('\0')
     return count
+
 
 fast_load = False
 
@@ -645,21 +645,40 @@ def power_of_two(val):
     return val != 0 and (val & (val-1)) == 0
 
 
+if sys.version_info < (3, 5):
+
+    def handler(ex):
+        # The error handler receives the UnicodeDecodeError, which contains arguments of the
+        # string and start/end indexes of the bad portion.
+
+        # The return value is a tuple of Unicode string and the index to continue conversion.
+        # Note: iterating byte strings returns int on 3.x but str on 2.x
+        return (u''.join('\\x{:02x}'.format(c if isinstance(c, int) else ord(c)) for c in ex.object[ex.start:ex.end]), ex.end)
+
+    codecs.register_error('pefile.handle_backslashreplace', handler)
+
+    # We need that kind of stupid wrapper because you cannot just overwrite backslashreplace
+    def decode_wrap(bytesstr, encoding='utf8'):
+        if isinstance(bytesstr, bytes):
+            return bytesstr.decode(encoding, 'pefile.handle_backslashreplace')
+        else:
+            return bytesstr
+
+else:
+    def decode_wrap(bytesstr, encoding='utf8'):
+        if isinstance(bytesstr, bytes):
+            return bytesstr.decode(encoding, 'backslashreplace')
+        else:
+            return bytesstr
+
+
 # These come from the great article[1] which contains great insights on
 # working with unicode in both Python 2 and 3.
 # [1]: http://python3porting.com/problems.html
 if not PY3:
-    def handler(err):
-        start = err.start
-        end = err.end
-        return (u"".join([u"\\x{0:02x}".format(ord(err.object[i])) for i in range(start,end)]),end)
-    import codecs
-    codecs.register_error('backslashreplace_', handler)
     def b(x):
         return x
 else:
-    import codecs
-    codecs.register_error('backslashreplace_', codecs.lookup_error('backslashreplace'))
     def b(x):
         if isinstance(x, (bytes, bytearray)):
             return bytes(x)
@@ -689,12 +708,12 @@ class UnicodeStringWrapperPostProcessor(object):
 
     def __str__(self):
         """Return the escaped UTF-8 representation of the string."""
-        return self.decode('utf-8', 'backslashreplace')
+        return decode_wrap(self.string)
 
     def decode(self, *args):
         if not self.string:
             return ''
-        return self.string.decode(*args)
+        return decode_wrap(self.string, *args)
 
     def invalidate(self):
         """Make this instance None, to express it's no known string type."""
@@ -922,6 +941,8 @@ class Structure(object):
                 if new_val != old_val:
                     break
 
+            if isinstance(new_val, six.text_type):
+                new_val = new_val.encode()
             new_values.append(new_val)
 
         return struct.pack(self.__format__, *new_values)
@@ -956,6 +977,8 @@ class Structure(object):
                             val_str += ' [%s UTC]' % time.asctime(time.gmtime(val))
                         except ValueError as e:
                             val_str += ' [INVALID TIME]'
+                elif isinstance(val, six.text_type):
+                    val_str = val
                 else:
                     val_str = bytearray(val)
                     val_str = ''.join(
@@ -987,8 +1010,11 @@ class Structure(object):
                             val = '0x%-8X [%s UTC]' % (val, time.asctime(time.gmtime(val)))
                         except ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
-                else:
-                    val = b([b for b in val if b != 0])
+                elif isinstance(val, bytes):
+                    val = decode_wrap(val.rstrip(b'\x00'))
+                    if not val:
+                        # FIXME: somewhat sketchy, but it only happen in 'DOS_HEADER'
+                        val = 0
 
                 dump_dict[key] = {'FileOffset': self.__field_offsets__[key] + self.__file_offset__,
                                   'Offset': self.__field_offsets__[key],
@@ -1040,7 +1066,6 @@ class SectionStructure(Structure):
             end = self.PointerToRawData + self.SizeOfRawData
         return self.pe.__data__[offset:end]
 
-
     def __setattr__(self, name, val):
 
         if name == 'Characteristics':
@@ -1055,14 +1080,15 @@ class SectionStructure(Structure):
             else:
                 self.__dict__['Characteristics'] ^= SECTION_CHARACTERISTICS[name]
 
-        self.__dict__[name] = val
+        elif name == 'Name':
+            val = decode_wrap(val.rstrip(b'\x00'))
 
+        self.__dict__[name] = val
 
     def get_rva_from_offset(self, offset):
         return offset - self.pe.adjust_FileAlignment( self.PointerToRawData,
             self.pe.OPTIONAL_HEADER.FileAlignment ) + self.pe.adjust_SectionAlignment( self.VirtualAddress,
             self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
-
 
     def get_offset_from_rva(self, rva):
         return (rva -
@@ -1073,7 +1099,6 @@ class SectionStructure(Structure):
             ) + self.pe.adjust_FileAlignment(
                 self.PointerToRawData,
                 self.pe.OPTIONAL_HEADER.FileAlignment )
-
 
     def contains_offset(self, offset):
         """Check whether the section contains the file offset provided."""
@@ -1415,6 +1440,7 @@ class LoadConfigData(DataContainer):
     name:       dll name
     """
 
+
 class BoundImportRefData(DataContainer):
     """Holds bound import forwarder reference data.
 
@@ -1438,14 +1464,17 @@ if PY3:
     allowed_filename = b(
         string.ascii_lowercase + string.ascii_uppercase +
         string.digits + "!#$%&'()-@^_`{}~+,.;=[]")
-else: # Python 2.x
+else:  # Python 2.x
     allowed_filename = b(
         string.lowercase + string.uppercase + string.digits +
         b"!#$%&'()-@^_`{}~+,.;=[]")
 
+
 def is_valid_dos_filename(s):
-    if s is None or not isinstance(s, (str, bytes)):
+    if s is None or not isinstance(s, (six.text_type, bytes)):
         return False
+    if isinstance(s, six.text_type):
+        s = s.encode()
     # Allow path separators as import names can contain directories.
     allowed = allowed_filename + b'\\/'
     for c in set(s):
@@ -1467,14 +1496,16 @@ else:
         string.lowercase + string.uppercase +
         string.digits + b'_?@$()<>')
 
+
 def is_valid_function_name(s):
-    if s is None or not isinstance(s, (str, bytes)):
+    if s is None or not isinstance(s, (six.text_type, bytes)):
         return False
+    if isinstance(s, six.text_type):
+        s = s.encode()
     for c in set(s):
         if c not in allowed_function_name:
             return False
     return True
-
 
 
 class PE(object):
@@ -2205,7 +2236,6 @@ class PE(object):
 
         return self.__warnings
 
-
     def show_warnings(self):
         """Print the list of warnings.
 
@@ -2217,7 +2247,6 @@ class PE(object):
         for warning in self.__warnings:
             print('>', warning)
 
-
     def full_load(self):
         """Process the data directories.
 
@@ -2226,7 +2255,6 @@ class PE(object):
         """
 
         self.parse_data_directories()
-
 
     def write(self, filename=None):
         """Write the PE file.
@@ -2261,23 +2289,19 @@ class PE(object):
                                 lengths = st_entry.entries_lengths[key]
 
                                 if len( entry ) > lengths[1]:
-                                    l = entry.decode('utf-8').encode('utf-16le')
+                                    l = decode_wrap(entry).encode('utf-16le')
                                     file_data[offsets[1]:offsets[1]+lengths[1]*2 ] = l[:lengths[1]*2]
                                 else:
-                                    encoded_data = entry.decode('utf-8').encode('utf-16le')
+                                    encoded_data = decode_wrap(entry).encode('utf-16le')
                                     file_data[offsets[1]:offsets[1]+len(encoded_data)] = encoded_data
 
         new_file_data = file_data
         if not filename:
             return new_file_data
 
-        f = open(filename, 'wb+')
-        f.write(new_file_data)
-        f.close()
+        with open(filename, 'wb+') as f:
+            f.write(new_file_data)
         return
-
-
-
 
     def parse_sections(self, offset):
         """Fetch the PE file sections.
@@ -2543,12 +2567,8 @@ class PE(object):
                 # a corrupt entry and abort the processing of these entries.
                 # Names shorted than 4 characters will be taken as invalid as well.
 
-                if name_str:
-                    invalid_chars = [
-                        c for c in bytearray(name_str) if
-                            chr(c) not in string.printable]
-                    if len(name_str) > 256 or invalid_chars:
-                        break
+                if not name_str:
+                    continue
 
                 forwarder_refs.append(BoundImportRefData(
                     struct = bnd_frwd_ref,
@@ -2558,12 +2578,6 @@ class PE(object):
             name_str = self.get_string_from_data(
                 0, self.__data__[offset : offset + MAX_STRING_LENGTH])
 
-            if name_str:
-                invalid_chars = [
-                    c for c in bytearray(name_str) if
-                        chr(c) not in string.printable]
-                if len(name_str) > 256 or invalid_chars:
-                    break
 
             if not name_str:
                 break
@@ -2574,7 +2588,6 @@ class PE(object):
                     entries = forwarder_refs))
 
         return bound_imports
-
 
     def parse_directory_tls(self, rva, size):
         """"""
@@ -3308,7 +3321,7 @@ class PE(object):
 
 
             # Parse a StringFileInfo entry
-            if stringfileinfo_string and stringfileinfo_string.startswith(b'StringFileInfo'):
+            if stringfileinfo_string and stringfileinfo_string.startswith('StringFileInfo'):
 
                 if stringfileinfo_struct.Type in (0,1) and stringfileinfo_struct.ValueLength == 0:
 
@@ -3417,7 +3430,7 @@ class PE(object):
                             break
 
             # Parse a VarFileInfo entry
-            elif stringfileinfo_string and stringfileinfo_string.startswith( b'VarFileInfo' ):
+            elif stringfileinfo_string and stringfileinfo_string.startswith('VarFileInfo'):
 
                 varfileinfo_struct = stringfileinfo_struct
                 varfileinfo_struct.name = 'VarFileInfo'
@@ -3745,7 +3758,7 @@ class PE(object):
 
             dll = self.get_string_at_rva(import_desc.szName, MAX_DLL_LENGTH)
             if not is_valid_dos_filename(dll):
-                dll = b('*invalid*')
+                dll = '*invalid*'
 
             if dll:
                 for symbol in import_data:
@@ -3769,7 +3782,7 @@ class PE(object):
             return ""
         for entry in self.DIRECTORY_ENTRY_IMPORT:
             if isinstance(entry.dll, bytes):
-                libname = entry.dll.decode().lower()
+                libname = decode_wrap(entry.dll).lower()
             else:
                 libname = entry.dll.lower()
             parts = libname.rsplit('.', 1)
@@ -3789,7 +3802,7 @@ class PE(object):
                     continue
 
                 if isinstance(funcname, bytes):
-                    funcname = funcname.decode()
+                    funcname = decode_wrap(funcname)
                 impstrs.append('%s.%s' % (libname.lower(),funcname.lower()))
 
         return md5( ','.join( impstrs ).encode() ).hexdigest()
@@ -3856,7 +3869,7 @@ class PE(object):
 
             dll = self.get_string_at_rva(import_desc.Name, MAX_DLL_LENGTH)
             if not is_valid_dos_filename(dll):
-                dll = b('*invalid*')
+                dll = '*invalid*'
 
             if dll:
                 for symbol in import_data:
@@ -3871,14 +3884,13 @@ class PE(object):
                         dll = dll))
 
         if not dllnames_only:
-            suspicious_imports = set([ u'LoadLibrary', u'GetProcAddress' ])
+            suspicious_imports = set(['LoadLibrary', 'GetProcAddress'])
             suspicious_imports_count = 0
             total_symbols = 0
             for imp_dll in import_descs:
                 for symbol in imp_dll.imports:
                     for suspicious_symbol in suspicious_imports:
-                        if symbol and symbol.name and symbol.name.startswith(
-                            b(suspicious_symbol)):
+                        if symbol and symbol.name and symbol.name.startswith(suspicious_symbol):
                             suspicious_imports_count += 1
                             break
                     total_symbols += 1
@@ -3976,7 +3988,7 @@ class PE(object):
                         imp_hint = self.get_word_from_data(data, 0)
                         imp_name = self.get_string_at_rva(table[idx].AddressOfData+2, MAX_IMPORT_NAME_LENGTH)
                         if not is_valid_function_name(imp_name):
-                            imp_name = b('*invalid*')
+                            imp_name = '*invalid*'
 
                         name_offset = self.get_offset_from_rva(table[idx].AddressOfData+2)
                     except PEFormatError as e:
@@ -4015,7 +4027,7 @@ class PE(object):
             # Some PEs appear to interleave valid and invalid imports. Instead of
             # aborting the parsing altogether we will simply skip the invalid entries.
             # Although if we see 1000 invalid entries and no legit ones, we abort.
-            if imp_name == b('*invalid*'):
+            if imp_name == '*invalid*':
                 if num_invalid > 1000 and num_invalid == idx:
                     raise PEFormatError('Too many invalid names, aborting parsing.')
                 num_invalid += 1
@@ -4346,7 +4358,7 @@ class PE(object):
         end = s.find(b'\0')
         if end >= 0:
             s = s[:end]
-        return s #.decode('ascii', 'backslashreplace')
+        return decode_wrap(s) #.decode('ascii', 'backslashreplace')
 
     def get_string_u_at_rva(self, rva, max_length = 2**16, encoding=None):
         """Get an Unicode string located at the given address."""
@@ -4389,7 +4401,7 @@ class PE(object):
         if encoding:
             return b(s.encode(encoding, 'backslashreplace'))
 
-        return b(s.encode('utf-8', 'backslashreplace'))
+        return s
 
 
     def get_section_by_offset(self, offset):
@@ -4525,14 +4537,13 @@ class PE(object):
                     if hasattr(entry, 'StringTable'):
                         for st_entry in entry.StringTable:
                             [dump.add_line(u'  '+line) for line in st_entry.dump()]
-                            dump.add_line(u'  LangID: {0}'.format(
-                                st_entry.LangID.decode(encoding, 'backslashreplace_')))
+                            dump.add_line(u'  LangID: {0}'.format(decode_wrap(st_entry.LangID, encoding)))
                             dump.add_newline()
                             for str_entry in sorted(list(st_entry.entries.items())):
                                 # try:
                                 dump.add_line( u'    {0}: {1}'.format(
-                                    str_entry[0].decode(encoding, 'backslashreplace_'),
-                                    str_entry[1].decode(encoding, 'backslashreplace_')))
+                                    decode_wrap(str_entry[0], encoding),
+                                    decode_wrap(str_entry[1], encoding)))
                                 # except Exception as excp:
                                 #     dump.add_line( u'    {0}: {1}'.format(
                                 #         repr(str_entry[0]),
@@ -4551,11 +4562,7 @@ class PE(object):
                         for var_entry in entry.Var:
                             if hasattr(var_entry, 'entry'):
                                 [dump.add_line('  '+line) for line in var_entry.dump()]
-                                dump.add_line(
-                                    u'    {0}: {1}'.format(
-                                        list(var_entry.entry.keys())[0].decode(
-                                            'utf-8', 'backslashreplace'),
-                                        list(var_entry.entry.values())[0]))
+                                dump.add_line(u'    {0}: {1}'.format(list(var_entry.entry.keys())[0], list(var_entry.entry.values())[0]))
 
                         dump.add_newline()
 
@@ -4566,14 +4573,12 @@ class PE(object):
             dump.add_line(u'%-10s   %-10s  %s' % ('Ordinal', 'RVA', 'Name'))
             for export in self.DIRECTORY_ENTRY_EXPORT.symbols:
                 if export.address is not None:
-                    name = b('None')
+                    name = 'None'
                     if export.name:
                         name = export.name
-                    dump.add(u'%-10d 0x%08Xh    %s' % (
-                        export.ordinal, export.address, name.decode(encoding)))
+                    dump.add(u'%-10d 0x%08Xh    %s' % (export.ordinal, export.address, name))
                     if export.forwarder:
-                        dump.add_line(u' forwarder: {0}'.format(
-                            export.forwarder.decode(encoding)))
+                        dump.add_line(u' forwarder: {0}'.format(export.forwarder))
                     else:
                         dump.add_newline()
 
@@ -4585,25 +4590,18 @@ class PE(object):
                 dump.add_lines(module.struct.dump())
                 # Print the name of the DLL if there are no imports.
                 if not module.imports:
-                    dump.add('  Name -> {0}'.format(
-                        self.get_string_at_rva(module.struct.Name).decode(encoding)))
+                    dump.add('  Name -> {0}'.format(self.get_string_at_rva(module.struct.Name)))
                     dump.add_newline()
                 dump.add_newline()
                 for symbol in module.imports:
                     if symbol.import_by_ordinal is True:
                         if symbol.name is not None:
                             dump.add('{0}.{1} Ordinal[{2}] (Imported by Ordinal)'.format(
-                                     module.dll.decode('utf-8'),
-                                     symbol.name.decode('utf-8'),
-                                     symbol.ordinal))
+                                     module.dll, symbol.name, symbol.ordinal))
                         else:
-                            dump.add('{0} Ordinal[{1}] (Imported by Ordinal)'.format(
-                                module.dll.decode('utf-8'), symbol.ordinal))
+                            dump.add('{0} Ordinal[{1}] (Imported by Ordinal)'.format(module.dll, symbol.ordinal))
                     else:
-                        dump.add('{0}.{1} Hint[{2:d}]'.format(
-                            module.dll.decode(encoding),
-                            symbol.name.decode(encoding),
-                            symbol.hint))
+                        dump.add('{0}.{1} Hint[{2:d}]'.format(module.dll, symbol.name, symbol.hint))
 
                     if symbol.bound:
                         dump.add_line(' Bound: 0x{0:08X}'.format(symbol.bound))
@@ -4611,22 +4609,18 @@ class PE(object):
                         dump.add_newline()
                 dump.add_newline()
 
-
         if hasattr(self, 'DIRECTORY_ENTRY_BOUND_IMPORT'):
             dump.add_header('Bound imports')
             for bound_imp_desc in self.DIRECTORY_ENTRY_BOUND_IMPORT:
 
                 dump.add_lines(bound_imp_desc.struct.dump())
-                dump.add_line('DLL: {0}'.format(
-                    bound_imp_desc.name.decode(encoding)))
+                dump.add_line('DLL: {0}'.format(bound_imp_desc.name))
                 dump.add_newline()
 
                 for bound_imp_ref in bound_imp_desc.entries:
                     dump.add_lines(bound_imp_ref.struct.dump(), 4)
-                    dump.add_line('DLL: {0}'.format(
-                        bound_imp_ref.name.decode(encoding)), 4)
+                    dump.add_line('DLL: {0}'.format(bound_imp_ref.name), 4)
                     dump.add_newline()
-
 
         if hasattr(self, 'DIRECTORY_ENTRY_DELAY_IMPORT'):
             dump.add_header('Delay Imported symbols')
@@ -4638,19 +4632,16 @@ class PE(object):
                 for symbol in module.imports:
                     if symbol.import_by_ordinal is True:
                         dump.add('{0} Ordinal[{1:d}] (Imported by Ordinal)'.format(
-                            module.dll.decode(encoding),
-                            symbol.ordinal))
+                            module.dll, symbol.ordinal))
                     else:
                         dump.add('{0}.{1} Hint[{2}]'.format(
-                            module.dll.decode(encoding),
-                            symbol.name.decode(encoding), symbol.hint))
+                            module.dll, symbol.name, symbol.hint))
 
                     if symbol.bound:
                         dump.add_line(' Bound: 0x{0:08X}'.format(symbol.bound))
                     else:
                         dump.add_newline()
                 dump.add_newline()
-
 
         if hasattr(self, 'DIRECTORY_ENTRY_RESOURCE'):
             dump.add_header('Resource directory')
@@ -4661,9 +4652,7 @@ class PE(object):
 
                 if resource_type.name is not None:
                     # name = str(resource_type.name) #.string if resource_type.name.string else ''
-                    dump.add_line(u'Name: [{0}]'.format(
-                        resource_type.name.decode(encoding, 'backslashreplace')
-                        ), 2)
+                    dump.add_line(u'Name: [{0}]'.format(decode_wrap(resource_type.name, encoding)), 2)
                 else:
                     dump.add_line(u'Id: [0x{0:X}] ({1})'.format(
                         resource_type.struct.Id, RESOURCE_TYPE.get(
@@ -4679,9 +4668,7 @@ class PE(object):
                     for resource_id in resource_type.directory.entries:
 
                         if resource_id.name is not None:
-                            dump.add_line(u'Name: [{0}]'.format(
-                                resource_id.name.decode(
-                                    'utf-8', 'backslashreplace')), 6)
+                            dump.add_line(u'Name: [{0}]'.format(decode_wrap(resource_id.name)), 6)
                         else:
                             dump.add_line('Id: [0x{0:X}]'.format(resource_id.struct.Id), 6)
 
@@ -4760,7 +4747,6 @@ class PE(object):
 
         return dump.get_text()
 
-
     def dump_dict(self, dump=None):
         """Dump all the PE header information into a dictionary."""
 
@@ -4812,10 +4798,7 @@ class PE(object):
             if sha512 is not None:
                 section_dict['SHA512'] = section.get_hash_sha512()
 
-
-
-        if (hasattr(self, 'OPTIONAL_HEADER') and
-            hasattr(self.OPTIONAL_HEADER, 'DATA_DIRECTORY') ):
+        if (hasattr(self, 'OPTIONAL_HEADER') and hasattr(self.OPTIONAL_HEADER, 'DATA_DIRECTORY')):
 
             dump_dict['Directories'] = list()
 
@@ -4838,22 +4821,19 @@ class PE(object):
                     if hasattr(entry, 'StringTable'):
                         stringtable_dict = dict()
                         for st_entry in entry.StringTable:
-                            [fileinfo_list.append(line) for line in st_entry.dump_dict()]
                             stringtable_dict['LangID'] = st_entry.LangID
                             for str_entry in list(st_entry.entries.items()):
                                 stringtable_dict[str_entry[0]] = str_entry[1]
                         fileinfo_list.append(stringtable_dict)
 
-
                     elif hasattr(entry, 'Var'):
                         for var_entry in entry.Var:
                             var_dict = dict()
                             if hasattr(var_entry, 'entry'):
-                                [fileinfo_list.append(line) for line in var_entry.dump_dict()]
-                                var_dict[list(var_entry.entry.keys())[0]] = list(
-                                    var_entry.entry.values())[0]
+                                for v_entry in var_entry.entry.items():
+                                    var_dict[v_entry[0]] = v_entry[1]
                                 fileinfo_list.append(var_dict)
-
+                dump_dict['File Info'] = fileinfo_list
 
         if hasattr(self, 'DIRECTORY_ENTRY_EXPORT'):
             dump_dict['Exported symbols'] = list()
@@ -4886,7 +4866,6 @@ class PE(object):
                         symbol_dict['Bound'] = symbol.bound
                     import_list.append(symbol_dict)
 
-
         if hasattr(self, 'DIRECTORY_ENTRY_BOUND_IMPORT'):
             dump_dict['Bound imports'] = list()
             for bound_imp_desc in self.DIRECTORY_ENTRY_BOUND_IMPORT:
@@ -4900,7 +4879,6 @@ class PE(object):
                     bound_imp_ref_dict = dict()
                     bound_imp_ref_dict.update(bound_imp_ref.struct.dump_dict())
                     bound_imp_ref_dict['DLL'] = bound_imp_ref.name
-
 
         if hasattr(self, 'DIRECTORY_ENTRY_DELAY_IMPORT'):
             dump_dict['Delay Imported symbols'] = list()
@@ -4922,7 +4900,6 @@ class PE(object):
                     if symbol.bound:
                         symbol_dict['Bound'] = symbol.bound
                     module_list.append(symbol_dict)
-
 
         if hasattr(self, 'DIRECTORY_ENTRY_RESOURCE'):
             dump_dict['Resource directory'] = list()
@@ -4972,21 +4949,21 @@ class PE(object):
                                     resource_lang_dict.update(resource_lang.data.struct.dump_dict())
                                     resource_id_list.append(resource_lang_dict)
                             if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
+                                resource_id_strings_list = list()
                                 for idx, res_string in list(resource_id.directory.strings.items()):
-                                    resource_id_list.append(convert_to_printable(res_string))
-
+                                    resource_id_strings_list.append(res_string)
+                                if resource_id_strings_list:
+                                    resource_id_list.append({'Strings': resource_id_strings_list})
 
         if ( hasattr(self, 'DIRECTORY_ENTRY_TLS') and
              self.DIRECTORY_ENTRY_TLS and
              self.DIRECTORY_ENTRY_TLS.struct ):
             dump_dict['TLS'] = self.DIRECTORY_ENTRY_TLS.struct.dump_dict()
 
-
         if ( hasattr(self, 'DIRECTORY_ENTRY_LOAD_CONFIG') and
              self.DIRECTORY_ENTRY_LOAD_CONFIG and
              self.DIRECTORY_ENTRY_LOAD_CONFIG.struct ):
             dump_dict['LOAD_CONFIG'] = self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.dump_dict()
-
 
         if hasattr(self, 'DIRECTORY_ENTRY_DEBUG'):
             dump_dict['Debug information'] = list()
@@ -4995,7 +4972,6 @@ class PE(object):
                 dump_dict['Debug information'].append(dbg_dict)
                 dbg_dict.update(dbg.struct.dump_dict())
                 dbg_dict['Type'] = DEBUG_TYPE.get(dbg.struct.Type, dbg.struct.Type)
-
 
         if hasattr(self, 'DIRECTORY_ENTRY_BASERELOC'):
             dump_dict['Base relocations'] = list()
@@ -5013,7 +4989,6 @@ class PE(object):
                         reloc_dict['Type'] = reloc.type
 
         return dump_dict
-
 
     # OC Patch
     def get_physical_by_rva(self, rva):
