@@ -1846,23 +1846,20 @@ class PE(object):
                 raise PEFormatError('The file is empty')
             fd = None
             try:
-                fd = open(fname, 'rb')
-                self.fileno = fd.fileno()
-                if hasattr(mmap, 'MAP_PRIVATE'):
-                    # Unix
-                    self.__data__ = mmap.mmap(self.fileno, 0, mmap.MAP_PRIVATE)
-                else:
-                    # Windows
-                    self.__data__ = mmap.mmap(self.fileno, 0, access=mmap.ACCESS_READ)
-                self.__from_file = True
+                with open(fname, 'rb') as fd:
+                    self.fileno = fd.fileno()
+                    if hasattr(mmap, 'MAP_PRIVATE'):
+                        # Unix
+                        self.__data__ = mmap.mmap(self.fileno, 0, mmap.MAP_PRIVATE)
+                    else:
+                        # Windows
+                        self.__data__ = mmap.mmap(self.fileno, 0, access=mmap.ACCESS_READ)
+                    self.__from_file = True
             except IOError as excp:
                 exception_msg = '{0}'.format(excp)
                 if exception_msg:
                     exception_msg = ': %s' % exception_msg
                 raise Exception('Unable to access file \'{0}\'{1}'.format(fname, exception_msg))
-            finally:
-                if fd is not None:
-                    fd.close()
         elif data is not None:
             self.__data__ = data
             self.__from_file = False
