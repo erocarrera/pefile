@@ -13,6 +13,8 @@ REGRESSION_TESTS_DIR = 'tests/test_files'
 
 class Test_pefile(unittest.TestCase):
 
+    maxDiff = None
+
     def setUp(self):
         self.test_files = self._load_test_files()
 
@@ -28,9 +30,7 @@ class Test_pefile(unittest.TestCase):
         return test_files
 
     def test_pe_image_regression_test(self):
-        """Run through all the test files and make sure they are properly
-        processed.
-        """
+        """Run through all the test files and make sure they run correctly"""
 
         for idx, pe_filename in enumerate( self.test_files ):
             if pe_filename.endswith('fake_PE_no_read_permissions_issue_53'):
@@ -54,14 +54,14 @@ class Test_pefile(unittest.TestCase):
                     'Assuming first run and generating...') % (
                     os.path.basename(control_data_filename) ))
                 control_data_f = open( control_data_filename, 'wb')
-                control_data_f.write( pe_file_data.encode('utf-8') )
+                control_data_f.write( pe_file_data.encode('utf-8', 'backslashreplace') )
                 continue
 
             control_data_f = open(control_data_filename, 'rb')
             control_data = control_data_f.read()
             control_data_f.close()
 
-            pe_file_data_hash = sha256(pe_file_data.encode('ascii')).hexdigest()
+            pe_file_data_hash = sha256(pe_file_data.encode('utf-8', 'backslashreplace')).hexdigest()
             control_data_hash = sha256(control_data).hexdigest()
 
             diff_lines_added_count = 0
@@ -72,7 +72,7 @@ class Test_pefile(unittest.TestCase):
                 print('Hash differs for [%s]' % os.path.basename(pe_filename))
 
                 diff = difflib.ndiff(
-                    control_data.decode('ascii').splitlines(), pe_file_data.splitlines())
+                    control_data.decode('utf-8').splitlines(), pe_file_data.splitlines())
 
                 # check the diff
                 for line in diff:
@@ -109,23 +109,23 @@ class Test_pefile(unittest.TestCase):
 
                     # Do the diff again to store it for analysis.
                     diff = difflib.unified_diff(
-                        control_data.decode('ascii').splitlines(), pe_file_data.splitlines())
+                        control_data.decode('utf-8').splitlines(), pe_file_data.splitlines())
                     error_diff_f = open('error_diff.txt', 'ab')
                     error_diff_f.write(
                         b'\n________________________________________\n')
                     error_diff_f.write(
-                        'Errors for file "{0}":\n'.format(pe_filename).encode('ascii'))
+                        'Errors for file "{0}":\n'.format(pe_filename).encode('utf-8', 'backslashreplace'))
                     error_diff_f.write(
-                        '\n'.join([l for l in diff if not l.startswith(' ')]).encode('ascii'))
+                        '\n'.join([l for l in diff if not l.startswith(' ')]).encode('utf-8', 'backslashreplace'))
                     error_diff_f.close()
                     print('Diff saved to: error_diff.txt')
 
             if diff_lines_removed_count == 0:
                 try:
-                    self.assertEqual( control_data.decode('ascii'), pe_file_data )
+                    self.assertEqual( control_data.decode('utf-8'), pe_file_data )
                 except AssertionError:
                     diff = difflib.unified_diff(
-                        control_data.decode('ascii').splitlines(), pe_file_data.splitlines())
+                        control_data.decode('utf-8').splitlines(), pe_file_data.splitlines())
                     raise AssertionError( '\n'.join(diff) )
 
             os.sys.stdout.write('[%d]' % ( len(self.test_files) - idx ))
@@ -148,9 +148,38 @@ class Test_pefile(unittest.TestCase):
         # Verify both methods obtained the same results.
         self.assertEqual(pe_full.dump_info(), pe.dump_info())
 
+        pe.close()
+        pe_full.close()
+
+
+    def test_imphash(self):
+        """Test imphash values."""
+
+        self.assertEqual(
+            pefile.PE(os.path.join(
+                REGRESSION_TESTS_DIR, 'mfc40.dll')).get_imphash(),
+            'ef3d32741141a9ffde06721c65ea07b6')
+
+        self.assertEqual(
+            pefile.PE(os.path.join(
+                REGRESSION_TESTS_DIR, 'kernel32.dll')).get_imphash(),
+            '239b8e3d4f9d1860d6ce5efb07b02e2a')
+
+        self.assertEqual(
+            pefile.PE(os.path.join(
+                REGRESSION_TESTS_DIR,
+                '66c74e4c9dbd1d33b22f63cd0318b72dea88f9dbb4d36a3383d3da20b037d42e'
+                )).get_imphash(),
+            'a781de574e0567285ee1233bf6a57cc0')
+
+        self.assertEqual(
+            pefile.PE(os.path.join(
+                REGRESSION_TESTS_DIR, '64bit_Binaries/cmd.exe')).get_imphash(),
+            'd0058544e4588b1b2290b7f4d830eb0a')
+
 
     def test_write_header_fields(self):
-        """Verify correct field data modification"""
+        """Verify correct field data modification."""
 
         # Test version information writing
         control_file = os.path.join(REGRESSION_TESTS_DIR, 'MSVBVM60.DLL')
@@ -183,8 +212,9 @@ class Test_pefile(unittest.TestCase):
 
         # Verify all modifications in the file were the ones we just made
         #
-        self.assertEqual(''.join(differences).encode('ascii'),  str1+str2+str3)
+        self.assertEqual(''.join(differences).encode('utf-8', 'backslashreplace'),  str1+str2+str3)
 
+        pe.close()
 
     def test_nt_headers_exception(self):
         """pefile should fail parsing invalid data (missing NT headers)"""
@@ -406,6 +436,20 @@ class Test_pefile(unittest.TestCase):
         control_file_pe = os.path.join(
             REGRESSION_TESTS_DIR, 'fake_PE_no_read_permissions_issue_53')
         self.assertRaises( Exception, pefile.PE, control_file_pe )
+
+
+    def test_driver_check(self):
+        """Test the is_driver check"""
+
+        control_file_pe = os.path.join(
+            REGRESSION_TESTS_DIR,
+            '075356de51afac92d1c20ba53c966fa145172897a96cfdb1b3bb369edb376a77_driver')
+
+        pe_fast = pefile.PE(control_file_pe, fast_load=True)
+        pe_full = pefile.PE(control_file_pe, fast_load=False)
+
+        # Ensure the rebased image is the same as the pre-generated one.
+        self.assertEqual( pe_fast.is_driver(), pe_full.is_driver() )
 
 
     def test_rebased_image(self):

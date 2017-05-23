@@ -325,7 +325,7 @@ class SignatureDatabase(object):
         # Walk the bytes in the data and match them
         # against the signature
         #
-        for idx, byte in enumerate ( [ord (b) for b in data] ):
+        for idx, byte in enumerate ( [b if isinstance(b, int) else ord(b) for b in data] ):
 
             # If the tree is exhausted...
             #
@@ -408,7 +408,7 @@ class SignatureDatabase(object):
                 # Get the data for a file
                 #
                 try:
-                    sig_f = file( filename, 'rt' )
+                    sig_f = open( filename, 'rt' )
                     sig_data = sig_f.read()
                     sig_f.close()
                 except IOError:
@@ -425,10 +425,10 @@ class SignatureDatabase(object):
 
         # Helper function to parse the signature bytes
         #
-        def to_byte(value) :
-            if value == '??' or value == '?0' :
+        def to_byte(value):
+            if '?' in value:
                 return value
-            return int (value, 16)
+            return int(value, 16)
 
 
         # Parse all the signatures in the file
@@ -582,6 +582,3 @@ def is_probably_packed( pe ):
         has_significant_amount_of_compressed_data = True
 
     return has_significant_amount_of_compressed_data
-
-
-

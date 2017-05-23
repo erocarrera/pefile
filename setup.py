@@ -5,6 +5,9 @@ import os
 import re
 import sys
 
+if sys.version_info.major == 3:
+    from io import open
+
 try:
     from setuptools import setup, Command
 except ImportError as excp:
@@ -22,8 +25,12 @@ def _read_doc():
     Parse docstring from file 'pefile.py' and avoid importing
     this module directly.
     """
-    with open('pefile.py', 'r') as f:
-        tree = ast.parse(f.read())
+    if sys.version_info.major == 2:
+        with open('pefile.py', 'r') as f:
+            tree = ast.parse(f.read())
+    else:
+        with open('pefile.py', 'r', encoding='utf-8') as f:
+            tree = ast.parse(f.read())
     return ast.get_docstring(tree)
 
 
@@ -35,8 +42,12 @@ def _read_attr(attr_name):
     __version__, __author__, __contact__,
     """
     regex = attr_name + r"\s+=\s+'(.+)'"
-    with open('pefile.py', 'r') as f:
-        match = re.search(regex, f.read())
+    if sys.version_info.major == 2:
+        with open('pefile.py', 'r') as f:
+            match = re.search(regex, f.read())
+    else:
+        with open('pefile.py', 'r', encoding='utf-8') as f:
+            match = re.search(regex, f.read())
     # Second item in the group is the value of attribute.
     return match.group(1)
 
@@ -50,14 +61,6 @@ class TestCommand(Command):
 
   def finalize_options(self):
     pass
-
-
-# build_msi does not support the 1.2.10-139 versioning schema
-# (or 1.2.10.139), hence the revision number is stripped.
-pefile_version = _read_attr('__version__')
-if 'bdist_msi' in sys.argv:
-    pefile_version, _, _ = pefile_version.partition('-')
-
 
 class TestCommand(Command):
   """Run tests."""
@@ -75,7 +78,7 @@ class TestCommand(Command):
 
 
 setup(name = 'pefile',
-    version = pefile_version,
+    version = _read_attr('__version__'),
     description = 'Python PE parsing module',
     author = _read_attr('__author__'),
     author_email = _read_attr('__contact__'),
@@ -84,12 +87,12 @@ setup(name = 'pefile',
     keywords = ['pe', 'exe', 'dll', 'pefile', 'pecoff'],
     classifiers = [
         'Development Status :: 5 - Production/Stable',
-    	'Intended Audience :: Developers',
-    	'Intended Audience :: Science/Research',
-    	'Natural Language :: English',
-    	'Operating System :: OS Independent',
-    	'Programming Language :: Python',
-    	'Topic :: Software Development :: Libraries :: Python Modules'],
+        'Intended Audience :: Developers',
+        'Intended Audience :: Science/Research',
+        'Natural Language :: English',
+        'Operating System :: OS Independent',
+        'Programming Language :: Python',
+        'Topic :: Software Development :: Libraries :: Python Modules'],
     long_description = "\n".join(_read_doc().split('\n')),
     cmdclass={"test": TestCommand},
     py_modules = ['pefile', 'peutils'],

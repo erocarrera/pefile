@@ -42,13 +42,15 @@ Prompted by the move to GitHub, the need to support Python 3 in addition to reso
 
 ## Projects and products using _pefile_
 
-  * [Exe Dump Utility](http://utilitymill.com/utility/Exe_Dump_Utility) a web-based _pefile_
+  * [MAEC](http://maec.mitre.org) MAEC is a standardized language for encoding and communicating high-fidelity information about malware based upon attributes such as behaviors, artifacts, and attack patterns. MAEC [converts](https://github.com/MAECProject/pefile-to-maec) _pefile_'s output into their XML format.
+  * [Qiew](https://github.com/mtivadar/qiew) Qiew - Hex/File format viewer.
   * [VirusTotal](http://www.virustotal.com/)
   * [bbfreeze](http://pypi.python.org/pypi/bbfreeze)
   * **pyemu**: [download](https://www.openrce.org/repositories/browse/codypierce), [whitepaper](https://www.blackhat.com/presentations/bh-usa-07/Pierce/Whitepaper/bh-usa-07-pierce-WP.pdf)
   * [Offensive Computing](http://www.offensivecomputing.net/)
   * [Immunity Debugger 1.1](https://www.openrce.org/blog/view/882/Immunity_Debugger_v1.1_Release)
   * [PyInstaller](http://www.pyinstaller.org/)
+  * [Cuckoo](http://docs.cuckoosandbox.org/en/latest/)
 
 ## Additional resources
 
@@ -60,6 +62,7 @@ PDFs of posters depicting the PE file format:
 The following links provide detailed information about the PE format and its structures.
 
   * [corkami's wiki page about the PE format](https://code.google.com/p/corkami/wiki/PE) has grown to be one of the most in-depth repositories of information about the PE format
+  * [corkami's treasure trove of PE weirdness](https://github.com/corkami/pocs/tree/master/PE)
   * [An In-Depth Look into the Win32 Portable Executable File Format](http://msdn.microsoft.com/msdnmag/issues/02/02/PE/default.aspx)
   * [An In-Depth Look into the Win32 Portable Executable File Format, Part 2](http://msdn.microsoft.com/msdnmag/issues/02/03/PE2/default.aspx)
   * [The Portable Executable File Format](http://www.csn.ul.ie/~caolan/publink/winresdump/winresdump/doc/pefile.html)

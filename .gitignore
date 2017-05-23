@@ -1,0 +1,22 @@
+# Files to ignore by git.
+
+.gitignore
+*.bak
+.coverage
+tests/test_files/*
+venv*
+
+# Back-up files
+*~
+*.swp
+
+# Generic auto-generated build files
+*.pyc
+*.pyo
+
+# Specific auto-generated build files
+/.tox
+/__pycache__
+/build
+/dist
+/pefile.egg-info
