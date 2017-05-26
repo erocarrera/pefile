@@ -3040,7 +3040,12 @@ class PE(object):
                                 string_entry_size = resource_lang.data.struct.Size
                                 string_entry_id = resource_id.id
 
-                                string_entry_data = self.get_data(string_entry_rva, string_entry_size)
+                                # XXX: has been raising exceptions preventing parsing
+                                try:
+                                    string_entry_data = self.get_data(string_entry_rva, string_entry_size)
+                                except:
+                                    continue
+                                
                                 parse_strings( string_entry_data, (int(string_entry_id) - 1) * 16, resource_strings )
                                 strings.update(resource_strings)
 
