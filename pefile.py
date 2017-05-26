@@ -13,7 +13,7 @@ PEs as well as malware, which often attempts to abuse the format way beyond its
 standard use. To the best of my knowledge most of the abuse is handled
 gracefully.
 
-Copyright (c) 2005-2016 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2017 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 
@@ -31,7 +31,7 @@ from builtins import str
 from builtins import zip
 
 __author__ = 'Ero Carrera'
-__version__ = '2016.3.28'
+__version__ = '2017.5.26'
 __contact__ = 'ero.carrera@gmail.com'
 
 import os
