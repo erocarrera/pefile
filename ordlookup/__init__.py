@@ -23,9 +23,9 @@ def ordLookup(libname, ord, make_name=False):
     names = ords.get(libname.lower())
     if names is None:
         if make_name is True:
-            return b'ord%d' % ord
+            return (u'ord%d' % ord).encode()
         return None
     name = names.get(ord)
-    if name is None:
-        return b'ord%d' % ord
+    if name == None:
+        return (u'ord%d' % ord).encode()
     return name
