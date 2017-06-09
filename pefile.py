@@ -13,7 +13,7 @@ PEs as well as malware, which often attempts to abuse the format way beyond its
 standard use. To the best of my knowledge most of the abuse is handled
 gracefully.
 
-Copyright (c) 2005-2016 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2017 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 
@@ -23,7 +23,6 @@ distribution archive.
 
 from __future__ import division
 from __future__ import print_function
-from past.builtins import cmp, long
 from builtins import bytes
 from builtins import chr
 from builtins import object
@@ -32,7 +31,7 @@ from builtins import str
 from builtins import zip
 
 __author__ = 'Ero Carrera'
-__version__ = '2016.3.28'
+__version__ = '2017.5.26'
 __contact__ = 'ero.carrera@gmail.com'
 
 import os
@@ -54,6 +53,9 @@ from hashlib import sha512
 from hashlib import md5
 
 PY3 = sys.version_info > (3,)
+
+if PY3:
+    long = int
 
 def count_zeroes(data):
     try:
@@ -566,28 +568,6 @@ def get_sublang_name_for_lang( lang_value, sublang_value ):
     return SUBLANG.get(sublang_value, ['*unknown*'])[0]
 
 
-def convert_to_printable(s):
-    """Convert string to printable string.
-    @param s: string.
-    @return: sanitized string.
-    """
-    printable = True
-    for c in s:
-        if c not in string.printable:
-            printable = False
-            break
-    if printable:
-        return s
-    else:
-        new_string = ''
-        for c in s:
-            if c in string.printable:
-                new_string += c
-            else:
-                new_string += "\\x%02x" % ord(c)
-        return new_string
-
-
 # Ange Albertini's code to process resources' strings
 #
 def parse_strings(data, counter, l):
@@ -988,7 +968,9 @@ class Structure(object):
                         except ValueError as e:
                             val = '0x%-8X [INVALID TIME]' % val
                 else:
-                    val = b([b for b in val if b != 0])
+                    val = ''.join(chr(d) if chr(d) in string.printable
+                                  else "\\x%02x" % d for d in
+                                    [ord(c) if not isinstance(c, int) else c for c in val])
 
                 dump_dict[key] = {'FileOffset': self.__field_offsets__[key] + self.__file_offset__,
                                   'Offset': self.__field_offsets__[key],
@@ -4250,7 +4232,7 @@ class PE(object):
                         if hasattr(resource_id, 'directory'):
                             if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
                                 for res_string in list(resource_id.directory.strings.values()):
-                                    resources_strings.append( res_string )
+                                    resources_strings.append(res_string)
 
         return resources_strings
 
@@ -4986,7 +4968,10 @@ class PE(object):
                                     resource_id_list.append(resource_lang_dict)
                             if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
                                 for idx, res_string in list(resource_id.directory.strings.items()):
-                                    resource_id_list.append(convert_to_printable(res_string))
+                                    resource_id_list.append(res_string.encode(
+                                            'unicode-escape',
+                                            'backslashreplace').decode(
+                                                'ascii'))
 
 
         if ( hasattr(self, 'DIRECTORY_ENTRY_TLS') and
