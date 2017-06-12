@@ -13,7 +13,7 @@ PEs as well as malware, which often attempts to abuse the format way beyond its
 standard use. To the best of my knowledge most of the abuse is handled
 gracefully.
 
-Copyright (c) 2005-2016 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2017 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 
@@ -31,7 +31,7 @@ from builtins import range
 from builtins import str
 
 __author__ = 'Ero Carrera'
-__version__ = '2016.3.28'
+__version__ = '2017.5.26'
 __contact__ = 'ero.carrera@gmail.com'
 
 import os
@@ -54,6 +54,8 @@ from hashlib import md5
 
 PY3 = sys.version_info > (3,)
 
+if PY3:
+    long = int
 
 def count_zeroes(data):
     if PY3:
@@ -565,28 +567,6 @@ def get_sublang_name_for_lang( lang_value, sublang_value ):
             return sublang_name
     # otherwise return the first sublang name
     return SUBLANG.get(sublang_value, ['*unknown*'])[0]
-
-
-def convert_to_printable(s):
-    """Convert string to printable string.
-    @param s: string.
-    @return: sanitized string.
-    """
-    printable = True
-    for c in s:
-        if c not in string.printable:
-            printable = False
-            break
-    if printable:
-        return s
-    else:
-        new_string = ''
-        for c in s:
-            if c in string.printable:
-                new_string += c
-            else:
-                new_string += "\\x%02x" % ord(c)
-        return new_string
 
 
 # Ange Albertini's code to process resources' strings
@@ -4252,7 +4232,7 @@ class PE(object):
                         if hasattr(resource_id, 'directory'):
                             if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
                                 for res_string in list(resource_id.directory.strings.values()):
-                                    resources_strings.append( res_string )
+                                    resources_strings.append(res_string)
 
         return resources_strings
 
