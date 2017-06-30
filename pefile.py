@@ -1450,7 +1450,7 @@ else:
         string.digits + b'_?@$()<>')
 
 def is_valid_function_name(s):
-    if s is None or not isinstance(s, (str, bytes)):
+    if s is None or type(s) not in (str, bytes):
         return False
     for c in set(s):
         if c not in allowed_function_name:
