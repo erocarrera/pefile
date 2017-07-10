@@ -5558,7 +5558,7 @@ class PE(object):
         return val
 
 
-if __name__ == '__main__':
+def main():
     import sys
 
     usage = """\
@@ -5575,3 +5575,6 @@ pefile.py exports <filename>"""
             print(hex(pe.OPTIONAL_HEADER.ImageBase + exp.address), exp.name, exp.ordinal)
     else:
         print(PE(sys.argv[1]).dump_info())
+
+if __name__ == '__main__':
+    main()
