@@ -5560,7 +5560,18 @@ class PE(object):
 
 if __name__ == '__main__':
     import sys
+
+    usage = """\
+pefile.py <filename>
+pefile.py exports <filename>"""
+
     if not sys.argv[1:]:
-        print('pefile.py <filename>')
+        print(usage)
+    elif sys.argv[1] == 'exports':
+        if not sys.argv[2:]:
+            sys.exit('error: <filename> required')
+        pe = PE(sys.argv[2])
+        for exp in pe.DIRECTORY_ENTRY_EXPORT.symbols:
+            print(hex(pe.OPTIONAL_HEADER.ImageBase + exp.address), exp.name, exp.ordinal)
     else:
         print(PE(sys.argv[1]).dump_info())
