@@ -1,5 +1,5 @@
-import sys
 from __future__ import absolute_import
+import sys
 from . import ws2_32
 from . import oleaut32
 
