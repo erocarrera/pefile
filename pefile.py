@@ -1812,17 +1812,18 @@ class PE(object):
             self.__data__ = data
             self.__from_file = False
 
-        for byte, byte_count in Counter(bytearray(self.__data__)).items():
-            # Only report the cases where a byte makes up for more than 50% (if
-            # zero) or 15% (if non-zero) of the file's contents. There are
-            # legitimate PEs where 0x00 bytes are close to 50% of the whole
-            # file's contents.
-            if (byte == 0 and 1.0 * byte_count / len(self.__data__) > 0.5) or (
-                byte != 0 and 1.0 * byte_count / len(self.__data__) > 0.15):
-                self.__warnings.append(
-                    ("Byte 0x{0:02x} makes up {1:.4f}% of the file's contents."
-                    " This may indicate truncation / malformation.").format(
-                        byte, 100.0 * byte_count / len(self.__data__)))
+        if not fast_load:
+            for byte, byte_count in Counter(bytearray(self.__data__)).items():
+                # Only report the cases where a byte makes up for more than 50% (if
+                # zero) or 15% (if non-zero) of the file's contents. There are
+                # legitimate PEs where 0x00 bytes are close to 50% of the whole
+                # file's contents.
+                if (byte == 0 and 1.0 * byte_count / len(self.__data__) > 0.5) or (
+                    byte != 0 and 1.0 * byte_count / len(self.__data__) > 0.15):
+                    self.__warnings.append(
+                        ("Byte 0x{0:02x} makes up {1:.4f}% of the file's contents."
+                        " This may indicate truncation / malformation.").format(
+                            byte, 100.0 * byte_count / len(self.__data__)))
 
 
         dos_header_data = self.__data__[:64]
