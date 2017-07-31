@@ -3641,7 +3641,7 @@ class PE(object):
                     continue
 
                 # Checking for forwarder again.
-                if symbol_address >= rva and symbol_address < rva+size:
+                if symbol_address is not None and symbol_address >= rva and symbol_address < rva+size:
                     forwarder_str = self.get_string_at_rva(symbol_address)
                 else:
                     forwarder_str = None
@@ -3756,6 +3756,7 @@ class PE(object):
             else:
                 libname = entry.dll.lower()
             parts = libname.rsplit('.', 1)
+
             if len(parts) > 1 and parts[1] in exts:
                 libname = parts[0]
 
@@ -3776,6 +3777,7 @@ class PE(object):
                 impstrs.append('%s.%s' % (libname.lower(),funcname.lower()))
 
         return md5( ','.join( impstrs ).encode() ).hexdigest()
+
 
 
     def parse_import_directory(self, rva, size, dllnames_only=False):
