@@ -3661,8 +3661,8 @@ class PE(object):
 
         if not exports and export_dir.all_zeroes():
             return None
-        return ExportDirData(struct = export_dir, symbols = exports)
-
+        return ExportDirData(struct=export_dir, symbols=exports,
+                             name=self.get_string_at_rva(export_dir.Name))
 
     def dword_align(self, offset, base):
         return ((offset+base+3) & 0xfffffffc) - (base & 0xfffffffc)
