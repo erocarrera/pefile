@@ -1028,7 +1028,7 @@ class SectionStructure(Structure):
         if name == 'Characteristics':
             section_flags = retrieve_flags(SECTION_CHARACTERISTICS, 'IMAGE_SCN_')
 
-            # Set the section's flags according the the Characteristics member
+            # Set the section's flags according to the Characteristics member
             set_flags(self, val, section_flags)
 
         elif 'IMAGE_SCN_' in name and hasattr(self, name):
