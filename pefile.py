@@ -3779,7 +3779,6 @@ class PE(object):
         return md5( ','.join( impstrs ).encode() ).hexdigest()
 
 
-
     def parse_import_directory(self, rva, size, dllnames_only=False):
         """Walk and parse the import directory."""
 
