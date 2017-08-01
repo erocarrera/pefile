@@ -1426,7 +1426,7 @@ else: # Python 2.x
         b"!#$%&'()-@^_`{}~+,.;=[]")
 
 def is_valid_dos_filename(s):
-    if s is None or not isinstance(s, (str, bytes)):
+    if s is None or not isinstance(s, (str, bytes, bytearray)):
         return False
     # Allow path separators as import names can contain directories.
     allowed = allowed_filename + b'\\/'
@@ -1450,7 +1450,7 @@ else:
         string.digits + b'_?@$()<>')
 
 def is_valid_function_name(s):
-    if s is None or not isinstance(s, (str, bytes)):
+    if s is None or not isinstance(s, (str, bytes, bytearray)):
         return False
     for c in set(s):
         if c not in allowed_function_name:
@@ -3816,7 +3816,7 @@ class PE(object):
             import_data = []
             if not dllnames_only:
                 try:
-                    import_data =  self.parse_imports(
+                    import_data = self.parse_imports(
                         import_desc.OriginalFirstThunk,
                         import_desc.FirstThunk,
                         import_desc.ForwarderChain,
@@ -3885,15 +3885,6 @@ class PE(object):
         """
 
         imported_symbols = []
-
-        # The following has been commented as a PE does not
-        # need to have the import data necessarily within
-        # a section, it can keep it in gaps between sections
-        # or overlapping other data.
-        #
-        #imports_section = self.get_section_by_rva(first_thunk)
-        #if not imports_section:
-        #    raise PEFormatError, 'Invalid/corrupt imports.'
 
         # Import Lookup Table. Contains ordinals or pointers to strings.
         ilt = self.get_import_table(original_first_thunk, max_length)
@@ -4005,7 +3996,7 @@ class PE(object):
                 num_invalid += 1
                 continue
 
-            if imp_name != '' and (imp_ord or imp_name):
+            if imp_ord or imp_name:
                 imported_symbols.append(
                     ImportData(
                     pe = self,
@@ -4322,7 +4313,10 @@ class PE(object):
         """."""
         if offset > len(data):
             return b''
-        return data[offset:]
+        d = data[offset:]
+        if isinstance(d, bytearray):
+            return bytes(d)
+        return d
 
     def get_string_from_data(self, offset, data):
         """Get an ASCII string from data."""
