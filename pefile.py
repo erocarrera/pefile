@@ -5242,7 +5242,7 @@ class PE(object):
 
         relocation_difference = new_ImageBase - self.OPTIONAL_HEADER.ImageBase
 
-        if hasattr(self, DIRECTORY_ENTRY_BASERELOC):
+        if hasattr(self, 'DIRECTORY_ENTRY_BASERELOC'):
             for reloc in self.DIRECTORY_ENTRY_BASERELOC:
 
                 virtual_address = reloc.struct.VirtualAddress
