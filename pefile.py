@@ -5242,82 +5242,82 @@ class PE(object):
 
         relocation_difference = new_ImageBase - self.OPTIONAL_HEADER.ImageBase
 
+        if hasattr(self, DIRECTORY_ENTRY_BASERELOC):
+            for reloc in self.DIRECTORY_ENTRY_BASERELOC:
 
-        for reloc in self.DIRECTORY_ENTRY_BASERELOC:
+                virtual_address = reloc.struct.VirtualAddress
+                size_of_block = reloc.struct.SizeOfBlock
 
-            virtual_address = reloc.struct.VirtualAddress
-            size_of_block = reloc.struct.SizeOfBlock
+                # We iterate with an index because if the relocation is of type
+                # IMAGE_REL_BASED_HIGHADJ we need to also process the next entry
+                # at once and skip it for the next iteration
+                #
+                entry_idx = 0
+                while entry_idx<len(reloc.entries):
 
-            # We iterate with an index because if the relocation is of type
-            # IMAGE_REL_BASED_HIGHADJ we need to also process the next entry
-            # at once and skip it for the next iteration
-            #
-            entry_idx = 0
-            while entry_idx<len(reloc.entries):
-
-                entry = reloc.entries[entry_idx]
-                entry_idx += 1
-
-                if entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_ABSOLUTE']:
-                    # Nothing to do for this type of relocation
-                    pass
-
-                elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_HIGH']:
-                    # Fix the high 16-bits of a relocation
-                    #
-                    # Add high 16-bits of relocation_difference to the
-                    # 16-bit value at RVA=entry.rva
-
-                    self.set_word_at_rva(
-                        entry.rva,
-                        ( self.get_word_at_rva(entry.rva) + relocation_difference>>16)&0xffff )
-
-                elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_LOW']:
-                    # Fix the low 16-bits of a relocation
-                    #
-                    # Add low 16 bits of relocation_difference to the 16-bit value
-                    # at RVA=entry.rva
-
-                    self.set_word_at_rva(
-                        entry.rva,
-                        ( self.get_word_at_rva(entry.rva) + relocation_difference)&0xffff)
-
-                elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_HIGHLOW']:
-                    # Handle all high and low parts of a 32-bit relocation
-                    #
-                    # Add relocation_difference to the value at RVA=entry.rva
-
-                    self.set_dword_at_rva(
-                        entry.rva,
-                        self.get_dword_at_rva(entry.rva)+relocation_difference)
-
-                elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_HIGHADJ']:
-                    # Fix the high 16-bits of a relocation and adjust
-                    #
-                    # Add high 16-bits of relocation_difference to the 32-bit value
-                    # composed from the (16-bit value at RVA=entry.rva)<<16 plus
-                    # the 16-bit value at the next relocation entry.
-                    #
-
-                    # If the next entry is beyond the array's limits,
-                    # abort... the table is corrupt
-                    #
-                    if entry_idx == len(reloc.entries):
-                        break
-
-                    next_entry = reloc.entries[entry_idx]
+                    entry = reloc.entries[entry_idx]
                     entry_idx += 1
-                    self.set_word_at_rva( entry.rva,
-                        ((self.get_word_at_rva(entry.rva)<<16) + next_entry.rva +
-                        relocation_difference & 0xffff0000) >> 16 )
 
-                elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_DIR64']:
-                    # Apply the difference to the 64-bit value at the offset
-                    # RVA=entry.rva
+                    if entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_ABSOLUTE']:
+                        # Nothing to do for this type of relocation
+                        pass
 
-                    self.set_qword_at_rva(
-                        entry.rva,
-                        self.get_qword_at_rva(entry.rva) + relocation_difference)
+                    elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_HIGH']:
+                        # Fix the high 16-bits of a relocation
+                        #
+                        # Add high 16-bits of relocation_difference to the
+                        # 16-bit value at RVA=entry.rva
+
+                        self.set_word_at_rva(
+                            entry.rva,
+                            ( self.get_word_at_rva(entry.rva) + relocation_difference>>16)&0xffff )
+
+                    elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_LOW']:
+                        # Fix the low 16-bits of a relocation
+                        #
+                        # Add low 16 bits of relocation_difference to the 16-bit value
+                        # at RVA=entry.rva
+
+                        self.set_word_at_rva(
+                            entry.rva,
+                            ( self.get_word_at_rva(entry.rva) + relocation_difference)&0xffff)
+
+                    elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_HIGHLOW']:
+                        # Handle all high and low parts of a 32-bit relocation
+                        #
+                        # Add relocation_difference to the value at RVA=entry.rva
+
+                        self.set_dword_at_rva(
+                            entry.rva,
+                            self.get_dword_at_rva(entry.rva)+relocation_difference)
+
+                    elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_HIGHADJ']:
+                        # Fix the high 16-bits of a relocation and adjust
+                        #
+                        # Add high 16-bits of relocation_difference to the 32-bit value
+                        # composed from the (16-bit value at RVA=entry.rva)<<16 plus
+                        # the 16-bit value at the next relocation entry.
+                        #
+
+                        # If the next entry is beyond the array's limits,
+                        # abort... the table is corrupt
+                        #
+                        if entry_idx == len(reloc.entries):
+                            break
+
+                        next_entry = reloc.entries[entry_idx]
+                        entry_idx += 1
+                        self.set_word_at_rva( entry.rva,
+                            ((self.get_word_at_rva(entry.rva)<<16) + next_entry.rva +
+                            relocation_difference & 0xffff0000) >> 16 )
+
+                    elif entry.type == RELOCATION_TYPE['IMAGE_REL_BASED_DIR64']:
+                        # Apply the difference to the 64-bit value at the offset
+                        # RVA=entry.rva
+
+                        self.set_qword_at_rva(
+                            entry.rva,
+                            self.get_qword_at_rva(entry.rva) + relocation_difference)
 
 
     def verify_checksum(self):
