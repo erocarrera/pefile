@@ -2137,7 +2137,7 @@ class PE(object):
             b'Rich', 0x80, self.OPTIONAL_HEADER.get_file_offset())
         if rich_index == -1:
             return None
-        
+
         # Read a block of data
         try:
             # The end of the structure is 8 bytes after the start of the Rich
@@ -2154,13 +2154,15 @@ class PE(object):
         key = struct.pack('<L', data[data.index(RICH)+1])
         result = {"key": key}
 
-        raw_data = rich_data[:rich_data.find('Rich')]
+        raw_data = rich_data[:rich_data.find(b'Rich')]
         result["raw_data"] = raw_data
-        
-        clear_data = bytearray() 
+
+        ord_ = lambda c : ord(c) if not isinstance(c, int) else c
+
+        clear_data = bytearray()
         for i in range(len(raw_data)):
-            clear_data.append((ord(raw_data[i]) ^ ord(key[i % len(key)])))
-        result ["clear_data"] = bytes(clear_data)
+            clear_data.append((ord_(raw_data[i]) ^ ord_(key[i % len(key)])))
+        result["clear_data"] = bytes(clear_data)
 
         # the checksum should be present 3 times after the DanS signature
         #
@@ -2170,9 +2172,9 @@ class PE(object):
             or data[3] != checksum):
             return None
 
-        result ["checksum"] = checksum
+        result["checksum"] = checksum
         headervalues = []
-        result ["values"] = headervalues
+        result["values"] = headervalues
 
         data = data[4:]
         for i in range(int(len(data) / 2)):
