@@ -1020,7 +1020,19 @@ class SectionStructure(Structure):
         else:
             offset = ( start - VirtualAddress_adj ) + PointerToRawData_adj
 
-        load_size = max_load_size - (offset - PointerToRawData_adj)
+        # this line is tricky and warrants an explanation
+        # max_load_size is the total size of the section as it would be loaded into memory
+        # We subtract off it the difference between PointerToRawData_adj and offset
+        # which is effectively the number of bytes we're skipping
+        load_size = max_load_size - (PointerToRawData_adj - offset)
+
+        # if we've skipped more than the actual number of bytes that are loaded from the file,
+        # cut into the padding.
+        if load_size < 0:
+            padding_size += load_size
+            load_size = 0
+            if padding_size < 0:
+                padding_size = 0
 
         if length is not None:
             if length <= load_size:
