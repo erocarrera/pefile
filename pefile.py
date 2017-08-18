@@ -1013,14 +1013,20 @@ class SectionStructure(Structure):
 
         if length is not None:
             end = offset + length
+        elif self.Misc_VirtualSize != 0:
+            end = offset + self.Misc_VirtualSize
         else:
             end = offset + self.SizeOfRawData
         # PointerToRawData is not adjusted here as we might want to read any possible extra bytes
         # that might get cut off by aligning the start (and hence cutting something off the end)
-        #
+        # We also want to attempt to provide the zero-padded region that exists between
+        # SizeOfRawData and VirtualSize
+        padding = 0
         if end > self.PointerToRawData + self.SizeOfRawData:
+            if self.Misc_VirtualSize != 0:
+                padding = self.Misc_VirtualSize - self.SizeOfRawData
             end = self.PointerToRawData + self.SizeOfRawData
-        return self.pe.__data__[offset:end]
+        return self.pe.__data__[offset:end] + b'\0'*padding
 
 
     def __setattr__(self, name, val):
