@@ -1001,32 +1001,35 @@ class SectionStructure(Structure):
         Returns bytes() under Python 3.x and set() under 2.7
         """
 
+        # First, we want to figure out what slice of the file will actually get loaded by this section
+        # We want to attempt to provide the zero-padded region that exists between SizeOfRawData and VirtualSize
+
         PointerToRawData_adj = self.pe.adjust_FileAlignment( self.PointerToRawData,
             self.pe.OPTIONAL_HEADER.FileAlignment )
+
+        max_load_size = min(self.SizeOfRawData, self.Misc_VirtualSize, len(self.pe.__data__) - PointerToRawData_adj)
+        padding_size = self.Misc_VirtualSize - max_load_size # bc of above, VirtualSize >= max_load_size
+
         VirtualAddress_adj = self.pe.adjust_SectionAlignment( self.VirtualAddress,
             self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
+
+        # Next, we want to efficiently slice whatever the user requested out of the file and return it
 
         if start is None:
             offset = PointerToRawData_adj
         else:
             offset = ( start - VirtualAddress_adj ) + PointerToRawData_adj
 
+        load_size = max_load_size - (offset - PointerToRawData_adj)
+
         if length is not None:
-            end = offset + length
-        elif self.Misc_VirtualSize != 0:
-            end = offset + self.Misc_VirtualSize
-        else:
-            end = offset + self.SizeOfRawData
-        # PointerToRawData is not adjusted here as we might want to read any possible extra bytes
-        # that might get cut off by aligning the start (and hence cutting something off the end)
-        # We also want to attempt to provide the zero-padded region that exists between
-        # SizeOfRawData and VirtualSize
-        padding = 0
-        if end > self.PointerToRawData + self.SizeOfRawData:
-            if self.Misc_VirtualSize != 0:
-                padding = self.Misc_VirtualSize - self.SizeOfRawData
-            end = self.PointerToRawData + self.SizeOfRawData
-        return self.pe.__data__[offset:end] + b'\0'*padding
+            if length <= load_size:
+                padding_size = 0
+                load_size = length
+            elif length <= load_size + padding_size:
+                padding_size = length - load_size
+
+        return self.pe.__data__[offset:offset+load_size] + b'\0'*padding_size
 
 
     def __setattr__(self, name, val):
@@ -4165,7 +4168,6 @@ class PE(object):
         will be applied to the image by calling the 'relocate_image()' method. Beware
         that the relocation information is applied permanently.
         """
-
         # Rebase if requested
         #
         if ImageBase is not None:
@@ -4182,15 +4184,11 @@ class PE(object):
 
             # Miscellaneous integrity tests.
             # Some packer will set these to bogus values to make tools go nuts.
-            if section.Misc_VirtualSize == 0 or section.SizeOfRawData == 0:
-                continue
-
-            if section.SizeOfRawData > len(self.__data__):
+            if section.Misc_VirtualSize == 0:
                 continue
 
             if self.adjust_FileAlignment( section.PointerToRawData,
                 self.OPTIONAL_HEADER.FileAlignment ) > len(self.__data__):
-
                 continue
 
             VirtualAddress_adj = self.adjust_SectionAlignment( section.VirtualAddress,
@@ -4206,7 +4204,7 @@ class PE(object):
             elif padding_length<0:
                 mapped_data = mapped_data[:padding_length]
 
-            mapped_data += section.get_data()
+            mapped_data += section.get_data(length=max_virtual_address - VirtualAddress_adj)
 
         # If the image was rebased, restore it to its original form
         #
