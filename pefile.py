@@ -646,7 +646,7 @@ else:
         return codecs.encode(x, 'cp1252')
 
 
-FILE_ALIGNEMNT_HARDCODED_VALUE = 0x200
+FILE_ALIGNMENT_HARDCODED_VALUE = 0x200
 FileAlignment_Warning = False # We only want to print the warning once
 SectionAlignment_Warning = False # We only want to print the warning once
 
@@ -5529,7 +5529,7 @@ class PE(object):
     # The following is a hard-coded constant if the Windows loader
     def adjust_FileAlignment( self, val, file_alignment ):
         global FileAlignment_Warning
-        if file_alignment > FILE_ALIGNEMNT_HARDCODED_VALUE:
+        if file_alignment > FILE_ALIGNMENT_HARDCODED_VALUE:
             # If it's not a power of two, report it:
             if not power_of_two(file_alignment) and FileAlignment_Warning is False:
                 self.__warnings.append(
@@ -5537,7 +5537,7 @@ class PE(object):
                         file_alignment)  )
                 FileAlignment_Warning = True
 
-        if file_alignment < FILE_ALIGNEMNT_HARDCODED_VALUE:
+        if file_alignment < FILE_ALIGNMENT_HARDCODED_VALUE:
             return val
         return (int(val / 0x200)) * 0x200
 
@@ -5550,7 +5550,7 @@ class PE(object):
     #
     def adjust_SectionAlignment( self, val, section_alignment, file_alignment ):
         global SectionAlignment_Warning
-        if file_alignment < FILE_ALIGNEMNT_HARDCODED_VALUE:
+        if file_alignment < FILE_ALIGNMENT_HARDCODED_VALUE:
             if file_alignment != section_alignment and SectionAlignment_Warning is False:
                 self.__warnings.append(
                     'If FileAlignment(%x) < 0x200 it should equal SectionAlignment(%x)' % (
