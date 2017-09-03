@@ -3561,6 +3561,7 @@ class PE(object):
                 section.VirtualAddress + len(section.get_data()) -
                 export_dir.AddressOfNames)
 
+        symbol_counter = Counter()
         export_parsing_loop_completed_normally = True
         for i in range(min(export_dir.NumberOfNames, int(safety_boundary / 4))):
             symbol_ordinal = self.get_word_from_data(
@@ -3619,6 +3620,16 @@ class PE(object):
                         break
                     continue
 
+            # File 0b1d3d3664915577ab9a32188d29bbf3542b86c7b9ce333e245496c3018819f1
+            # was being parsed as potentially containing millions of exports.
+            # Checking for duplicates addresses the issue.
+            most_common = symbol_counter.most_common(1)
+            if most_common and most_common[0][1] > 10:
+                self.__warnings.append(
+                    'Export directory contains more than 10 repeated entries. Assuming corrupt.')
+                break
+            symbol_counter[(symbol_name, symbol_address)] += 1
+
             exports.append(
                 ExportData(
                     pe = self,
@@ -3648,6 +3659,7 @@ class PE(object):
                 section.VirtualAddress + len(section.get_data()) -
                 export_dir.AddressOfFunctions)
 
+        symbol_counter = Counter()
         export_parsing_loop_completed_normally = True
         for idx in range(min(
                 export_dir.NumberOfFunctions,
@@ -3674,6 +3686,16 @@ class PE(object):
                     forwarder_str = self.get_string_at_rva(symbol_address)
                 else:
                     forwarder_str = None
+
+                # File 0b1d3d3664915577ab9a32188d29bbf3542b86c7b9ce333e245496c3018819f1
+                # was being parsed as potentially containing millions of exports.
+                # Checking for duplicates addresses the issue.
+                most_common = symbol_counter.most_common(1)
+                if most_common and most_common[0][1] > 10:
+                    self.__warnings.append(
+                        'Export directory contains more than 10 repeated ordinal entries. Assuming corrupt.')
+                    break
+                symbol_counter[symbol_address] += 1
 
                 exports.append(
                     ExportData(
@@ -5479,6 +5501,15 @@ class PE(object):
             ('ntoskrnl.exe', 'hal.dll', 'ndis.sys', 'bootvid.dll', 'kdcom.dll'))
         if system_DLLs.intersection(
                 [imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT]):
+            return True
+
+        driver_like_section_names = set(
+            ('page', 'paged'))
+        if driver_like_section_names.intersection(
+                [section.Name.lower() for sections in self.sections]) and (
+            self.OPTIONAL_HEADER.Subsystem in (
+                SUBSYSTEM_TYPE['IMAGE_SUBSYSTEM_NATIVE'],
+                SUBSYSTEM_TYPE['IMAGE_SUBSYSTEM_NATIVE_WINDOWS'])):
             return True
 
         return False
