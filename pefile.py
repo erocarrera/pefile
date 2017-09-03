@@ -16,9 +16,6 @@ gracefully.
 Copyright (c) 2005-2017 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
-
-For detailed copyright information see the file COPYING in the root of the
-distribution archive.
 """
 
 from __future__ import division
