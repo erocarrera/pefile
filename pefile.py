@@ -5506,7 +5506,7 @@ class PE(object):
         driver_like_section_names = set(
             ('page', 'paged'))
         if driver_like_section_names.intersection(
-                [section.Name.lower() for sections in self.sections]) and (
+                [section.Name.lower() for section in self.sections]) and (
             self.OPTIONAL_HEADER.Subsystem in (
                 SUBSYSTEM_TYPE['IMAGE_SUBSYSTEM_NATIVE'],
                 SUBSYSTEM_TYPE['IMAGE_SUBSYSTEM_NATIVE_WINDOWS'])):
