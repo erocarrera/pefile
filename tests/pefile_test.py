@@ -24,15 +24,15 @@ class Test_pefile(unittest.TestCase):
         test_files = list()
 
         for dirpath, dirname, filenames in os.walk(REGRESSION_TESTS_DIR):
-            for filename in (f for f in filenames if not f.endswith('.dmp') ):
-                test_files.append( os.path.join(dirpath, filename) )
+            for filename in (f for f in filenames if not f.endswith('.dmp')):
+                test_files.append(os.path.join(dirpath, filename))
 
         return test_files
 
     def test_pe_image_regression_test(self):
         """Run through all the test files and make sure they run correctly"""
 
-        for idx, pe_filename in enumerate( self.test_files ):
+        for idx, pe_filename in enumerate(self.test_files):
             if pe_filename.endswith('fake_PE_no_read_permissions_issue_53'):
                 continue
             if pe_filename.endswith('empty_file'):
@@ -53,9 +53,9 @@ class Test_pefile(unittest.TestCase):
                 print((
                     'Could not find control data file [%s]. '
                     'Assuming first run and generating...') % (
-                    os.path.basename(control_data_filename) ))
-                control_data_f = open( control_data_filename, 'wb')
-                control_data_f.write( pe_file_data.encode('utf-8', 'backslashreplace') )
+                    os.path.basename(control_data_filename)))
+                control_data_f = open(control_data_filename, 'wb')
+                control_data_f.write(pe_file_data.encode('utf-8', 'backslashreplace'))
                 continue
 
             control_data_f = open(control_data_filename, 'rb')
@@ -94,9 +94,9 @@ class Test_pefile(unittest.TestCase):
                             lines_to_ignore += 1
 
 
-                if ( diff_lines_removed_count == diff_lines_added_count and
+                if (diff_lines_removed_count == diff_lines_added_count and
                     lines_to_ignore ==
-                        diff_lines_removed_count + diff_lines_added_count ):
+                        diff_lines_removed_count + diff_lines_added_count):
                     print (
                         'Differences are in TimeDateStamp formatting, '
                         'ignoring...')
@@ -123,13 +123,13 @@ class Test_pefile(unittest.TestCase):
 
             if diff_lines_removed_count == 0:
                 try:
-                    self.assertEqual( control_data.decode('utf-8'), pe_file_data )
+                    self.assertEqual(control_data.decode('utf-8'), pe_file_data)
                 except AssertionError:
                     diff = difflib.unified_diff(
                         control_data.decode('utf-8').splitlines(), pe_file_data.splitlines())
-                    raise AssertionError( '\n'.join(diff) )
+                    raise AssertionError('\n'.join(diff))
 
-            os.sys.stdout.write('[%d]' % ( len(self.test_files) - idx ))
+            os.sys.stdout.write('[%d]' % (len(self.test_files) - idx))
             os.sys.stdout.flush()
 
 
@@ -138,10 +138,10 @@ class Test_pefile(unittest.TestCase):
         opposed to do a single pass.
         """
 
-        control_file = os.path.join( REGRESSION_TESTS_DIR, 'MSVBVM60.DLL')
+        control_file = os.path.join(REGRESSION_TESTS_DIR, 'MSVBVM60.DLL')
         pe = pefile.PE(control_file, fast_load=True)
         # Load the 16 directories.
-        pe.parse_data_directories( directories= list(range(0x10)) )
+        pe.parse_data_directories(directories= list(range(0x10)))
 
         # Do it all at once.
         pe_full = pefile.PE(control_file, fast_load=False)
@@ -170,7 +170,7 @@ class Test_pefile(unittest.TestCase):
             pefile.PE(os.path.join(
                 REGRESSION_TESTS_DIR,
                 '66c74e4c9dbd1d33b22f63cd0318b72dea88f9dbb4d36a3383d3da20b037d42e'
-                )).get_imphash(),
+               )).get_imphash(),
             'a781de574e0567285ee1233bf6a57cc0')
 
         self.assertEqual(
@@ -202,7 +202,7 @@ class Test_pefile(unittest.TestCase):
         new_data = pe.write()
 
         diff, differences = 0, list()
-        for idx in range( len(original_data) ):
+        for idx in range(len(original_data)):
             if original_data[idx] != new_data[idx]:
 
                 diff += 1
@@ -221,7 +221,7 @@ class Test_pefile(unittest.TestCase):
         """pefile should fail parsing invalid data (missing NT headers)"""
 
         # Take a known good file.
-        control_file = os.path.join( REGRESSION_TESTS_DIR, 'MSVBVM60.DLL')
+        control_file = os.path.join(REGRESSION_TESTS_DIR, 'MSVBVM60.DLL')
         pe = pefile.PE(control_file, fast_load=True)
 
         # Truncate it at the PE header and add invalid data.
@@ -254,7 +254,7 @@ class Test_pefile(unittest.TestCase):
 
         # Attempt to parse data and verify PE header a PEFormatError exception
         # is thrown.
-        self.assertRaises( pefile.PEFormatError, pefile.PE, data=data )
+        self.assertRaises(pefile.PEFormatError, pefile.PE, data=data)
 
 
     def test_empty_file_exception(self):
@@ -262,19 +262,19 @@ class Test_pefile(unittest.TestCase):
 
         # Take a known good file
         control_file = os.path.join(REGRESSION_TESTS_DIR, 'empty_file')
-        self.assertRaises( pefile.PEFormatError, pefile.PE, control_file )
+        self.assertRaises(pefile.PEFormatError, pefile.PE, control_file)
 
 
     def test_relocated_memory_mapped_image(self):
         """Test different rebasing methods produce the same image"""
 
         # Take a known good file
-        control_file = os.path.join( REGRESSION_TESTS_DIR, 'MSVBVM60.DLL')
+        control_file = os.path.join(REGRESSION_TESTS_DIR, 'MSVBVM60.DLL')
         pe = pefile.PE(control_file)
 
         def count_differences(data1, data2):
             diff = 0
-            for idx in range( len(data1) ):
+            for idx in range(len(data1)):
                 if data1[idx] != data2[idx]:
                     diff += 1
             return diff
@@ -283,17 +283,17 @@ class Test_pefile(unittest.TestCase):
         rebased_image_1 = pe.get_memory_mapped_image(ImageBase=0x1000000)
 
         differences_1 = count_differences(original_image_1, rebased_image_1)
-        self.assertEqual( differences_1, 60624 )
+        self.assertEqual(differences_1, 60624)
 
         original_image_2 = pe.get_memory_mapped_image()
         pe.relocate_image(0x1000000)
         rebased_image_2 = pe.get_memory_mapped_image()
 
         differences_2 = count_differences(original_image_2, rebased_image_2)
-        self.assertEqual( differences_2, 60624 )
+        self.assertEqual(differences_2, 60624)
 
         # Ensure the original image stayed the same
-        self.assertEqual( original_image_1, original_image_2 )
+        self.assertEqual(original_image_1, original_image_2)
 
 
 
@@ -319,7 +319,7 @@ class Test_pefile(unittest.TestCase):
         # this is the correct EP data
         good_ep_data = b'\x55\x8b\xec\x83\xec\x70\x83\x65\xcc\x00'
 
-        self.assertEqual( entry_point_data, good_ep_data )
+        self.assertEqual(entry_point_data, good_ep_data)
 
 
     def test_entry_point_retrieval_with_unusual_aligments(self):
@@ -392,6 +392,20 @@ class Test_pefile(unittest.TestCase):
         self.assertEqual(
                 vs_fixedfileinfo_signature, good_vs_fixedfileinfo_signature)
 
+    def test_overlay_github_issue_104(self):
+        control_file_pe = os.path.join(
+            REGRESSION_TESTS_DIR,
+            '307a69414b203f1116db677b8bc07130ae2b72cf33cf2ae5a39bf1bd484b587c_overlay_issue_104')
+        pe = pefile.PE(control_file_pe)
+        overlay_offset = pe.get_overlay_data_start_offset()
+        self.assertEqual(overlay_offset, 14848)
+
+        control_file_pe = os.path.join(
+            REGRESSION_TESTS_DIR,
+            '3096e39df63c0be68746ea3bbe528c067b6eb45e2d61cc167712c3b1e0966be3_overlay_issue_104')
+        pe = pefile.PE(control_file_pe)
+        overlay_offset = pe.get_overlay_data_start_offset()
+        self.assertEqual(overlay_offset, 93696)
 
     def test_get_overlay_and_trimming(self):
         """Test method to retrieve overlay data and trim the PE"""
@@ -403,31 +417,31 @@ class Test_pefile(unittest.TestCase):
         trimmed_data = pe.trim()
 
         # Ensure the overlay data is correct.
-        self.assertEqual( overlay_data, bytes( b'A'*186 + b'\n') )
+        self.assertEqual(overlay_data, bytes(b'A'*186 + b'\n'))
 
         # Ensure the trim offset is correct.
-        self.assertEqual( pe.get_overlay_data_start_offset(), 294912 )
+        self.assertEqual(pe.get_overlay_data_start_offset(), 294912)
 
         # Ensure the trim data is correct.
-        self.assertEqual( len(trimmed_data), 294912 )
+        self.assertEqual(len(trimmed_data), 294912)
 
-        control_file_pe = os.path.join( REGRESSION_TESTS_DIR, '0x90.exe')
+        control_file_pe = os.path.join(REGRESSION_TESTS_DIR, '0x90.exe')
         pe = pefile.PE(control_file_pe)
 
         # Ensure the overlay data is correct (should not be any in this case).
-        self.assertEqual( pe.get_overlay(), None )
+        self.assertEqual(pe.get_overlay(), None)
 
         trimmed_data = pe.trim()
 
         # Ensure the trim data is correct.
-        self.assertEqual( len(trimmed_data), 294912 )
+        self.assertEqual(len(trimmed_data), 294912)
 
         control_file_pe = os.path.join(
             REGRESSION_TESTS_DIR, 'sectionless.exe_corkami_issue_51')
         pe = pefile.PE(control_file_pe)
 
         # Ensure the overlay data is correct (should not be any in this case).
-        self.assertEqual( pe.get_overlay(), None )
+        self.assertEqual(pe.get_overlay(), None)
 
     def test_unable_to_read_file(self):
         """Attempting to open a file without read permission for the user
@@ -436,7 +450,7 @@ class Test_pefile(unittest.TestCase):
 
         control_file_pe = os.path.join(
             REGRESSION_TESTS_DIR, 'fake_PE_no_read_permissions_issue_53')
-        self.assertRaises( Exception, pefile.PE, control_file_pe )
+        self.assertRaises(Exception, pefile.PE, control_file_pe)
 
 
     def test_driver_check(self):
@@ -450,7 +464,7 @@ class Test_pefile(unittest.TestCase):
         pe_full = pefile.PE(control_file_pe, fast_load=False)
 
         # Ensure the rebased image is the same as the pre-generated one.
-        self.assertEqual( pe_fast.is_driver(), pe_full.is_driver() )
+        self.assertEqual(pe_fast.is_driver(), pe_full.is_driver())
 
 
     def test_rebased_image(self):
@@ -469,7 +483,7 @@ class Test_pefile(unittest.TestCase):
         rebased_data = pe.get_memory_mapped_image(ImageBase=0x400000)
 
         # Ensure the rebased image is the same as the pre-generated one.
-        self.assertEqual( rebased_data, control_file_data )
+        self.assertEqual(rebased_data, control_file_data)
 
 
     def test_checksum(self):
@@ -481,31 +495,31 @@ class Test_pefile(unittest.TestCase):
 
         # verify_checksum() generates a checksum from the image's data and
         # compares it against the checksum field in the optional header.
-        self.assertEqual( pe.verify_checksum(), True )
+        self.assertEqual(pe.verify_checksum(), True)
 
         control_file = os.path.join(
             REGRESSION_TESTS_DIR,
             'checksum/0031709440C539B47E34B524AF3900248DD35274_bad_checksum')
         pe = pefile.PE(control_file)
-        self.assertEqual( pe.verify_checksum(), False )
-        self.assertEqual( pe.generate_checksum(), 0x16c39 )
+        self.assertEqual(pe.verify_checksum(), False)
+        self.assertEqual(pe.generate_checksum(), 0x16c39)
 
         control_file = os.path.join(
             REGRESSION_TESTS_DIR,
             'checksum/009763E904C053C1803B26EC0D817AF497DA1BB2_bad_checksum')
         pe = pefile.PE(control_file)
-        self.assertEqual( pe.verify_checksum(), False )
-        self.assertEqual( pe.generate_checksum(), 0x249f7 )
+        self.assertEqual(pe.verify_checksum(), False)
+        self.assertEqual(pe.generate_checksum(), 0x249f7)
 
         control_file = os.path.join(
             REGRESSION_TESTS_DIR,
             'checksum/00499E3A70A324160A3FE935F10BFB699ACB0954')
         pe = pefile.PE(control_file)
-        self.assertEqual( pe.verify_checksum(), True )
+        self.assertEqual(pe.verify_checksum(), True)
 
         control_file = os.path.join(
             REGRESSION_TESTS_DIR,
             'checksum/0011FEECD53D06A6C68C531E0DA7A61C692E76BF')
         pe = pefile.PE(control_file)
-        self.assertEqual( pe.verify_checksum(), True )
+        self.assertEqual(pe.verify_checksum(), True)
 
