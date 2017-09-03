@@ -3040,7 +3040,12 @@ class PE(object):
                                 string_entry_size = resource_lang.data.struct.Size
                                 string_entry_id = resource_id.id
 
-                                string_entry_data = self.get_data(string_entry_rva, string_entry_size)
+                                # XXX: has been raising exceptions preventing parsing
+                                try:
+                                    string_entry_data = self.get_data(string_entry_rva, string_entry_size)
+                                except:
+                                    continue
+                                
                                 parse_strings( string_entry_data, (int(string_entry_id) - 1) * 16, resource_strings )
                                 strings.update(resource_strings)
 
@@ -3882,8 +3887,12 @@ class PE(object):
             for imp_dll in import_descs:
                 for symbol in imp_dll.imports:
                     for suspicious_symbol in suspicious_imports:
-                        if symbol and symbol.name and symbol.name.startswith(
-                            b(suspicious_symbol)):
+                        if not symbol or not symbol.name:
+                            continue
+                        name = symbol.name
+                        if type(symbol.name) == bytes:
+                            name = symbol.name.decode('utf-8')
+                        if name.startswith(suspicious_symbol):
                             suspicious_imports_count += 1
                             break
                     total_symbols += 1
