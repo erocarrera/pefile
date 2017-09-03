@@ -3046,7 +3046,7 @@ class PE(object):
                                 except:
                                     self.__warnings.append(
                                         'Error parsing resource of type RT_STRING at RVA 0x%x with size %d' %
-                                        (string_entry_rva, string_entry_size) )
+                                        (string_entry_rva, string_entry_size))
                                     continue
 
                                 parse_strings(string_entry_data, (int(string_entry_id) - 1) * 16, resource_strings)
