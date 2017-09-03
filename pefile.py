@@ -5503,9 +5503,17 @@ class PE(object):
             largest_offset_and_size = update_if_sum_is_larger_and_within_file(
                 (section.PointerToRawData, section.SizeOfRawData))
 
-        for directory in self.OPTIONAL_HEADER.DATA_DIRECTORY:
-            largest_offset_and_size = update_if_sum_is_larger_and_within_file(
-                (directory.VirtualAddress, directory.Size))
+        skip_directories = [DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
+
+        for idx, directory in enumerate(self.OPTIONAL_HEADER.DATA_DIRECTORY):
+            if idx in skip_directories:
+                continue
+            try:
+                largest_offset_and_size = update_if_sum_is_larger_and_within_file(
+                    (self.get_offset_from_rva(directory.VirtualAddress), directory.Size))
+            # Ignore directories with RVA out of file
+            except PEFormatError:
+                continue
 
         if len(self.__data__) > sum(largest_offset_and_size):
             return sum(largest_offset_and_size)
