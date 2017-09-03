@@ -7,7 +7,7 @@ python:
 - '3.6-dev'
 before_install:
 - openssl aes-256-cbc -K $encrypted_a288ee1b388d_key -iv $encrypted_a288ee1b388d_iv
-  -in test_data.tar.bz2.enc -out test_data.tar.bz2 -d
+  -in tests/test_data.tar.bz2.enc -out tests/test_data.tar.bz2 -d
 - tar jxf tests/test_data.tar.bz2 -C tests
 install:
 - pip install -U pip pytest-cov codecov
