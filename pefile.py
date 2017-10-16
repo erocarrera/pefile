@@ -1450,7 +1450,7 @@ def is_valid_function_name(s):
     if s is None or not isinstance(s, (str, bytes, bytearray)):
         return False
     for c in set(s):
-        if c not in allowed_function_name:
+        if str(c) not in allowed_function_name:
             return False
     return True
 
