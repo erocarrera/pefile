@@ -2606,10 +2606,15 @@ class PE(object):
 
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
             format = self.__IMAGE_LOAD_CONFIG_DIRECTORY_format__
-
         elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
             format = self.__IMAGE_LOAD_CONFIG_DIRECTORY64_format__
+        else:
+            self.__warnings.append(
+                'Don\'t know how to parse LOAD_CONFIG information for non-PE32/'
+                'PE32+ file')
+            return None
 
+        load_config_struct = None
         try:
             load_config_struct = self.__unpack_data__(
                 format,
@@ -2619,7 +2624,6 @@ class PE(object):
             self.__warnings.append(
                 'Invalid LOAD_CONFIG information. Can\'t read '
                 'data at RVA: 0x%x' % rva)
-            load_config_struct = None
 
         if not load_config_struct:
             return None
