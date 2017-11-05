@@ -2101,23 +2101,8 @@ class PE(object):
                 'AddressOfEntryPoint: 0x%x' %
                 self.OPTIONAL_HEADER.AddressOfEntryPoint )
 
-
         if not fast_load:
-            self.parse_data_directories()
-
-            class RichHeader(object):
-                pass
-            rich_header = self.parse_rich_header()
-            if rich_header:
-                self.RICH_HEADER = RichHeader()
-                self.RICH_HEADER.checksum = rich_header.get('checksum', None)
-                self.RICH_HEADER.values = rich_header.get('values', None)
-                self.RICH_HEADER.key = rich_header.get('key', None)
-                self.RICH_HEADER.raw_data = rich_header.get('raw_data', None)
-                self.RICH_HEADER.clear_data = rich_header.get('clear_data', None)
-            else:
-                self.RICH_HEADER = None
-
+            self.full_load()
 
     def parse_rich_header(self):
         """Parses the rich header
@@ -2232,6 +2217,19 @@ class PE(object):
         """
 
         self.parse_data_directories()
+
+        class RichHeader(object):
+            pass
+        rich_header = self.parse_rich_header()
+        if rich_header:
+            self.RICH_HEADER = RichHeader()
+            self.RICH_HEADER.checksum = rich_header.get('checksum', None)
+            self.RICH_HEADER.values = rich_header.get('values', None)
+            self.RICH_HEADER.key = rich_header.get('key', None)
+            self.RICH_HEADER.raw_data = rich_header.get('raw_data', None)
+            self.RICH_HEADER.clear_data = rich_header.get('clear_data', None)
+        else:
+            self.RICH_HEADER = None
 
 
     def write(self, filename=None):
