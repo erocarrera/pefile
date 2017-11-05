@@ -4465,7 +4465,7 @@ class PE(object):
 
     def print_info(self, encoding='utf-8'):
         """Print all the PE header information in a human readable from."""
-        print(self.dump_info(), encoding=encoding)
+        print(self.dump_info(encoding=encoding))
 
 
     def dump_info(self, dump=None, encoding='ascii'):
