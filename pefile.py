@@ -629,7 +629,12 @@ if not PY3:
     def handler(err):
         start = err.start
         end = err.end
-        return (u"".join([u"\\x{0:02x}".format(ord(err.object[i])) for i in range(start,end)]),end)
+        values = [
+            ('\\u{0:04x}' if ord(err.object[i]) > 255 else '\\x{0:02x}',
+             ord(err.object[i])) for i in range(start,end)]
+        return (
+            u"".join([elm[0].format(elm[1]) for elm in values]),
+            end)
     import codecs
     codecs.register_error('backslashreplace_', handler)
     def b(x):
@@ -666,7 +671,7 @@ class UnicodeStringWrapperPostProcessor(object):
 
     def __str__(self):
         """Return the escaped UTF-8 representation of the string."""
-        return self.decode('utf-8', 'backslashreplace')
+        return self.decode('utf-8', 'backslashreplace_')
 
     def decode(self, *args):
         if not self.string:
@@ -2140,6 +2145,10 @@ class PE(object):
             # The end of the structure is 8 bytes after the start of the Rich
             # string.
             rich_data = self.get_data(0x80, rich_index + 8)
+            # Make the data have length a multiple of 4, otherwise the
+            # subsequent parsing will fail. It's not impossible that we retrieve
+            # truncated data that it's not a multiple.
+            rich_data = rich_data[:4*int(len(rich_data)/4)]
             data = list(struct.unpack(
                     '<{0}I'.format(int(len(rich_data)/4)), rich_data))
             if RICH not in data:
@@ -4380,7 +4389,7 @@ class PE(object):
         end = s.find(b'\0')
         if end >= 0:
             s = s[:end]
-        return s #.decode('ascii', 'backslashreplace')
+        return s
 
     def get_string_u_at_rva(self, rva, max_length = 2**16, encoding=None):
         """Get an Unicode string located at the given address."""
@@ -4421,9 +4430,9 @@ class PE(object):
         s = u''.join(map(chr, uchrs))
 
         if encoding:
-            return b(s.encode(encoding, 'backslashreplace'))
+            return b(s.encode(encoding, 'backslashreplace_'))
 
-        return b(s.encode('utf-8', 'backslashreplace'))
+        return b(s.encode('utf-8', 'backslashreplace_'))
 
 
     def get_section_by_offset(self, offset):
@@ -4572,17 +4581,6 @@ class PE(object):
                                 dump.add_line( u'    {0}: {1}'.format(
                                     str_entry[0].decode(encoding, 'backslashreplace_'),
                                     str_entry[1].decode(encoding, 'backslashreplace_')))
-                                # except Exception as excp:
-                                #     dump.add_line( u'    {0}: {1}'.format(
-                                #         repr(str_entry[0]),
-                                #         repr(str_entry[1])))
-                                    # print('Encoding:', encoding)
-                                    # print('Failed. Types:', type(str_entry[0]), type(str_entry[1]))
-                                    # print(repr(str_entry[0]))
-                                    # str_entry[0].decode(encoding, 'backslashreplace')
-                                    # print(repr(str_entry[1]))
-                                    # str_entry[1].decode(encoding, 'backslashreplace')
-                                    # raise excp
 
                         dump.add_newline()
 
@@ -4593,7 +4591,7 @@ class PE(object):
                                 dump.add_line(
                                     u'    {0}: {1}'.format(
                                         list(var_entry.entry.keys())[0].decode(
-                                            'utf-8', 'backslashreplace'),
+                                            'utf-8', 'backslashreplace_'),
                                         list(var_entry.entry.values())[0]))
 
                         dump.add_newline()
@@ -4612,7 +4610,7 @@ class PE(object):
                         export.ordinal, export.address, name.decode(encoding)))
                     if export.forwarder:
                         dump.add_line(u' forwarder: {0}'.format(
-                            export.forwarder.decode(encoding)))
+                            export.forwarder.decode(encoding, 'backslashreplace_')))
                     else:
                         dump.add_newline()
 
@@ -4625,7 +4623,8 @@ class PE(object):
                 # Print the name of the DLL if there are no imports.
                 if not module.imports:
                     dump.add('  Name -> {0}'.format(
-                        self.get_string_at_rva(module.struct.Name).decode(encoding)))
+                        self.get_string_at_rva(module.struct.Name).decode(
+                            encoding, 'backslashreplace_')))
                     dump.add_newline()
                 dump.add_newline()
                 for symbol in module.imports:
@@ -4640,8 +4639,8 @@ class PE(object):
                                 module.dll.decode('utf-8'), symbol.ordinal))
                     else:
                         dump.add('{0}.{1} Hint[{2:d}]'.format(
-                            module.dll.decode(encoding),
-                            symbol.name.decode(encoding),
+                            module.dll.decode(encoding, 'backslashreplace_'),
+                            symbol.name.decode(encoding, 'backslashreplace_'),
                             symbol.hint))
 
                     if symbol.bound:
@@ -4657,13 +4656,13 @@ class PE(object):
 
                 dump.add_lines(bound_imp_desc.struct.dump())
                 dump.add_line('DLL: {0}'.format(
-                    bound_imp_desc.name.decode(encoding)))
+                    bound_imp_desc.name.decode(encoding, 'backslashreplace_')))
                 dump.add_newline()
 
                 for bound_imp_ref in bound_imp_desc.entries:
                     dump.add_lines(bound_imp_ref.struct.dump(), 4)
                     dump.add_line('DLL: {0}'.format(
-                        bound_imp_ref.name.decode(encoding)), 4)
+                        bound_imp_ref.name.decode(encoding, 'backslashreplace_')), 4)
                     dump.add_newline()
 
 
@@ -4677,12 +4676,12 @@ class PE(object):
                 for symbol in module.imports:
                     if symbol.import_by_ordinal is True:
                         dump.add('{0} Ordinal[{1:d}] (Imported by Ordinal)'.format(
-                            module.dll.decode(encoding),
+                            module.dll.decode(encoding, 'backslashreplace_'),
                             symbol.ordinal))
                     else:
                         dump.add('{0}.{1} Hint[{2}]'.format(
-                            module.dll.decode(encoding),
-                            symbol.name.decode(encoding), symbol.hint))
+                            module.dll.decode(encoding, 'backslashreplace_'),
+                            symbol.name.decode(encoding, 'backslashreplace_'), symbol.hint))
 
                     if symbol.bound:
                         dump.add_line(' Bound: 0x{0:08X}'.format(symbol.bound))
@@ -4701,7 +4700,7 @@ class PE(object):
                 if resource_type.name is not None:
                     # name = str(resource_type.name) #.string if resource_type.name.string else ''
                     dump.add_line(u'Name: [{0}]'.format(
-                        resource_type.name.decode(encoding, 'backslashreplace')
+                        resource_type.name.decode(encoding, 'backslashreplace_')
                         ), 2)
                 else:
                     dump.add_line(u'Id: [0x{0:X}] ({1})'.format(
@@ -4720,7 +4719,7 @@ class PE(object):
                         if resource_id.name is not None:
                             dump.add_line(u'Name: [{0}]'.format(
                                 resource_id.name.decode(
-                                    'utf-8', 'backslashreplace')), 6)
+                                    'utf-8', 'backslashreplace_')), 6)
                         else:
                             dump.add_line('Id: [0x{0:X}]'.format(resource_id.struct.Id), 6)
 
