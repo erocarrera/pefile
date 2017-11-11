@@ -560,6 +560,9 @@ def is_probably_packed( pe ):
     # file. Overlay data won't be taken into account
     #
     total_pe_data_length = len( pe.trim() )
+    # Assume that the file is packed when no data is available
+    if not total_pe_data_length:
+        return True
     has_significant_amount_of_compressed_data = False
 
     # If some of the sections have high entropy and they make for more than 20% of the file's size
