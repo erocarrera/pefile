@@ -5,15 +5,11 @@
 Copyright (c) 2005-2013 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
-
-For detailed copyright information see the file COPYING in
-the root of the distribution archive.
 """
 from __future__ import division
 from future import standard_library
 standard_library.install_aliases()
 from builtins import range
-from past.utils import old_div
 from builtins import object
 
 import os
@@ -325,7 +321,7 @@ class SignatureDatabase(object):
         # Walk the bytes in the data and match them
         # against the signature
         #
-        for idx, byte in enumerate ( [ord (b) for b in data] ):
+        for idx, byte in enumerate ( [b if isinstance(b, int) else ord(b) for b in data] ):
 
             # If the tree is exhausted...
             #
@@ -425,10 +421,10 @@ class SignatureDatabase(object):
 
         # Helper function to parse the signature bytes
         #
-        def to_byte(value) :
-            if '?' in value::
+        def to_byte(value):
+            if '?' in value:
                 return value
-            return int (value, 16)
+            return int(value, 16)
 
 
         # Parse all the signatures in the file
@@ -564,6 +560,9 @@ def is_probably_packed( pe ):
     # file. Overlay data won't be taken into account
     #
     total_pe_data_length = len( pe.trim() )
+    # Assume that the file is packed when no data is available
+    if not total_pe_data_length:
+        return True
     has_significant_amount_of_compressed_data = False
 
     # If some of the sections have high entropy and they make for more than 20% of the file's size
@@ -578,7 +577,7 @@ def is_probably_packed( pe ):
         if s_entropy > 7.4:
             total_compressed_data += s_length
 
-    if (old_div((1.0 * total_compressed_data),total_pe_data_length)) > .2:
+    if ((1.0 * total_compressed_data)/total_pe_data_length) > .2:
         has_significant_amount_of_compressed_data = True
 
     return has_significant_amount_of_compressed_data
