@@ -5300,7 +5300,9 @@ class PE(object):
 
         relocation_difference = new_ImageBase - self.OPTIONAL_HEADER.ImageBase
 
-        if hasattr(self, 'DIRECTORY_ENTRY_BASERELOC'):
+        if self.OPTIONAL_HEADER.DATA_DIRECTORY[5].Size:
+            if not hasattr(self, 'DIRECTORY_ENTRY_BASERELOC'):
+                self.parse_data_directories(directories=[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_BASERELOC']])
             for reloc in self.DIRECTORY_ENTRY_BASERELOC:
 
                 virtual_address = reloc.struct.VirtualAddress
@@ -5376,6 +5378,47 @@ class PE(object):
                         self.set_qword_at_rva(
                             entry.rva,
                             self.get_qword_at_rva(entry.rva) + relocation_difference)
+
+            self.OPTIONAL_HEADER.ImageBase = new_ImageBase
+
+            #correct VAs(virtual addresses) occurrences in directory information
+            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_IMPORT'):
+                for dll in self.DIRECTORY_ENTRY_IMPORT:
+                    for func in dll.imports:
+                        func.address += relocation_difference
+            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_EXPORT'):
+                pass    # no VAs - nothing to do
+            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_RESOURCE'):
+                pass    # no VAs - nothing to do
+            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_DEBUG'):
+                pass    # no VAs - nothing to do
+            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_BASERELOC'):
+                pass    # no VAs - nothing to do
+            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_TLS'):
+                self.DIRECTORY_ENTRY_TLS.struct.StartAddressOfRawData += relocation_difference
+                self.DIRECTORY_ENTRY_TLS.struct.EndAddressOfRawData   += relocation_difference
+                self.DIRECTORY_ENTRY_TLS.struct.AddressOfIndex        += relocation_difference
+                self.DIRECTORY_ENTRY_TLS.struct.AddressOfCallBacks    += relocation_difference
+            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG'):
+                if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.LockPrefixTable:
+                    self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.LockPrefixTable += relocation_difference
+                if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.EditList:
+                    self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.EditList += relocation_difference
+                if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.SecurityCookie:
+                    self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.SecurityCookie += relocation_difference
+                if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.SEHandlerTable:
+                    self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.SEHandlerTable += relocation_difference
+                if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.GuardCFCheckFunctionPointer:
+                    self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.GuardCFCheckFunctionPointer += relocation_difference
+                if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.GuardCFFunctionTable:
+                    self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.GuardCFFunctionTable += relocation_difference
+            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT'):
+                pass    # no VAs - nothing to do
+            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT'):
+                pass    # no VAs - nothing to do
+        else:
+            #raise Exception('There is no base relocation directory entry')
+            pass
 
 
     def verify_checksum(self):
