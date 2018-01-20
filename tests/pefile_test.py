@@ -285,6 +285,8 @@ class Test_pefile(unittest.TestCase):
         differences_1 = count_differences(original_image_1, rebased_image_1)
         self.assertEqual(differences_1, 60624)
 
+        pe = pefile.PE(control_file)
+
         original_image_2 = pe.get_memory_mapped_image()
         pe.relocate_image(0x1000000)
         rebased_image_2 = pe.get_memory_mapped_image()
