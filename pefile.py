@@ -3199,8 +3199,15 @@ class PE(object):
 
         # Retrieve the data for the version info resource
         #
-        start_offset = self.get_offset_from_rva( version_struct.OffsetToData )
-        raw_data = self.__data__[ start_offset : start_offset+version_struct.Size ]
+        try:
+            start_offset = self.get_offset_from_rva(version_struct.OffsetToData)
+        except PEFormatError as excp:
+            self.__warnings.append(
+                'Error parsing the version information, '
+                'attempting to read OffsetToData with RVA: 0x{:x}'.format(
+                    version_struct.OffsetToData))
+            return
+        raw_data = self.__data__[start_offset:start_offset+version_struct.Size]
 
 
         # Map the main structure and the subsequent string
