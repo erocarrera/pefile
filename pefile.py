@@ -1675,22 +1675,42 @@ class PE(object):
         'I,CriticalSectionDefaultTimeout',
         'I,DeCommitFreeBlockThreshold',
         'I,DeCommitTotalFreeThreshold',
-        'I,LockPrefixTable',
+        'I,LockPrefixTable',                          #VA
         'I,MaximumAllocationSize',
         'I,VirtualMemoryThreshold',
         'I,ProcessHeapFlags',
         'I,ProcessAffinityMask',
         'H,CSDVersion',
         'H,Reserved1',
-        'I,EditList',
-        'I,SecurityCookie',
-        'I,SEHandlerTable',
+        'I,EditList',                                 #VA
+        'I,SecurityCookie',                           #VA
+        'I,SEHandlerTable',                           #VA
         'I,SEHandlerCount',
-        'I,GuardCFCheckFunctionPointer',
-        'I,Reserved2',
-        'I,GuardCFFunctionTable',
+        'I,GuardCFCheckFunctionPointer',              #VA
+        'I,GuardCFDispatchFunctionPointer',           #VA
+        'I,GuardCFFunctionTable',                     #VA
         'I,GuardCFFunctionCount',
-        'I,GuardFlags' ) )
+        'I,GuardFlags',
+        'H,CodeIntegrityFlags',
+        'H,CodeIntegrityCatalog',
+        'I,CodeIntegrityCatalogOffset',
+        'I,CodeIntegrityReserved',
+        'I,GuardAddressTakenIatEntryTable',           #VA
+        'I,GuardAddressTakenIatEntryCount',
+        'I,GuardLongJumpTargetTable',                 #VA
+        'I,GuardLongJumpTargetCount',
+        'I,DynamicValueRelocTable',                   #VA
+        'I,CHPEMetadataPointer',
+        'I,GuardRFFailureRoutine',                    #VA
+        'I,GuardRFFailureRoutineFunctionPointer',     #VA
+        'I,DynamicValueRelocTableOffset',
+        'H,DynamicValueRelocTableSection',
+        'H,Reserved2',
+        'I,GuardRFVerifyStackPointerFunctionPointer', #VA
+        'I,HotPatchTableOffset',
+        'I,Reserved3',
+        'I,EnclaveConfigurationPointer'               #VA            
+        ) )
 
     __IMAGE_LOAD_CONFIG_DIRECTORY64_format__ = ('IMAGE_LOAD_CONFIG_DIRECTORY',
         ('I,Size',
@@ -1702,22 +1722,42 @@ class PE(object):
         'I,CriticalSectionDefaultTimeout',
         'Q,DeCommitFreeBlockThreshold',
         'Q,DeCommitTotalFreeThreshold',
-        'Q,LockPrefixTable',
+        'Q,LockPrefixTable',                           #VA
         'Q,MaximumAllocationSize',
         'Q,VirtualMemoryThreshold',
         'Q,ProcessAffinityMask',
         'I,ProcessHeapFlags',
         'H,CSDVersion',
         'H,Reserved1',
-        'Q,EditList',
-        'Q,SecurityCookie',
-        'Q,SEHandlerTable',
+        'Q,EditList',                                  #VA
+        'Q,SecurityCookie',                            #VA
+        'Q,SEHandlerTable',                            #VA
         'Q,SEHandlerCount',
-        'Q,GuardCFCheckFunctionPointer',
-        'Q,Reserved2',
-        'Q,GuardCFFunctionTable',
+        'Q,GuardCFCheckFunctionPointer',               #VA
+        'Q,GuardCFDispatchFunctionPointer',            #VA
+        'Q,GuardCFFunctionTable',                      #VA
         'Q,GuardCFFunctionCount',
-        'I,GuardFlags' ) )
+        'I,GuardFlags',
+        'H,CodeIntegrityFlags',
+        'H,CodeIntegrityCatalog',
+        'I,CodeIntegrityCatalogOffset',
+        'I,CodeIntegrityReserved',
+        'Q,GuardAddressTakenIatEntryTable',            #VA
+        'Q,GuardAddressTakenIatEntryCount',
+        'Q,GuardLongJumpTargetTable',                  #VA
+        'Q,GuardLongJumpTargetCount',
+        'Q,DynamicValueRelocTable',                    #VA
+        'Q,CHPEMetadataPointer',                       #VA
+        'Q,GuardRFFailureRoutine',                     #VA
+        'Q,GuardRFFailureRoutineFunctionPointer',      #VA
+        'I,DynamicValueRelocTableOffset',
+        'H,DynamicValueRelocTableSection',
+        'H,Reserved2',
+        'Q,GuardRFVerifyStackPointerFunctionPointer',  #VA
+        'I,HotPatchTableOffset',
+        'I,Reserved3',
+        'Q,EnclaveConfigurationPointer'                #VA
+        ) )
 
     __IMAGE_BOUND_IMPORT_DESCRIPTOR_format__ = ('IMAGE_BOUND_IMPORT_DESCRIPTOR',
         ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,NumberOfModuleForwarderRefs'))
