@@ -2252,24 +2252,25 @@ class PE(object):
 
         if hasattr(self, 'VS_VERSIONINFO'):
             if hasattr(self, 'FileInfo'):
-                for entry in self.FileInfo:
-                    if hasattr(entry, 'StringTable'):
-                        for st_entry in entry.StringTable:
-                            for key, entry in list(st_entry.entries.items()):
+                for finfo in self.FileInfo:
+                    for entry in finfo:
+                        if hasattr(entry, 'StringTable'):
+                            for st_entry in entry.StringTable:
+                                for key, entry in list(st_entry.entries.items()):
 
-                                # Offsets and lengths of the keys and values.
-                                # Each value in the dictionary is a tuple:
-                                #  (key length, value length)
-                                # The lengths are in characters, not in bytes.
-                                offsets = st_entry.entries_offsets[key]
-                                lengths = st_entry.entries_lengths[key]
+                                    # Offsets and lengths of the keys and values.
+                                    # Each value in the dictionary is a tuple:
+                                    #  (key length, value length)
+                                    # The lengths are in characters, not in bytes.
+                                    offsets = st_entry.entries_offsets[key]
+                                    lengths = st_entry.entries_lengths[key]
 
-                                if len( entry ) > lengths[1]:
-                                    l = entry.decode('utf-8').encode('utf-16le')
-                                    file_data[offsets[1]:offsets[1]+lengths[1]*2 ] = l[:lengths[1]*2]
-                                else:
-                                    encoded_data = entry.decode('utf-8').encode('utf-16le')
-                                    file_data[offsets[1]:offsets[1]+len(encoded_data)] = encoded_data
+                                    if len( entry ) > lengths[1]:
+                                        l = entry.decode('utf-8').encode('utf-16le')
+                                        file_data[offsets[1]:offsets[1]+lengths[1]*2 ] = l[:lengths[1]*2]
+                                    else:
+                                        encoded_data = entry.decode('utf-8').encode('utf-16le')
+                                        file_data[offsets[1]:offsets[1]+len(encoded_data)] = encoded_data
 
         new_file_data = file_data
         if not filename:
@@ -3097,16 +3098,24 @@ class PE(object):
                 if len(dir_entries)>0:
                     last_entry = dir_entries[-1]
 
-                rt_version_struct = None
                 try:
-                    rt_version_struct = last_entry.directory.entries[0].directory.entries[0].data.struct
+                    version_entries = last_entry.directory.entries[0].directory.entries
                 except:
                     # Maybe a malformed directory structure...?
                     # Lets ignore it
                     pass
+                else:
+                    for version_entry in version_entries:
+                        rt_version_struct = None
+                        try:
+                            rt_version_struct = version_entry.data.struct
+                        except:
+                            # Maybe a malformed directory structure...?
+                            # Lets ignore it
+                            pass
 
-                if rt_version_struct is not None:
-                    self.parse_version_information(rt_version_struct)
+                        if rt_version_struct is not None:
+                            self.parse_version_information(rt_version_struct)
 
             rva += res.sizeof()
 
@@ -3267,11 +3276,16 @@ class PE(object):
                 versioninfo_string.decode('ascii').replace('\00', '\\00')))
             return
 
+        if not hasattr(self, 'VS_VERSIONINFO'):
+            self.VS_VERSIONINFO = list()
+
         # Set the PE object's VS_VERSIONINFO to this one
-        self.VS_VERSIONINFO = versioninfo_struct
+        vinfo = versioninfo_struct
 
         # The the Key attribute to point to the unicode string identifying the structure
-        self.VS_VERSIONINFO.Key = versioninfo_string
+        vinfo.Key = versioninfo_string
+
+        self.VS_VERSIONINFO.append(vinfo)
 
         if versioninfo_string is None:
             versioninfo_string = ''
@@ -3287,8 +3301,11 @@ class PE(object):
         if not fixedfileinfo_struct:
             return
 
+        if not hasattr(self, 'VS_FIXEDFILEINFO'):
+            self.VS_FIXEDFILEINFO = list()
+
         # Set the PE object's VS_FIXEDFILEINFO to this one
-        self.VS_FIXEDFILEINFO = fixedfileinfo_struct
+        self.VS_FIXEDFILEINFO.append(fixedfileinfo_struct)
 
         # Start parsing all the StringFileInfo and VarFileInfo structures
 
@@ -3299,8 +3316,10 @@ class PE(object):
         original_stringfileinfo_offset = stringfileinfo_offset
 
         # Set the PE object's attribute that will contain them all.
-        self.FileInfo = list()
+        if not hasattr(self, 'FileInfo'):
+            self.FileInfo = list()
 
+        finfo = list()
         while True:
 
             # Process the StringFileInfo/VarFileInfo structure
@@ -3331,7 +3350,7 @@ class PE(object):
 
 
             # Append the structure to the PE object's list
-            self.FileInfo.append(stringfileinfo_struct)
+            finfo.append(stringfileinfo_struct)
 
 
             # Parse a StringFileInfo entry
@@ -3515,6 +3534,8 @@ class PE(object):
             # Check if all the StringFileInfo and VarFileInfo items have been processed
             if stringfileinfo_struct.Length == 0 or stringfileinfo_offset >= versioninfo_struct.Length:
                 break
+
+        self.FileInfo.append(finfo)
 
 
     def parse_export_directory(self, rva, size, forwarded_only=False):
@@ -4562,44 +4583,45 @@ class PE(object):
             dump.add_newline()
 
         if hasattr(self, 'VS_VERSIONINFO'):
-            dump.add_header('Version Information')
-            dump.add_lines(self.VS_VERSIONINFO.dump())
-            dump.add_newline()
-
-            if hasattr(self, 'VS_FIXEDFILEINFO'):
-                dump.add_lines(self.VS_FIXEDFILEINFO.dump())
+            for idx in range(len(self.VS_VERSIONINFO)):
+                dump.add_header('Version Information {:d}'.format(idx + 1))
+                dump.add_lines(self.VS_VERSIONINFO[idx].dump())
                 dump.add_newline()
 
-            if hasattr(self, 'FileInfo'):
-                for entry in self.FileInfo:
-                    dump.add_lines(entry.dump())
+                if hasattr(self, 'VS_FIXEDFILEINFO'):
+                    dump.add_lines(self.VS_FIXEDFILEINFO[idx].dump())
                     dump.add_newline()
 
-                    if hasattr(entry, 'StringTable'):
-                        for st_entry in entry.StringTable:
-                            [dump.add_line(u'  '+line) for line in st_entry.dump()]
-                            dump.add_line(u'  LangID: {0}'.format(
-                                st_entry.LangID.decode(encoding, 'backslashreplace_')))
+                if hasattr(self, 'FileInfo'):
+                    for entry in self.FileInfo[idx]:
+                        dump.add_lines(entry.dump())
+                        dump.add_newline()
+
+                        if hasattr(entry, 'StringTable'):
+                            for st_entry in entry.StringTable:
+                                [dump.add_line(u'  '+line) for line in st_entry.dump()]
+                                dump.add_line(u'  LangID: {0}'.format(
+                                    st_entry.LangID.decode(encoding, 'backslashreplace_')))
+                                dump.add_newline()
+                                for str_entry in sorted(list(st_entry.entries.items())):
+                                    # try:
+                                    dump.add_line( u'    {0}: {1}'.format(
+                                        str_entry[0].decode(encoding, 'backslashreplace_'),
+                                        str_entry[1].decode(encoding, 'backslashreplace_')))
+
                             dump.add_newline()
-                            for str_entry in sorted(list(st_entry.entries.items())):
-                                # try:
-                                dump.add_line( u'    {0}: {1}'.format(
-                                    str_entry[0].decode(encoding, 'backslashreplace_'),
-                                    str_entry[1].decode(encoding, 'backslashreplace_')))
 
-                        dump.add_newline()
+                        elif hasattr(entry, 'Var'):
+                            for var_entry in entry.Var:
+                                if hasattr(var_entry, 'entry'):
+                                    [dump.add_line('  '+line) for line in var_entry.dump()]
+                                    dump.add_line(
+                                        u'    {0}: {1}'.format(
+                                            list(var_entry.entry.keys())[0].decode(
+                                                'utf-8', 'backslashreplace_'),
+                                            list(var_entry.entry.values())[0]))
 
-                    elif hasattr(entry, 'Var'):
-                        for var_entry in entry.Var:
-                            if hasattr(var_entry, 'entry'):
-                                [dump.add_line('  '+line) for line in var_entry.dump()]
-                                dump.add_line(
-                                    u'    {0}: {1}'.format(
-                                        list(var_entry.entry.keys())[0].decode(
-                                            'utf-8', 'backslashreplace_'),
-                                        list(var_entry.entry.values())[0]))
-
-                        dump.add_newline()
+                            dump.add_newline()
 
         if hasattr(self, 'DIRECTORY_ENTRY_EXPORT'):
             dump.add_header('Exported symbols')
@@ -4868,35 +4890,38 @@ class PE(object):
 
         if hasattr(self, 'VS_VERSIONINFO'):
             dump_dict['Version Information'] = list()
-            dump_dict['Version Information'].append(self.VS_VERSIONINFO.dump_dict())
+            for idx in range(len(self.VS_VERSIONINFO)):
+                version_info_list = list()
+                version_info_list.append(self.VS_VERSIONINFO[idx].dump_dict())
 
-            if hasattr(self, 'VS_FIXEDFILEINFO'):
-                dump_dict['Version Information'].append(self.VS_FIXEDFILEINFO.dump_dict())
+                if hasattr(self, 'VS_FIXEDFILEINFO'):
+                    version_info_list.append(self.VS_FIXEDFILEINFO[idx].dump_dict())
 
-            if hasattr(self, 'FileInfo'):
-                fileinfo_list = list()
-                for entry in self.FileInfo:
-                    fileinfo_list.append(entry.dump_dict())
+                if hasattr(self, 'FileInfo'):
+                    fileinfo_list = list()
+                    for entry in self.FileInfo[idx]:
+                        fileinfo_list.append(entry.dump_dict())
 
-                    if hasattr(entry, 'StringTable'):
-                        stringtable_dict = dict()
-                        for st_entry in entry.StringTable:
-                            [fileinfo_list.append(line) for line in st_entry.dump_dict()]
-                            stringtable_dict['LangID'] = st_entry.LangID
-                            for str_entry in list(st_entry.entries.items()):
-                                stringtable_dict[str_entry[0]] = str_entry[1]
-                        fileinfo_list.append(stringtable_dict)
+                        if hasattr(entry, 'StringTable'):
+                            stringtable_dict = dict()
+                            for st_entry in entry.StringTable:
+                                [fileinfo_list.append(line) for line in st_entry.dump_dict()]
+                                stringtable_dict['LangID'] = st_entry.LangID
+                                for str_entry in list(st_entry.entries.items()):
+                                    stringtable_dict[str_entry[0]] = str_entry[1]
+                            fileinfo_list.append(stringtable_dict)
 
 
-                    elif hasattr(entry, 'Var'):
-                        for var_entry in entry.Var:
-                            var_dict = dict()
-                            if hasattr(var_entry, 'entry'):
-                                [fileinfo_list.append(line) for line in var_entry.dump_dict()]
-                                var_dict[list(var_entry.entry.keys())[0]] = list(
-                                    var_entry.entry.values())[0]
-                                fileinfo_list.append(var_dict)
+                        elif hasattr(entry, 'Var'):
+                            for var_entry in entry.Var:
+                                var_dict = dict()
+                                if hasattr(var_entry, 'entry'):
+                                    [fileinfo_list.append(line) for line in var_entry.dump_dict()]
+                                    var_dict[list(var_entry.entry.keys())[0]] = list(
+                                        var_entry.entry.values())[0]
+                                    fileinfo_list.append(var_dict)
 
+                dump_dict['Version Information'].append(version_info_list)
 
         if hasattr(self, 'DIRECTORY_ENTRY_EXPORT'):
             dump_dict['Exported symbols'] = list()
