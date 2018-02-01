@@ -1427,12 +1427,19 @@ else: # Python 2.x
         string.lowercase + string.uppercase + string.digits +
         b"!#$%&'()-@^_`{}~+,.;=[]")
 
+if PY3:
+    def canonicalize(x):
+        return x
+else: # Python 2.x
+    def canonicalize(x):
+        return str(x)
+
 def is_valid_dos_filename(s):
     if s is None or not isinstance(s, (str, bytes, bytearray)):
         return False
     # Allow path separators as import names can contain directories.
     allowed = allowed_filename + b'\\/'
-    for c in set(str(s)):
+    for c in set(canonicalize(s)):
         if c not in allowed:
             return False
     return True
@@ -1454,7 +1461,7 @@ else:
 def is_valid_function_name(s):
     if s is None or not isinstance(s, (str, bytes, bytearray)):
         return False
-    for c in set(str(s)):
+    for c in set(canonicalize(s)):
         if c not in allowed_function_name:
             return False
     return True
