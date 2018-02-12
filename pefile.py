@@ -683,9 +683,14 @@ class UnicodeStringWrapperPostProcessor(object):
         self = None
 
     def render_pascal_16(self):
-        self.string = self.pe.get_string_u_at_rva(
-            self.rva_ptr+2,
-            max_length=self.get_pascal_16_length())
+        try:
+            self.string = self.pe.get_string_u_at_rva(
+                self.rva_ptr+2,
+                max_length=self.get_pascal_16_length())
+        except PEFormatError as excp:
+            self.__warnings.append(
+                'Failed rendering pascal string, '
+                'attempting to read from RVA 0x{0:x}'.format(self.rva_ptr+2))
 
     def get_pascal_16_length(self):
         return self.__get_word_value_at_rva(self.rva_ptr)
@@ -714,7 +719,12 @@ class UnicodeStringWrapperPostProcessor(object):
         return False
 
     def render_unicode_16(self):
-        self.string = self.pe.get_string_u_at_rva(self.rva_ptr)
+        try:
+            self.string = self.pe.get_string_u_at_rva(self.rva_ptr)
+        except PEFormatError as excp:
+            self.__warnings.append(
+                'Failed rendering unicode string, '
+                'attempting to read from RVA 0x{0:x}'.format(self.rva_ptr))
 
 
 class PEFormatError(Exception):
@@ -4399,14 +4409,11 @@ class PE(object):
     def get_string_u_at_rva(self, rva, max_length = 2**16, encoding=None):
         """Get an Unicode string located at the given address."""
 
-        try:
-            # If the RVA is invalid all would blow up. Some EXEs seem to be
-            # specially nasty and have an invalid RVA.
-            data = self.get_data(rva, 2)
-        except PEFormatError as e:
-            return None
-        # max_length is the maximum count of 16bit characters
-        # needs to be doubled to get size in bytes
+        # If the RVA is invalid let the exception reach the callers. All
+        # call-sites of get_string_u_at_rva() will handle it.
+        data = self.get_data(rva, 2)
+        # max_length is the maximum count of 16bit characters needs to be
+        # doubled to get size in bytes
         max_length <<= 1
 
         requested = min(max_length, 256)
