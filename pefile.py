@@ -5537,8 +5537,8 @@ class PE(object):
         # If it imports from "ntoskrnl.exe" or other kernel components it should
         # be a driver
         #
-        system_DLLs = set(
-            ('ntoskrnl.exe', 'hal.dll', 'ndis.sys', 'bootvid.dll', 'kdcom.dll'))
+        system_DLLs = set((b'ntoskrnl.exe', b'hal.dll', b'ndis.sys',
+                           b'bootvid.dll', b'kdcom.dll'))
         if system_DLLs.intersection(
                 [imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT]):
             return True
