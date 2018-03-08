@@ -13,7 +13,7 @@ PEs as well as malware, which often attempts to abuse the format way beyond its
 standard use. To the best of my knowledge most of the abuse is handled
 gracefully.
 
-Copyright (c) 2005-2017 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2018 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 """
@@ -688,7 +688,7 @@ class UnicodeStringWrapperPostProcessor(object):
                 self.rva_ptr+2,
                 max_length=self.get_pascal_16_length())
         except PEFormatError as excp:
-            self.__warnings.append(
+            self.pe.get_warnings().append(
                 'Failed rendering pascal string, '
                 'attempting to read from RVA 0x{0:x}'.format(self.rva_ptr+2))
 
@@ -722,7 +722,7 @@ class UnicodeStringWrapperPostProcessor(object):
         try:
             self.string = self.pe.get_string_u_at_rva(self.rva_ptr)
         except PEFormatError as excp:
-            self.__warnings.append(
+            self.pe.get_warnings().append(
                 'Failed rendering unicode string, '
                 'attempting to read from RVA 0x{0:x}'.format(self.rva_ptr))
 
