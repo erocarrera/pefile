@@ -195,9 +195,9 @@ class Test_pefile(unittest.TestCase):
         str2 = b'str2'
         str3 = b'string3'
 
-        pe.FileInfo[0].StringTable[0].entries[b'FileDescription'] = str1
-        pe.FileInfo[0].StringTable[0].entries[b'FileVersion'] = str2
-        pe.FileInfo[0].StringTable[0].entries[b'InternalName'] = str3
+        pe.FileInfo[0][0].StringTable[0].entries[b'FileDescription'] = str1
+        pe.FileInfo[0][0].StringTable[0].entries[b'FileVersion'] = str2
+        pe.FileInfo[0][0].StringTable[0].entries[b'InternalName'] = str3
 
         new_data = pe.write()
 
@@ -386,7 +386,7 @@ class Test_pefile(unittest.TestCase):
             'VS_VERSIONINFO')
         pe = pefile.PE(control_file)
 
-        vs_fixedfileinfo_signature = pe.VS_FIXEDFILEINFO.Signature
+        vs_fixedfileinfo_signature = pe.VS_FIXEDFILEINFO[0].Signature
 
         # This is the correct VS_FIXEDFILEINFO Signature.
         good_vs_fixedfileinfo_signature = 0xfeef04bd

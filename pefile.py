@@ -4591,7 +4591,10 @@ class PE(object):
 
         if hasattr(self, 'VS_VERSIONINFO'):
             for idx in range(len(self.VS_VERSIONINFO)):
-                dump.add_header('Version Information {:d}'.format(idx + 1))
+                if len(self.VS_VERSIONINFO) > 1:
+                    dump.add_header('Version Information {:d}'.format(idx + 1))
+                else:
+                    dump.add_header('Version Information')
                 dump.add_lines(self.VS_VERSIONINFO[idx].dump())
                 dump.add_newline()
 
