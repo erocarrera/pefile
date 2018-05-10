@@ -2,7 +2,7 @@
 
 Since version 1.2.6 _pefile_ supports parsing PEiD's signatures. Comprehensive signature datbases can be found around the web.  The last official release of from the creators of PEid "BobSoft" can be found here:
 
-http://woodmann.com/BobSoft/Files/Other/UserDB.zip
+http:/<span></span>/woodmann.com/BobSoft/Files/Other/UserDB.zip (dead link, albeit it's availabe at [web.archive.org](http://web.archive.org/web/20160507191641/http://woodmann.com/BobSoft/Download.php?file=Files%2FOther%2FUserDB.zip))
 
 # Usage #
 
