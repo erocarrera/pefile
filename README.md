@@ -42,6 +42,7 @@ Prompted by the move to GitHub, the need to support Python 3 in addition to reso
 
 ## Projects and products using _pefile_
 
+  * Didier Stevens' [pecheck](https://blog.didierstevens.com/2018/06/12/update-pecheck-py-version-0-7-3/), a tool for displaying PE file info, handles for PEiD files better then _pefile_ does
   * [MAEC](http://maec.mitre.org) MAEC is a standardized language for encoding and communicating high-fidelity information about malware based upon attributes such as behaviors, artifacts, and attack patterns. MAEC [converts](https://github.com/MAECProject/pefile-to-maec) _pefile_'s output into their XML format.
   * [Qiew](https://github.com/mtivadar/qiew) Qiew - Hex/File format viewer.
   * [VirusTotal](http://www.virustotal.com/)
