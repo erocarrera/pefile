@@ -909,7 +909,7 @@ class Structure(object):
                 new_val = getattr(self, key)
                 old_val = self.__unpacked_data_elms__[i]
 
-                # In the case of Unions, when the first changed value
+                # In the case of unions, when the first changed value
                 # is picked the loop is exited
                 if new_val != old_val:
                     break
@@ -1007,10 +1007,10 @@ class SectionStructure(Structure):
 
         Allows to query data from the section by passing the
         addresses where the PE file would be loaded by default.
-        It is then possible to retrieve code and data by its real
-        addresses as it would be if loaded.
+        It is then possible to retrieve code and data by their real
+        addresses as they would be if loaded.
 
-        Returns bytes() under Python 3.x and set() under 2.7
+        Returns bytes() under Python 3.x and set() under Python 2.7
         """
 
         PointerToRawData_adj = self.pe.adjust_FileAlignment( self.PointerToRawData,
@@ -1089,7 +1089,7 @@ class SectionStructure(Structure):
 
         # Check if the SizeOfRawData is realistic. If it's bigger than the size of
         # the whole PE file minus the start address of the section it could be
-        # either truncated or the SizeOfRawData contain a misleading value.
+        # either truncated or the SizeOfRawData contains a misleading value.
         # In either of those cases we take the VirtualSize
         #
         if len(self.pe.__data__) - self.pe.adjust_FileAlignment( self.PointerToRawData,
@@ -1108,7 +1108,7 @@ class SectionStructure(Structure):
             self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
 
         # Check whether there's any section after the current one that starts before the
-        # calculated end for the current one, if so, cut the current section's size
+        # calculated end for the current one. If so, cut the current section's size
         # to fit in the range up to where the next section starts.
         if (self.next_section_virtual_address is not None and
             self.next_section_virtual_address > self.VirtualAddress and
@@ -1349,7 +1349,7 @@ class RelocationData(DataContainer):
     """Holds relocation information.
 
     type:       Type of relocation
-                The type string is can be obtained by
+                The type string can be obtained by
                 RELOCATION_TYPE[type]
     rva:        RVA of the relocation
     """
@@ -1387,8 +1387,8 @@ class TlsData(DataContainer):
 class BoundImportDescData(DataContainer):
     """Holds bound import descriptor data.
 
-    This directory entry will provide with information on the
-    DLLs this PE files has been bound to (if bound at all).
+    This directory entry will provide information on the
+    DLLs this PE file has been bound to (if bound at all).
     The structure will contain the name and timestamp of the
     DLL at the time of binding so that the loader can know
     whether it differs from the one currently present in the
@@ -1448,7 +1448,7 @@ def is_valid_dos_filename(s):
     return True
 
 
-# Check if a imported name uses the valid accepted characters expected in mangled
+# Check if an imported name uses the valid accepted characters expected in mangled
 # function names. If the symbol's characters don't fall within this charset
 # we will assume the name is invalid
 #
@@ -1484,8 +1484,8 @@ class PE(object):
     pe = pefile.PE('module.dll')
     pe = pefile.PE(name='module.dll')
 
-    would load 'module.dll' and process it. If the data would be already
-    available in a buffer the same could be achieved with:
+    would load 'module.dll' and process it. If the data is already
+    available in a buffer the same can be achieved with:
 
     pe = pefile.PE(data=module_dll_data)
 
@@ -1772,7 +1772,7 @@ class PE(object):
     def __unpack_data__(self, format, data, file_offset):
         """Apply structure format to raw data.
 
-        Returns and unpacked structure object if successful, None otherwise.
+        Returns an unpacked structure object if successful, None otherwise.
         """
 
         structure = Structure(format, file_offset=file_offset)
@@ -2556,7 +2556,7 @@ class PE(object):
                 # OffsetModuleName points to a DLL name. These shouldn't be too long.
                 # Anything longer than a safety length of 128 will be taken to indicate
                 # a corrupt entry and abort the processing of these entries.
-                # Names shorted than 4 characters will be taken as invalid as well.
+                # Names shorter than 4 characters will be taken as invalid as well.
 
                 if name_str:
                     invalid_chars = [
@@ -2735,7 +2735,7 @@ class PE(object):
             if (reloc_offset, reloc_type) in offsets_and_type:
                 self.__warnings.append(
                     'Overlapping offsets in relocation data '
-                    'data at RVA: 0x%x' % (reloc_offset+rva))
+                    'at RVA: 0x%x' % (reloc_offset+rva))
                 break
             if len(offsets_and_type) >= 1000:
                 offsets_and_type.pop()
@@ -2933,7 +2933,7 @@ class PE(object):
             self.__IMAGE_RESOURCE_DIRECTORY_format__, data,
             file_offset = self.get_offset_from_rva(rva) )
         if resource_dir is None:
-            # If can't parse resources directory then silently return.
+            # If we can't parse resources directory then silently return.
             # This directory does not necessarily have to be valid to
             # still have a valid PE file
             self.__warnings.append(
@@ -3112,7 +3112,7 @@ class PE(object):
                     version_entries = last_entry.directory.entries[0].directory.entries
                 except:
                     # Maybe a malformed directory structure...?
-                    # Lets ignore it
+                    # Let's ignore it
                     pass
                 else:
                     for version_entry in version_entries:
@@ -3121,7 +3121,7 @@ class PE(object):
                             rt_version_struct = version_entry.data.struct
                         except:
                             # Maybe a malformed directory structure...?
-                            # Lets ignore it
+                            # Let's ignore it
                             pass
 
                         if rt_version_struct is not None:
@@ -3292,7 +3292,7 @@ class PE(object):
         # Set the PE object's VS_VERSIONINFO to this one
         vinfo = versioninfo_struct
 
-        # The the Key attribute to point to the unicode string identifying the structure
+        # Set the Key attribute to point to the unicode string identifying the structure
         vinfo.Key = versioninfo_string
 
         self.VS_VERSIONINFO.append(vinfo)
@@ -3793,7 +3793,7 @@ class PE(object):
 
             rva += import_desc.sizeof()
 
-            # If the array of thunk's is somewhere earlier than the import
+            # If the array of thunks is somewhere earlier than the import
             # descriptor we can set a maximum length for the array. Otherwise
             # just set a maximum length of the size of the file
             max_len = len(self.__data__) - file_offset
@@ -3903,7 +3903,7 @@ class PE(object):
 
             rva += import_desc.sizeof()
 
-            # If the array of thunk's is somewhere earlier than the import
+            # If the array of thunks is somewhere earlier than the import
             # descriptor we can set a maximum length for the array. Otherwise
             # just set a maximum length of the size of the file
             max_len = len(self.__data__) - file_offset
@@ -3982,7 +3982,7 @@ class PE(object):
 
         It will fill a list, which will be available as the dictionary
         attribute "imports". Its keys will be the DLL names and the values
-        all the symbols imported from that object.
+        of all the symbols imported from that object.
         """
 
         imported_symbols = []
@@ -3990,7 +3990,7 @@ class PE(object):
         # Import Lookup Table. Contains ordinals or pointers to strings.
         ilt = self.get_import_table(original_first_thunk, max_length)
         # Import Address Table. May have identical content to ILT if
-        # PE file is not bounded, Will contain the address of the
+        # PE file is not bound. It will contain the address of the
         # imported symbols once the binary is loaded or if it is already
         # bound.
         iat = self.get_import_table(first_thunk, max_length)

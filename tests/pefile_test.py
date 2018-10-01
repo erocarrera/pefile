@@ -19,7 +19,7 @@ class Test_pefile(unittest.TestCase):
         self.test_files = self._load_test_files()
 
     def _load_test_files(self):
-        """Load all the test files to be processes"""
+        """Load all the test files to be processed"""
 
         test_files = list()
 
@@ -80,7 +80,7 @@ class Test_pefile(unittest.TestCase):
                     # Count all changed lines
                     if line.startswith('+ '):
                         diff_lines_added_count += 1
-                        # Window's returns slightly different date strings,
+                        # Windows returns slightly different date strings,
                         # ignore those.
                         if 'TimeDateStamp' in line:
                             lines_to_ignore += 1
@@ -302,11 +302,11 @@ class Test_pefile(unittest.TestCase):
     def test_entry_point_retrieval_with_overlapping_sections(self):
         # Versions up to and including 114 would not handle overlapping
         # sections correctly. A section size could push the end address
-        # beyond the start of the next section, in such cases thes sections's
+        # beyond the start of the next section, in such cases the sections'
         # contains_rva() would return true for an address lying in a later
         # section. contains_rva() is used in multiple places to find out
         # from what section's disk-offset to read from, finding an invalid
-        # section lead to reading the wrong data.
+        # section leads to reading the wrong data.
         # A check is made now that the section's start address + size does not
         # go beyond a subsequent section's start address and if so, it's
         # truncated.
@@ -447,7 +447,7 @@ class Test_pefile(unittest.TestCase):
 
     def test_unable_to_read_file(self):
         """Attempting to open a file without read permission for the user
-        should result in and error message.
+        should result in an error message.
         """
 
         control_file_pe = os.path.join(
