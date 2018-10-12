@@ -1419,6 +1419,11 @@ class BoundImportRefData(DataContainer):
     name:       dll name
     """
 
+class NetMetadata(DataContainer):
+    """
+    Fill it
+    """
+
 
 # Valid FAT32 8.3 short filename characters according to:
 #  http://en.wikipedia.org/wiki/8.3_filename
@@ -1625,6 +1630,29 @@ class PE(object):
     __IMAGE_RESOURCE_DIRECTORY_ENTRY_format__ = ('IMAGE_RESOURCE_DIRECTORY_ENTRY',
         ('I,Name',
         'I,OffsetToData'))
+
+    __IMAGE_COR20_HEADER_format__ = ('IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR',
+        (
+            # Header versioning
+            'I,cb',
+            'H,MajorRuntimeVersion',
+            'H,MinorRuntimeVersion',
+
+            # Symbol table and startup information
+            'I,MetaDataRVA', 'I,MetaDataSize',
+            'I,Flags',
+            'I,EntryPointToken',
+
+            # Binding information
+            'I,ResourcesRVA', 'I,ResourcesSize',  # Resources
+            'I,StrongNameSignatureRVA', 'I,StrongNameSignatureSize',  # StrongNameSignature
+
+            # Regular fixup and binding information
+            'I,CodeManagerTableRVA', 'I,CodeManagerTableSize',  # CodeManagerTable
+            'I,VTableFixupsRVA', 'I,VTableFixupsSize',  # VTableFixups
+            'I,ExportAddressTableJumpsRVA', 'I,ExportAddressTableJumpsSize',  # ExportAddressTableJumps
+            'I,ManagedNativeHeaderRVA', 'I,ManagedNativeHeaderSize',  # ManagedNativeHeader
+        ))
 
     __IMAGE_RESOURCE_DATA_ENTRY_format__ = ('IMAGE_RESOURCE_DATA_ENTRY',
         ('I,OffsetToData', 'I,Size', 'I,CodePage', 'I,Reserved'))
@@ -2445,7 +2473,9 @@ class PE(object):
             ('IMAGE_DIRECTORY_ENTRY_TLS', self.parse_directory_tls),
             ('IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG', self.parse_directory_load_config),
             ('IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT', self.parse_delay_import_directory),
-            ('IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT', self.parse_directory_bound_imports) )
+            ('IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT', self.parse_directory_bound_imports),
+            ('IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR', self.parse_com_descriptor_directory)
+        )
 
         if directories is not None:
             if not isinstance(directories, (tuple, list)):
@@ -4117,6 +4147,564 @@ class PE(object):
 
         return imported_symbols
 
+
+
+    def parse_metadata_table(self, rva, count, format):
+        entries = list()
+
+        for i in xrange(count):
+            table_entry = None
+            sz = Structure(format).sizeof()
+
+            try:
+                table_entry = self.__unpack_data__(format, self.get_data(rva, sz),
+                                                   file_offset=self.get_offset_from_rva(rva))
+            except:
+                self.__warnings.append(
+                    'Invalid NET Metadata #~ Table Entry information. Can\'t read data at RVA: 0x%x' % (
+                        rva)
+                )
+
+            rva += sz
+
+            entries.append(table_entry)
+
+        return entries
+
+
+    def parse_com_descriptor_directory(self, rva, size):
+        cor20_header = None
+        try:
+            cor20_header = self.__unpack_data__(self.__IMAGE_COR20_HEADER_format__,
+                                                self.get_data(rva, Structure(self.__IMAGE_COR20_HEADER_format__).sizeof()),
+                                                file_offset=self.get_offset_from_rva(rva))
+        except:
+            self.__warnings.append(
+                'Invalid COR20 header information. Can\'t read data at RVA: 0x%x' % rva
+            )
+
+        if not cor20_header:
+            return None
+
+        metadata_hdr_format1 = 'IHHII'  # Signature, MajorVersion, MinorVersion, Reserved, VersionLength
+        hdr_sig, hdr_mav, hdr_miv, hdr_rsrv, hdr_vl = struct.unpack(metadata_hdr_format1,
+                                                             self.get_data(cor20_header.MetaDataRVA,
+                                                                           struct.calcsize(metadata_hdr_format1)))
+
+        remainder = hdr_vl % 4
+        hdr_vl = hdr_vl + ((4 - remainder) * (remainder != 0))
+
+        __NET_METADATA_HEADER_format__ = ('NET_METADATA_HEADER',
+                                          (
+                                              'I,Signature',
+                                              'H,MajorVersion',
+                                              'H,MinorVersion',
+                                              'I,Reserved',
+                                              'I,VersionLength',
+                                              '%ds,VersionString' % hdr_vl,
+                                              'H,Flags',
+                                              'H,NumberOfStreams'
+                                          ))
+
+        net_metadata_hdr = None
+        try:
+            net_metadata_hdr = self.__unpack_data__(__NET_METADATA_HEADER_format__,
+                                                self.get_data(cor20_header.MetaDataRVA,
+                                                              Structure(__NET_METADATA_HEADER_format__).sizeof()),
+                                                file_offset=self.get_offset_from_rva(cor20_header.MetaDataRVA))
+        except:
+            self.__warnings.append(
+                'Invalid NET Metadata header information. Can\'t read data at RVA: 0x%x' % cor20_header.MetaDataRVA
+            )
+
+        metadata_offset = cor20_header.MetaDataRVA
+        curr_rva = metadata_offset + net_metadata_hdr.sizeof()
+
+        streams = {}
+
+        strm_hdr_fmt1 = 'II'  # Offset, Size
+        strm_hdr_fmt1_sz = struct.calcsize(strm_hdr_fmt1)
+        for i in xrange(net_metadata_hdr.NumberOfStreams):
+            strm_info_start = curr_rva
+            strm_off, strm_size = struct.unpack(strm_hdr_fmt1, self.get_data(curr_rva, strm_hdr_fmt1_sz))
+
+            curr_rva += strm_hdr_fmt1_sz
+
+            strm_name_len = 0
+            while True:
+                c = self.get_data(curr_rva, 1)
+                curr_rva += 1
+
+                if c == '\0':
+                    break
+
+                strm_name_len += 1
+
+            remainder = curr_rva % 4
+            curr_rva = curr_rva + ((4 - remainder) * (remainder != 0))
+
+            __NET_METADATA_STREAM_HDR_format__ = ('NET_METADATA_STREAM_HDR',
+                                                  (
+                                                      'I,Offset',
+                                                      'I,Size',
+
+                                                      '%ds,Name' % (curr_rva - strm_info_start - strm_hdr_fmt1_sz)
+                                                  ))
+
+            net_stream = None
+            try:
+                net_stream = self.__unpack_data__(__NET_METADATA_STREAM_HDR_format__,
+                                                  self.get_data(strm_info_start,
+                                                                Structure(__NET_METADATA_STREAM_HDR_format__).sizeof()),
+                                                  file_offset=self.get_offset_from_rva(strm_info_start))
+            except:
+                self.__warnings.append(
+                    'Invalid NET Metadata Stream information. Can\'t read data at RVA: 0x%x' % curr_rva
+                )
+
+            net_stream.Name = net_stream.Name.rstrip('\0')
+
+            if net_stream.Name == '#~':
+                __NET_METADATA_TABLES_HDR_format__ = ('NET_METADATA_TABLES_HDR',
+                                                      (
+                                                          'I,Reserved1',
+                                                          'B,MajorVersion',
+                                                          'B,MinorVersion',
+                                                          'B,HeapOffsetSizes',
+                                                          'B,Reserved2',
+                                                          'Q,MaskValid',
+                                                          'Q,MaskSorted'
+                                                      ))
+
+                tables_hdr = None
+                try:
+                    tables_hdr = self.__unpack_data__(__NET_METADATA_TABLES_HDR_format__,
+                                                      self.get_data(metadata_offset + net_stream.Offset,
+                                                                    Structure(__NET_METADATA_TABLES_HDR_format__).sizeof()),
+                                                      file_offset=self.get_offset_from_rva(metadata_offset + net_stream.Offset))
+                except:
+                    self.__warnings.append(
+                        'Invalid NET Metadata #~ Stream information. Can\'t read data at RVA: 0x%x' % (metadata_offset + net_stream.Offset)
+                    )
+
+                STR_REF_SZ = 'I' if tables_hdr.HeapOffsetSizes & 0x01 else 'H'
+                GUID_REF_SZ = 'I' if tables_hdr.HeapOffsetSizes & 0x02 else 'H'
+                BLOB_REF_SZ = 'I' if tables_hdr.HeapOffsetSizes & 0x04 else 'H'
+
+                tables = {}
+
+                tables_offset = metadata_offset + net_stream.Offset + tables_hdr.sizeof()
+                enabled_tables = [tables_hdr.MaskValid >> x & 1 for x in xrange(64)]
+
+                table_rows = []
+                count = 0
+                for e in enabled_tables:
+                    if e == 1:
+                        table_rows.append(struct.unpack('I', self.get_data(tables_offset, 4))[0])
+                        tables_offset += 4
+                        count += 1
+                    else:
+                        table_rows.append(0)
+
+                for x, e in enumerate(enabled_tables):
+                    if e == 0:
+                        continue
+
+                    if x == 0:  # Module
+                        __format__ = ('Module',
+                                      (
+                                          'H,Generation',
+                                          '%s,Name' % STR_REF_SZ,
+                                          '%s,Mvid' % GUID_REF_SZ,
+                                          '%s,EncId' % GUID_REF_SZ,
+                                          '%s,EncBaseId' % GUID_REF_SZ
+                                      ))
+
+                    elif x == 1:  # TypeRef
+                        __format__ = ('TypeRef',
+                                      (
+                                          'H,ResolutionScope',
+                                          '%s,Name' % STR_REF_SZ,
+                                          '%s,Namespace' % STR_REF_SZ
+                                      ))
+
+                    elif x == 2:  # TypeDef
+                        __format__ = ('TypeDef',
+                                    (
+                                        'I,Flags',
+                                        '%s,Name' % STR_REF_SZ,
+                                        '%s,Namespace' % STR_REF_SZ,
+                                        'H,Extends',
+                                        'H,FieldList',
+                                        'H,MethodList'
+                                    ))
+
+                    elif x == 4:  # Field
+                        __format__ = ('Field',
+                                      (
+                                          'H,Flags',
+                                          '%s,Name' % STR_REF_SZ,
+                                          '%s,Signature' % BLOB_REF_SZ
+                                      ))
+
+                    elif x == 6:  # MethodDef
+                        __format__ = ('MethodDef',
+                                      (
+                                          'I,RVA',
+                                          'H,ImplFlags',
+                                          'H,Flags',
+                                          '%s,Name' % STR_REF_SZ,
+                                          '%s,Signature' % BLOB_REF_SZ,
+                                          'H,ParamList',
+                                      ))
+
+                    elif x == 8:  # Param
+                        __format__ = ('Param',
+                                      (
+                                          'H,Flags',
+                                          'H,Sequence',
+                                          '%s,Name' % STR_REF_SZ,
+                                      ))
+
+                    elif x == 9:  # InerfaceImpl
+                        __format__ = ('InerfaceImpl',
+                                      (
+                                          'H,Class',
+                                          'H,Interface'
+                                      ))
+
+                    elif x == 10:  # MemberRef
+                        __format__ = ('MemberRef',
+                                      (
+                                          'H,Class',
+                                          '%s,Name' % STR_REF_SZ,
+                                          '%s,Signature' % BLOB_REF_SZ
+                                      ))
+
+                    elif x == 11:  # Constant
+                        __format__ = ('Constant',
+                                      (
+                                          'B,Type',
+                                          'B,PaddingZero',
+                                          'H,Parent',
+                                          '%s,Value' % BLOB_REF_SZ
+                                      ))
+
+                    elif x == 12:  # CustomAttribute
+                        __format__ = ('CustomAttribute',
+                                      (
+                                          'I,Parent',
+                                          'H,Type',
+                                          '%s,Value' % BLOB_REF_SZ
+                                      ))
+                    elif x == 13:  # FieldMarshal
+                        __format__ = ('FieldMarshal',
+                                      (
+                                          'H,Parent',
+                                          '%s,NativeType' % BLOB_REF_SZ
+                                      ))
+
+                    elif x == 14:  # DeclSecurity
+                        __format__ = ('DeclSecurity',
+                                      (
+                                          'H,Action',
+                                          'H,Parent',
+                                          '%s,PermissionSet' % BLOB_REF_SZ
+                                      ))
+
+                    elif x == 15:  # ClassLayout
+                        __format__ = ('ClassLayout',
+                                      (
+                                          'H,PackingSize',
+                                          'I,ClassSize',
+                                          'H,Parent'
+                                      ))
+
+                    elif x == 16:  # FieldLayout
+                        __format__ = ('FieldLayout',
+                                      (
+                                          'I,Offset',
+                                          'H,Field'
+                                      ))
+
+                    elif x == 17:  # StandAloneSig
+                        __format__ = ('StandAloneSig',
+                                      (
+                                          '%s,Signature' % BLOB_REF_SZ,
+                                      ))
+
+                    elif x == 18:  # EventMap
+                        __format__ = ('EventMap',
+                                      (
+                                          'H,Parent',
+                                          'H,EventList'
+                                      ))
+
+                    elif x == 20:  # Event
+                        __format__ = ('Event',
+                                      (
+                                          'H,EventFlags',
+                                          '%s,Name' % STR_REF_SZ,
+                                          'H,EventType'
+                                      ))
+
+                    elif x == 21:  # PropertyMap
+                        __format__ = ('PropertyMap',
+                                      (
+                                          'H,Parent',
+                                          'H,PropertyList'
+                                      ))
+
+                    elif x == 23:  # Property
+                        __format__ = ('Property',
+                                      (
+                                          'H,Flags',
+                                          '%s,Name' % STR_REF_SZ,
+                                          '%s,Type' % BLOB_REF_SZ
+                                      ))
+
+                    elif x == 24:  # MethodSemantics
+                        __format__ = ('MethodSemantics',
+                                      (
+                                          'H,Semantics',
+                                          'H,Method',
+                                          'H,Association'
+                                      ))
+
+                    elif x == 25:  # MethodImpl
+                        __format__ = ('MethodImpl',
+                                      (
+                                          'H,Class',
+                                          'H,MethodBody',
+                                          'H,MethodDeclaration'
+                                      ))
+
+                    elif x == 26:  # ModuleRef
+                        __format__ = ('ModuleRef',
+                                      (
+                                          '%s,Name' % STR_REF_SZ,
+                                      ))
+
+                    elif x == 27:  # TypeSpec
+                        __format__ = ('TypeSpec',
+                                      (
+                                          '%s,Signature' % BLOB_REF_SZ,
+                                      ))
+
+                    elif x == 28:  # ImplMap
+                        __format__ = ('ImplMap',
+                                      (
+                                          'H,MappingFlags',
+                                          'H,MemberForwarded',
+                                          '%s,ImportName' % STR_REF_SZ,
+                                          'H,ImportScope'
+                                      ))
+
+                    elif x == 29:  # FieldRVA
+                        __format__ = ('FieldRVA',
+                                      (
+                                          'I,RVA',
+                                          'H,Field'
+                                      ))
+
+                    elif x == 32:  # Assembly
+                        __format__ = ('Assembly',
+                                      (
+                                          'I,HashAlgId',
+                                          'H,MajorVersion,MinorVersion,BuildNumber,RevisionNumber',
+                                          'I,Flags',
+                                          '%s,PublicKey' % BLOB_REF_SZ,
+                                          '%s,Name' % STR_REF_SZ,
+                                          '%s,Culture' % STR_REF_SZ
+                                      ))
+
+                    elif x == 33:  # AssemblyProcessor
+                        __format__ = ('AssemblyProcessor',
+                                      (
+                                          'I,Processor',
+                                      ))
+
+                    elif x == 34:  # AssemblyOS
+                        __format__ = ('AssemblyOS',
+                                      (
+                                          'I,OSPlatformID',
+                                          'I,OSMajorVersion',
+                                          'I,OSMinorVersion'
+                                      ))
+
+                    elif x == 35:  # AssemblyRef
+                        __format__ = ('AssemblyRef',
+                                      (
+                                          'H,MajorVersion,MinorVersion,BuildNumber,RevisionNumber',
+                                          'I,Flags',
+                                          '%s,Flags' % BLOB_REF_SZ,
+                                          '%s,PublicKeyOrToken' % BLOB_REF_SZ,
+                                          '%s,Name' % STR_REF_SZ,
+                                          '%s,Culture' % STR_REF_SZ,
+                                          '%s,HashValue' % BLOB_REF_SZ
+                                      ))
+
+                    elif x == 36:  # AssemblyRefProcessor
+                        __format__ = ('AssemblyRefProcessor',
+                                      (
+                                          'I,Processor',
+                                          'H,AssemblyRef'
+                                      ))
+
+                    elif x == 37:  # AssemblyRefOS
+                        __format__ = ('AssemblyRefOS',
+                                      (
+                                          'I,OSPlatformID',
+                                          'I,OSMajorVersion',
+                                          'I,OSMinorVersion',
+                                          'H,AssemblyRef'
+                                      ))
+
+                    elif x == 38:  # File
+                        __format__ = ('File',
+                                      (
+                                          'I,Flags',
+                                          '%s,Name' % STR_REF_SZ,
+                                          '%s,HashValue' % BLOB_REF_SZ
+                                      ))
+
+                    elif x == 39:  # ExportedType
+                        __format__ = ('ExportedType',
+                                      (
+                                          'I,Flags',
+                                          'I,TypeDefId',
+                                          '%s,TypeName' % STR_REF_SZ,
+                                          '%s,TypeNamespace' % STR_REF_SZ,
+                                          'H,Implementation'
+                                      ))
+
+                    elif x == 40:  # ManifestResource
+                        __format__ = ('ManifestResource',
+                                      (
+                                          'I,Offset',
+                                          'I,Flags',
+                                          '%s,Name' % STR_REF_SZ,
+                                          'H,Implementation'
+                                      ))
+
+                    elif x == 41:  # NestedClass
+                        __format__ = ('NestedClass',
+                                      (
+                                          'H,NestedClass',
+                                          'H,EnclosingClass'
+                                      ))
+
+                    elif x == 42:  # GenericParam
+                        __format__ = ('GenericParam',
+                                      (
+                                          'H,Number',
+                                          'H,Flags',
+                                          'H,Owner',
+                                          '%s,Name' % STR_REF_SZ
+                                      ))
+
+                    elif x == 43:  # MethodSpec
+                        __format__ = ('MethodSpec',
+                                      (
+                                          'H,Method',
+                                          '%s,Signature' % BLOB_REF_SZ
+                                      ))
+
+                    elif x == 44:  # GenericParamConstraint
+                        __format__ = ('GenericParamConstraint',
+                                      (
+                                          'H,Owner',
+                                          'H,Constraint'
+                                      ))
+
+                    __format__ = '%02d_%s' % (x, __format__[0]), __format__[1]
+                    tables[__format__[0]] = self.parse_metadata_table(tables_offset, table_rows[x], __format__)
+                    tables_offset += tables[__format__[0]][0].sizeof() * len (tables[__format__[0]])
+
+                streams[net_stream.Name] = {
+                    'offset': net_stream.Offset,
+                    'data': {'header': tables_hdr, 'tables': tables}
+                }
+
+            elif net_stream.Name == '#Strings':
+                strings_offset = metadata_offset + net_stream.Offset
+                strings_end = strings_offset + net_stream.Size
+
+                strings_data = b_null = self.get_data(strings_offset, 1)
+                strings_offset += 1
+
+                strings = {}
+
+                while strings_offset < strings_end:
+                    local_offset = strings_offset - (metadata_offset + net_stream.Offset)
+                    string = ''
+
+                    while True:
+                        c = self.get_data(strings_offset, 1)
+                        strings_data += c
+                        strings_offset += 1
+
+                        if c == '\0':
+                            break
+
+                        string += c
+
+                    strings[local_offset] = string
+
+                streams[net_stream.Name] = {
+                    'offset': net_stream.Offset,
+                    'strings': strings,
+                    'data': strings_data
+                }
+
+            else:
+                streams[net_stream.Name] = {
+                    'offset': net_stream.Offset,
+                    'data': self.get_data(metadata_offset + net_stream.Offset, net_stream.Size)
+                }
+
+
+        return NetMetadata(header = cor20_header, streams = streams)
+
+
+    def get_com_native_methods(self):
+        native = list()
+
+        streams = self.DIRECTORY_ENTRY_COM_DESCRIPTOR.streams if hasattr(self, 'DIRECTORY_ENTRY_COM_DESCRIPTOR') else None
+
+        if not streams:
+            return None
+
+        stream = None if '#~' not in streams else streams['#~']
+        strings = None if '#Strings' not in streams else streams['#Strings']
+
+        if not strings or not stream:
+            return None
+
+        strings_data = None if 'strings' not in strings else strings['strings']
+        tables_data = None if 'data' not in stream else stream['data']
+
+        if not strings_data or not tables_data:
+            return None
+
+        tables = None if 'tables' not in tables_data else tables_data['tables']
+
+        if not tables:
+            return None
+
+        methods = None if '06_MethodDef' not in tables else tables['06_MethodDef']
+
+        if not methods:
+            return None
+
+        native = []
+        for i, method in enumerate(methods):
+            if (method.ImplFlags & 0x0004) == 0x0004:  # not Managed method
+                name = '' if method.Name not in strings_data else strings_data[method.Name]
+
+                native.append({'name': name, 'rva': method.RVA})
+
+        return native
 
 
     def get_import_table(self, rva, max_length=None):
