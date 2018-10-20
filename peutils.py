@@ -148,7 +148,7 @@ class SignatureDatabase(object):
 
         If ep_only is True the result will be a string with
         the packer name. Otherwise it will be a list of the
-        form (file_ofsset, packer_name). Specifying where
+        form (file_offset, packer_name) specifying where
         in the file the signature was found.
         """
 
@@ -551,8 +551,8 @@ def is_probably_packed( pe ):
     """Returns True is there is a high likelihood that a file is packed or contains compressed data.
 
     The sections of the PE file will be analyzed, if enough sections
-    look like containing containing compressed data and the data makes
-    up for more than 20% of the total file size. The function will
+    look like containing compressed data and the data makes
+    up for more than 20% of the total file size, the function will
     return True.
     """
 
@@ -572,7 +572,7 @@ def is_probably_packed( pe ):
     for section in pe.sections:
         s_entropy = section.get_entropy()
         s_length = len( section.get_data() )
-        # The value of 7.4 is empircal, based of looking at a few files packed
+        # The value of 7.4 is empircal, based on looking at a few files packed
         # by different packers
         if s_entropy > 7.4:
             total_compressed_data += s_length
