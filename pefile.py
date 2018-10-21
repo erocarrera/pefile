@@ -307,6 +307,7 @@ dll_characteristics = [
 DLL_CHARACTERISTICS = dict(
     [(e[1], e[0]) for e in dll_characteristics]+dll_characteristics)
 
+FILE_ALIGNMENT_HARDCODED_VALUE = 0x200
 
 # Resource types
 resource_type = [
@@ -646,12 +647,6 @@ else:
         if isinstance(x, (bytes, bytearray)):
             return bytes(x)
         return codecs.encode(x, 'cp1252')
-
-
-FILE_ALIGNMENT_HARDCODED_VALUE = 0x200
-FileAlignment_Warning = False # We only want to print the warning once
-SectionAlignment_Warning = False # We only want to print the warning once
-
 
 
 class UnicodeStringWrapperPostProcessor(object):
@@ -1751,6 +1746,10 @@ class PE(object):
         # in order to save the modifications made
         self.__structures__ = []
         self.__from_file = None
+
+         # We only want to print these warnings once
+        self.FileAlignment_Warning = False
+        self.SectionAlignment_Warning = False
 
         if not fast_load:
             fast_load = globals()['fast_load']
@@ -4776,7 +4775,7 @@ class PE(object):
                                     dump.add_lines(resource_lang.data.struct.dump(), 12)
                             if hasattr(resource_id.directory, 'strings') and resource_id.directory.strings:
                                 dump.add_line(u'[STRINGS]' , 10 )
-                                for idx, res_string in list(resource_id.directory.strings.items()):
+                                for idx, res_string in list(sorted(resource_id.directory.strings.items())):
                                     dump.add_line( '{0:6d}: {1}'.format(idx,
                                         res_string.encode(
                                             'unicode-escape',
@@ -5655,15 +5654,14 @@ class PE(object):
     #  size, then FileAlignment must match SectionAlignment."
     #
     # The following is a hard-coded constant if the Windows loader
-    def adjust_FileAlignment( self, val, file_alignment ):
-        global FileAlignment_Warning
+    def adjust_FileAlignment(self, val, file_alignment ):
         if file_alignment > FILE_ALIGNMENT_HARDCODED_VALUE:
             # If it's not a power of two, report it:
-            if not power_of_two(file_alignment) and FileAlignment_Warning is False:
+            if not power_of_two(file_alignment) and self.FileAlignment_Warning is False:
                 self.__warnings.append(
                     'If FileAlignment > 0x200 it should be a power of 2. Value: %x' % (
                         file_alignment)  )
-                FileAlignment_Warning = True
+                self.FileAlignment_Warning = True
 
         if file_alignment < FILE_ALIGNMENT_HARDCODED_VALUE:
             return val
@@ -5677,13 +5675,12 @@ class PE(object):
     #  architecture."
     #
     def adjust_SectionAlignment( self, val, section_alignment, file_alignment ):
-        global SectionAlignment_Warning
         if file_alignment < FILE_ALIGNMENT_HARDCODED_VALUE:
-            if file_alignment != section_alignment and SectionAlignment_Warning is False:
+            if file_alignment != section_alignment and self.SectionAlignment_Warning is False:
                 self.__warnings.append(
                     'If FileAlignment(%x) < 0x200 it should equal SectionAlignment(%x)' % (
                         file_alignment, section_alignment)  )
-                SectionAlignment_Warning = True
+                self.SectionAlignment_Warning = True
 
         if section_alignment < 0x1000: # page size
             section_alignment = file_alignment
