@@ -4262,18 +4262,18 @@ class PE(object):
             if section.Misc_VirtualSize == 0 and section.SizeOfRawData == 0:
                 continue
 
-            if section.SizeOfRawData > len(self.__data__):
-                continue
+            srd = section.SizeOfRawData
+            prd = self.adjust_FileAlignment(
+                section.PointerToRawData, self.OPTIONAL_HEADER.FileAlignment)
+            VirtualAddress_adj = self.adjust_SectionAlignment(
+                section.VirtualAddress,
+                self.OPTIONAL_HEADER.SectionAlignment,
+                self.OPTIONAL_HEADER.FileAlignment )
 
-            if self.adjust_FileAlignment( section.PointerToRawData,
-                self.OPTIONAL_HEADER.FileAlignment ) > len(self.__data__):
-
-                continue
-
-            VirtualAddress_adj = self.adjust_SectionAlignment( section.VirtualAddress,
-                self.OPTIONAL_HEADER.SectionAlignment, self.OPTIONAL_HEADER.FileAlignment )
-
-            if VirtualAddress_adj >= max_virtual_address:
+            if (srd > len(self.__data__) or
+                prd > len(self.__data__) or
+                srd + prd > len(self.__data__) or
+                VirtualAddress_adj >= max_virtual_address):
                 continue
 
             padding_length = VirtualAddress_adj - len(mapped_data)
