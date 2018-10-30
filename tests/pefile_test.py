@@ -32,6 +32,7 @@ class Test_pefile(unittest.TestCase):
     def test_pe_image_regression_test(self):
         """Run through all the test files and make sure they run correctly"""
 
+        failed = False
         for idx, pe_filename in enumerate(self.test_files):
             if pe_filename.endswith('fake_PE_no_read_permissions_issue_53'):
                 continue
@@ -44,8 +45,9 @@ class Test_pefile(unittest.TestCase):
                 pe_file_dict_data = pe.dump_dict() # Make sure that it does not fail
                 pe_file_data = pe_file_data.replace('\n\r', '\n')
             except Exception as excp:
-                print('Failed processing [%s]' % os.path.basename(pe_filename))
-                raise
+                print('Failed processing [%s] (%s)' % (os.path.basename(pe_filename), excp))
+                failed = True
+                continue
 
             control_data_filename = '%s.dmp' % pe_filename
 
@@ -70,7 +72,7 @@ class Test_pefile(unittest.TestCase):
             lines_to_ignore = 0
 
             if control_data_hash != pe_file_data_hash:
-                print('Hash differs for [%s]' % os.path.basename(pe_filename))
+                print('\nHash differs for [%s]' % os.path.basename(pe_filename))
 
                 diff = difflib.ndiff(
                     control_data.decode('utf-8').splitlines(), pe_file_data.splitlines())
@@ -109,8 +111,9 @@ class Test_pefile(unittest.TestCase):
                         lines_to_ignore))
 
                     # Do the diff again to store it for analysis.
-                    diff = difflib.unified_diff(
-                        control_data.decode('utf-8').splitlines(), pe_file_data.splitlines())
+                    diff = list(difflib.unified_diff(
+                        control_data.decode('utf-8').splitlines(), pe_file_data.splitlines(),
+                        fromfile="expected", tofile="new"))
                     error_diff_f = open('error_diff.txt', 'ab')
                     error_diff_f.write(
                         b'\n________________________________________\n')
@@ -119,18 +122,14 @@ class Test_pefile(unittest.TestCase):
                     error_diff_f.write(
                         '\n'.join([l for l in diff if not l.startswith(' ')]).encode('utf-8', 'backslashreplace'))
                     error_diff_f.close()
+                    print('\n'.join(diff))
                     print('Diff saved to: error_diff.txt')
-
-            if diff_lines_removed_count == 0:
-                try:
-                    self.assertEqual(control_data.decode('utf-8'), pe_file_data)
-                except AssertionError:
-                    diff = difflib.unified_diff(
-                        control_data.decode('utf-8').splitlines(), pe_file_data.splitlines())
-                    raise AssertionError('\n'.join(diff))
+                    failed = True
 
             os.sys.stdout.write('[%d]' % (len(self.test_files) - idx))
             os.sys.stdout.flush()
+        if failed:
+            raise AssertionError("One or more errors occured")
 
 
     def test_selective_loading_integrity(self):
