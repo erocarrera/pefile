@@ -75,6 +75,9 @@ MAX_IMPORT_NAME_LENGTH = 0x200
 MAX_DLL_LENGTH = 0x200
 MAX_SYMBOL_NAME_LENGTH = 0x200
 
+# Lmit maximum number of sections before processing of sections will stop
+MAX_SECTIONS = 0x800
+
 IMAGE_DOS_SIGNATURE             = 0x5A4D
 IMAGE_DOSZM_SIGNATURE           = 0x4D5A
 IMAGE_NE_SIGNATURE              = 0x454E
@@ -2311,6 +2314,9 @@ class PE(object):
         self.sections = []
         MAX_SIMULTANEOUS_ERRORS = 3
         for i in range(self.FILE_HEADER.NumberOfSections):
+            if i >= MAX_SECTIONS:
+                self.__warnings.append("to many sections {0}".format(self.FILE_HEADER.NumberOfSections))
+                break
             simultaneous_errors = 0
             section = SectionStructure( self.__IMAGE_SECTION_HEADER_format__, pe=self )
             if not section:
