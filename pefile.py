@@ -4481,10 +4481,9 @@ class PE(object):
     def get_section_by_rva(self, rva):
         """Get the section containing the given address."""
 
-        sections = [s for s in self.sections if s.contains_rva(rva)]
-
-        if sections:
-            return sections[0]
+        for section in self.sections:
+            if section.contains_rva(rva):
+                return section
 
         return None
 
