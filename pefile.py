@@ -598,8 +598,8 @@ def retrieve_flags(flag_dict, flag_filter):
     matching the filter "flag_filter".
     """
 
-    return [(f[0], f[1]) for f in list(flag_dict.items()) if
-            isinstance(f[0], (str, bytes)) and f[0].startswith(flag_filter)]
+    return [(flag, value]) for flag, value in list(flag_dict.items()) if
+            isinstance(flag, (str, bytes)) and flag.startswith(flag_filter)]
 
 
 def set_flags(obj, flag_field, flags):
@@ -610,13 +610,11 @@ def set_flags(obj, flag_field, flags):
     flag value from "flags" to flag_field.
     """
 
-    for flag in flags:
-        if flag[1] & flag_field:
-            #setattr(obj, flag[0], True)
-            obj.__dict__[flag[0]] = True
+    for flag, value in flags:
+        if value & flag_field:
+            obj.__dict__[flag] = True
         else:
-            #setattr(obj, flag[0], False)
-            obj.__dict__[flag[0]] = False
+            obj.__dict__[flag] = False
 
 
 def power_of_two(val):
