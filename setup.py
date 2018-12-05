@@ -53,28 +53,18 @@ def _read_attr(attr_name):
 
 
 class TestCommand(Command):
-  """Run tests."""
-  user_options = []
+    """Run tests."""
+    user_options = []
 
-  def initialize_options(self):
-    pass
+    def initialize_options(self):
+        pass
 
-  def finalize_options(self):
-    pass
+    def finalize_options(self):
+        pass
 
-class TestCommand(Command):
-  """Run tests."""
-  user_options = []
-
-  def initialize_options(self):
-    pass
-
-  def finalize_options(self):
-    pass
-
-  def run(self):
-    test_suite = TestLoader().discover('./tests', pattern='*_test.py')
-    test_results = TextTestRunner(verbosity=2).run(test_suite)
+    def run(self):
+        test_suite = TestLoader().discover('./tests', pattern='*_test.py')
+        test_results = TextTestRunner(verbosity=2).run(test_suite)
 
 
 setup(name = 'pefile',
