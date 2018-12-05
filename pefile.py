@@ -4601,7 +4601,7 @@ class PE(object):
                     dump.add_lines(self.VS_FIXEDFILEINFO[idx].dump())
                     dump.add_newline()
 
-                if hasattr(self, 'FileInfo'):
+                if hasattr(self, 'FileInfo') and len(self.FileInfo) > idx:
                     for entry in self.FileInfo[idx]:
                         dump.add_lines(entry.dump())
                         dump.add_newline()
