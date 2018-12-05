@@ -75,6 +75,12 @@ MAX_IMPORT_NAME_LENGTH = 0x200
 MAX_DLL_LENGTH = 0x200
 MAX_SYMBOL_NAME_LENGTH = 0x200
 
+# Lmit maximum number of sections before processing of sections will stop
+MAX_SECTIONS = 0x800
+
+# Limit number of exported symbols
+MAX_SYMBOL_EXPORT_COUNT = 0x2000
+
 IMAGE_DOS_SIGNATURE             = 0x5A4D
 IMAGE_DOSZM_SIGNATURE           = 0x4D5A
 IMAGE_NE_SIGNATURE              = 0x454E
@@ -2311,6 +2317,9 @@ class PE(object):
         self.sections = []
         MAX_SIMULTANEOUS_ERRORS = 3
         for i in range(self.FILE_HEADER.NumberOfSections):
+            if i >= MAX_SECTIONS:
+                self.__warnings.append("to many sections {0}".format(self.FILE_HEADER.NumberOfSections))
+                break
             simultaneous_errors = 0
             section = SectionStructure( self.__IMAGE_SECTION_HEADER_format__, pe=self )
             if not section:
@@ -3673,6 +3682,10 @@ class PE(object):
                 self.__warnings.append(
                     'Export directory contains more than 10 repeated entries. Assuming corrupt.')
                 break
+            elif len(symbol_counter) > MAX_SYMBOL_EXPORT_COUNT:
+                self.__warnings.append(
+                    'Export directory contains more than %d symbol entries. Assuming corrupt.' % MAX_SYMBOL_EXPORT_COUNT)
+                break
             symbol_counter[(symbol_name, symbol_address)] += 1
 
             exports.append(
@@ -3739,6 +3752,10 @@ class PE(object):
                 if most_common and most_common[0][1] > 10:
                     self.__warnings.append(
                         'Export directory contains more than 10 repeated ordinal entries. Assuming corrupt.')
+                    break
+                elif len(symbol_counter) > MAX_SYMBOL_EXPORT_COUNT:
+                    self.__warnings.append(
+                        'Export directory contains more than %d ordinal entries. Assuming corrupt.' % MAX_SYMBOL_EXPORT_COUNT)
                     break
                 symbol_counter[symbol_address] += 1
 
