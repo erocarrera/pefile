@@ -604,7 +604,7 @@ def retrieve_flags(flag_dict, flag_filter):
     matching the filter "flag_filter".
     """
 
-    return [(flag, value]) for flag, value in list(flag_dict.items()) if
+    return [(flag, value) for flag, value in list(flag_dict.items()) if
             isinstance(flag, (str, bytes)) and flag.startswith(flag_filter)]
 
 
