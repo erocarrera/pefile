@@ -2318,7 +2318,8 @@ class PE(object):
         MAX_SIMULTANEOUS_ERRORS = 3
         for i in range(self.FILE_HEADER.NumberOfSections):
             if i >= MAX_SECTIONS:
-                self.__warnings.append("to many sections {0}".format(self.FILE_HEADER.NumberOfSections))
+                self.__warnings.append("Too many sections {0} (>={1})".format(
+                    self.FILE_HEADER.NumberOfSections, MAX_SECTIONS))
                 break
             simultaneous_errors = 0
             section = SectionStructure( self.__IMAGE_SECTION_HEADER_format__, pe=self )
@@ -3684,7 +3685,8 @@ class PE(object):
                 break
             elif len(symbol_counter) > MAX_SYMBOL_EXPORT_COUNT:
                 self.__warnings.append(
-                    'Export directory contains more than %d symbol entries. Assuming corrupt.' % MAX_SYMBOL_EXPORT_COUNT)
+                    'Export directory contains more than {} symbol entries. Assuming corrupt.'.format(
+                        MAX_SYMBOL_EXPORT_COUNT))
                 break
             symbol_counter[(symbol_name, symbol_address)] += 1
 
@@ -3755,7 +3757,8 @@ class PE(object):
                     break
                 elif len(symbol_counter) > MAX_SYMBOL_EXPORT_COUNT:
                     self.__warnings.append(
-                        'Export directory contains more than %d ordinal entries. Assuming corrupt.' % MAX_SYMBOL_EXPORT_COUNT)
+                        'Export directory contains more than {} ordinal entries. Assuming corrupt.'.format(
+                            MAX_SYMBOL_EXPORT_COUNT))
                     break
                 symbol_counter[symbol_address] += 1
 
