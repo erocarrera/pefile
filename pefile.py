@@ -23,7 +23,6 @@ from builtins import chr
 from builtins import object
 from builtins import range
 from builtins import str
-from builtins import zip
 
 __author__ = 'Ero Carrera'
 __version__ = '2018.8.8'
@@ -35,9 +34,7 @@ import sys
 import codecs
 import time
 import math
-import re
 import string
-import array
 import mmap
 import ordlookup
 
