@@ -2380,7 +2380,7 @@ class PE(object):
             if ( section.__dict__.get('IMAGE_SCN_MEM_WRITE', False)  and
                 section.__dict__.get('IMAGE_SCN_MEM_EXECUTE', False) ):
 
-                if section.Name == 'PAGE' and self.is_driver():
+                if section.Name.rstrip('\x00') == 'PAGE' and self.is_driver():
                     # Drivers can have a PAGE section with those flags set without
                     # implying that it is malicious
                     pass
@@ -5588,7 +5588,7 @@ class PE(object):
         driver_like_section_names = set(
             ('page', 'paged'))
         if driver_like_section_names.intersection(
-                [section.Name.lower() for section in self.sections]) and (
+                [section.Name.lower().rstrip('\x00') for section in self.sections]) and (
             self.OPTIONAL_HEADER.Subsystem in (
                 SUBSYSTEM_TYPE['IMAGE_SUBSYSTEM_NATIVE'],
                 SUBSYSTEM_TYPE['IMAGE_SUBSYSTEM_NATIVE_WINDOWS'])):
