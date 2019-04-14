@@ -936,7 +936,10 @@ class Structure(object):
 
                 val = getattr(self, key)
                 if isinstance(val, (int, long)):
-                    val_str = '0x%-8X' % (val)
+                    if key.startswith('Signature_'):
+                        val_str = '%-8X' % (val)
+                    else:
+                        val_str = '0x%-8X' % (val)
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
                             val_str += ' [%s UTC]' % time.asctime(time.gmtime(val))
@@ -944,7 +947,11 @@ class Structure(object):
                             val_str += ' [INVALID TIME]'
                 else:
                     val_str = bytearray(val)
-                    val_str = ''.join(
+                    if key.startswith('Signature'):
+                        val_str = ''.join(
+                            ['{:02X}'.format(i) for i in val_str.rstrip(b'\x00')])
+                    else:
+                        val_str = ''.join(
                             [chr(i) if (i in printable_bytes) else
                              '\\x{0:02x}'.format(i) for i in val_str.rstrip(b'\x00')])
 
@@ -2377,7 +2384,7 @@ class PE(object):
             if ( section.__dict__.get('IMAGE_SCN_MEM_WRITE', False)  and
                 section.__dict__.get('IMAGE_SCN_MEM_EXECUTE', False) ):
 
-                if section.Name.rstrip('\x00') == 'PAGE' and self.is_driver():
+                if section.Name.rstrip(b'\x00') == b'PAGE' and self.is_driver():
                     # Drivers can have a PAGE section with those flags set without
                     # implying that it is malicious
                     pass
@@ -2798,9 +2805,9 @@ class PE(object):
                          'I,Signature_Data1', # Signature is of GUID type
                          'H,Signature_Data2',
                          'H,Signature_Data3',
-                         'H,Signature_Data4',
-                         'H,Signature_Data5',
-                         'I,Signature_Data6',
+                         '8s,Signature_Data4',
+                         # 'H,Signature_Data5',
+                         # 'I,Signature_Data6',
                          'I,Age']]
                     pdbFileName_size = (
                         dbg_type_size -
@@ -4654,7 +4661,7 @@ class PE(object):
                     name = b('None')
                     if export.name:
                         name = export.name
-                    dump.add(u'%-10d 0x%08Xh    %s' % (
+                    dump.add(u'%-10d 0x%08X    %s' % (
                         export.ordinal, export.address, name.decode(encoding)))
                     if export.forwarder:
                         dump.add_line(u' forwarder: {0}'.format(
@@ -5585,7 +5592,7 @@ class PE(object):
         driver_like_section_names = set(
             ('page', 'paged'))
         if driver_like_section_names.intersection(
-                [section.Name.lower().rstrip('\x00') for section in self.sections]) and (
+                [section.Name.lower().rstrip(b'\x00') for section in self.sections]) and (
             self.OPTIONAL_HEADER.Subsystem in (
                 SUBSYSTEM_TYPE['IMAGE_SUBSYSTEM_NATIVE'],
                 SUBSYSTEM_TYPE['IMAGE_SUBSYSTEM_NATIVE_WINDOWS'])):
