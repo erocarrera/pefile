@@ -1161,7 +1161,7 @@ class SectionStructure(Structure):
     def entropy_H(self, data):
         """Calculate the entropy of a chunk of data."""
 
-        if len(data) == 0:
+        if not data:
             return 0.0
 
         occurences = Counter(bytearray(data))
@@ -1368,9 +1368,7 @@ class RelocationData(DataContainer):
             if name == 'type':
                 word = (val << 12) | (word & 0xfff)
             elif name == 'rva':
-                offset = val-self.base_rva
-                if offset < 0:
-                    offset = 0
+                offset = max(val-self.base_rva, 0)
                 word = ( word & 0xf000) | ( offset & 0xfff)
 
             # Store the modified data
@@ -1443,10 +1441,7 @@ def is_valid_dos_filename(s):
         return False
     # Allow path separators as import names can contain directories.
     allowed = allowed_filename + b'\\/'
-    for c in set(s):
-        if c not in allowed:
-            return False
-    return True
+    return all(c in allowed for c in set(s))
 
 
 # Check if an imported name uses the valid accepted characters expected in mangled
@@ -1463,13 +1458,9 @@ else:
         string.digits + b'_?@$()<>')
 
 def is_valid_function_name(s):
-    if s is None or not isinstance(s, (str, bytes, bytearray)):
-        return False
-    for c in set(s):
-        if c not in allowed_function_name:
-            return False
-    return True
-
+    return (s is not None and
+        isinstance(s, (str, bytes, bytearray)) and
+        all(c in allowed_function_name for c in set(s)))
 
 
 class PE(object):
@@ -1757,8 +1748,7 @@ class PE(object):
         self.FileAlignment_Warning = False
         self.SectionAlignment_Warning = False
 
-        if not fast_load:
-            fast_load = globals()['fast_load']
+        fast_load = fast_load or globals()['fast_load']
         try:
             self.__parse__(name, data, fast_load)
         except:
@@ -1819,8 +1809,7 @@ class PE(object):
                 self.__from_file = True
             except IOError as excp:
                 exception_msg = '{0}'.format(excp)
-                if exception_msg:
-                    exception_msg = ': %s' % exception_msg
+                exception_msg = exception_msg and (': %s' % exception_msg)
                 raise Exception('Unable to access file \'{0}\'{1}'.format(fname, exception_msg))
             finally:
                 if fd is not None:
@@ -2333,7 +2322,7 @@ class PE(object):
                 self.__warnings.append(
                     'Invalid section {0}. Contents are null-bytes.'.format(i))
                 break
-            if len(section_data) == 0:
+            if not section_data:
                 self.__warnings.append(
                     'Invalid section {0}. No data in the file (is this corkami\'s virtsectblXP?).'.format(i))
                 break
@@ -3114,7 +3103,7 @@ class PE(object):
             # Check if this entry contains version information
             #
             if level == 0 and res.Id == RESOURCE_TYPE['RT_VERSION']:
-                if len(dir_entries)>0:
+                if dir_entries:
                     last_entry = dir_entries[-1]
 
                 try:
@@ -5325,7 +5314,7 @@ class PE(object):
         if not isinstance(data, bytes):
             raise TypeError('data should be of type: bytes')
 
-        if offset >= 0 and offset < len(self.__data__):
+        if 0 <= offset < len(self.__data__):
             self.__data__ = ( self.__data__[:offset] + data + self.__data__[offset+len(data):] )
         else:
             return False
