@@ -28,6 +28,7 @@ __author__ = 'Ero Carrera'
 __version__ = '2019.4.14'
 __contact__ = 'ero.carrera@gmail.com'
 
+import collections
 import os
 import struct
 import sys
@@ -3605,7 +3606,7 @@ class PE(object):
                 section.VirtualAddress + len(section.get_data()) -
                 export_dir.AddressOfNames)
 
-        symbol_counter = Counter()
+        symbol_counts = collections.defaultdict(int)
         export_parsing_loop_completed_normally = True
         for i in range(min(export_dir.NumberOfNames, int(safety_boundary / 4))):
             symbol_ordinal = self.get_word_from_data(
@@ -3667,17 +3668,19 @@ class PE(object):
             # File 0b1d3d3664915577ab9a32188d29bbf3542b86c7b9ce333e245496c3018819f1
             # was being parsed as potentially containing millions of exports.
             # Checking for duplicates addresses the issue.
-            most_common = symbol_counter.most_common(1)
-            if most_common and most_common[0][1] > 10:
+            symbol_counts[(symbol_name, symbol_address)] += 1
+            if symbol_counts[(symbol_name, symbol_address)] > 10:
                 self.__warnings.append(
-                    'Export directory contains more than 10 repeated entries. Assuming corrupt.')
+                    'Export directory contains more than 10 repeated entries '
+                    '({:s}, 0x{:x}). Assuming corrupt.'.format(
+                        symbol_name, symbol_address))
                 break
-            elif len(symbol_counter) > MAX_SYMBOL_EXPORT_COUNT:
+            elif len(symbol_counts) > MAX_SYMBOL_EXPORT_COUNT:
                 self.__warnings.append(
-                    'Export directory contains more than {} symbol entries. Assuming corrupt.'.format(
+                    'Export directory contains more than {} symbol entries. '
+                    'Assuming corrupt.'.format(
                         MAX_SYMBOL_EXPORT_COUNT))
                 break
-            symbol_counter[(symbol_name, symbol_address)] += 1
 
             exports.append(
                 ExportData(
@@ -3696,7 +3699,7 @@ class PE(object):
                 'RVA AddressOfNames in the export directory points to an invalid address: %x' %
                 export_dir.AddressOfNames)
 
-        ordinals = [exp.ordinal for exp in exports]
+        ordinals = {exp.ordinal for exp in exports}
 
         max_failed_entries_before_giving_up = 10
 
@@ -3708,7 +3711,7 @@ class PE(object):
                 section.VirtualAddress + len(section.get_data()) -
                 export_dir.AddressOfFunctions)
 
-        symbol_counter = Counter()
+        symbol_counts = collections.defaultdict(int)
         export_parsing_loop_completed_normally = True
         for idx in range(min(
                 export_dir.NumberOfFunctions,
@@ -3739,17 +3742,19 @@ class PE(object):
                 # File 0b1d3d3664915577ab9a32188d29bbf3542b86c7b9ce333e245496c3018819f1
                 # was being parsed as potentially containing millions of exports.
                 # Checking for duplicates addresses the issue.
-                most_common = symbol_counter.most_common(1)
-                if most_common and most_common[0][1] > 10:
+                symbol_counts[symbol_address] += 1
+                if symbol_counts[symbol_address] > 10:
+                # if most_common and most_common[0][1] > 10:
                     self.__warnings.append(
-                        'Export directory contains more than 10 repeated ordinal entries. Assuming corrupt.')
+                        'Export directory contains more than 10 repeated '
+                        'ordinal entries (0x{:x}). Assuming corrupt.'.format(
+                            symbol_address))
                     break
-                elif len(symbol_counter) > MAX_SYMBOL_EXPORT_COUNT:
+                elif len(symbol_counts) > MAX_SYMBOL_EXPORT_COUNT:
                     self.__warnings.append(
                         'Export directory contains more than {} ordinal entries. Assuming corrupt.'.format(
                             MAX_SYMBOL_EXPORT_COUNT))
                     break
-                symbol_counter[symbol_address] += 1
 
                 exports.append(
                     ExportData(
