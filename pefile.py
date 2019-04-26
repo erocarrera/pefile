@@ -1728,7 +1728,10 @@ class PE(object):
     __IMAGE_BOUND_FORWARDER_REF_format__ = ('IMAGE_BOUND_FORWARDER_REF',
         ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,Reserved') )
 
-    def __init__(self, name=None, data=None, fast_load=None):
+    def __init__(self, name=None, data=None, fast_load=None,
+                 max_symbol_exports=MAX_SYMBOL_EXPORT_COUNT):
+
+        self.max_symbol_exports = max_symbol_exports
 
         self.sections = []
 
@@ -3675,11 +3678,10 @@ class PE(object):
                     '({:s}, 0x{:x}). Assuming corrupt.'.format(
                         symbol_name, symbol_address))
                 break
-            elif len(symbol_counts) > MAX_SYMBOL_EXPORT_COUNT:
+            elif len(symbol_counts) > self.max_symbol_exports:
                 self.__warnings.append(
                     'Export directory contains more than {} symbol entries. '
-                    'Assuming corrupt.'.format(
-                        MAX_SYMBOL_EXPORT_COUNT))
+                    'Assuming corrupt.'.format(self.max_symbol_exports))
                 break
 
             exports.append(
@@ -3750,10 +3752,10 @@ class PE(object):
                         'ordinal entries (0x{:x}). Assuming corrupt.'.format(
                             symbol_address))
                     break
-                elif len(symbol_counts) > MAX_SYMBOL_EXPORT_COUNT:
+                elif len(symbol_counts) > self.max_symbol_exports:
                     self.__warnings.append(
                         'Export directory contains more than {} ordinal entries. Assuming corrupt.'.format(
-                            MAX_SYMBOL_EXPORT_COUNT))
+                            self.max_symbol_exports))
                     break
 
                 exports.append(
