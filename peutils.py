@@ -5,15 +5,11 @@
 Copyright (c) 2005-2013 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
-
-For detailed copyright information see the file COPYING in
-the root of the distribution archive.
 """
 from __future__ import division
 from future import standard_library
 standard_library.install_aliases()
 from builtins import range
-from past.utils import old_div
 from builtins import object
 
 import os
@@ -152,7 +148,7 @@ class SignatureDatabase(object):
 
         If ep_only is True the result will be a string with
         the packer name. Otherwise it will be a list of the
-        form (file_ofsset, packer_name). Specifying where
+        form (file_offset, packer_name) specifying where
         in the file the signature was found.
         """
 
@@ -325,7 +321,7 @@ class SignatureDatabase(object):
         # Walk the bytes in the data and match them
         # against the signature
         #
-        for idx, byte in enumerate ( [ord (b) for b in data] ):
+        for idx, byte in enumerate ( [b if isinstance(b, int) else ord(b) for b in data] ):
 
             # If the tree is exhausted...
             #
@@ -425,10 +421,10 @@ class SignatureDatabase(object):
 
         # Helper function to parse the signature bytes
         #
-        def to_byte(value) :
-            if '?' in value::
+        def to_byte(value):
+            if '?' in value:
                 return value
-            return int (value, 16)
+            return int(value, 16)
 
 
         # Parse all the signatures in the file
@@ -555,8 +551,8 @@ def is_probably_packed( pe ):
     """Returns True is there is a high likelihood that a file is packed or contains compressed data.
 
     The sections of the PE file will be analyzed, if enough sections
-    look like containing containing compressed data and the data makes
-    up for more than 20% of the total file size. The function will
+    look like containing compressed data and the data makes
+    up for more than 20% of the total file size, the function will
     return True.
     """
 
@@ -564,6 +560,9 @@ def is_probably_packed( pe ):
     # file. Overlay data won't be taken into account
     #
     total_pe_data_length = len( pe.trim() )
+    # Assume that the file is packed when no data is available
+    if not total_pe_data_length:
+        return True
     has_significant_amount_of_compressed_data = False
 
     # If some of the sections have high entropy and they make for more than 20% of the file's size
@@ -573,12 +572,12 @@ def is_probably_packed( pe ):
     for section in pe.sections:
         s_entropy = section.get_entropy()
         s_length = len( section.get_data() )
-        # The value of 7.4 is empircal, based of looking at a few files packed
+        # The value of 7.4 is empircal, based on looking at a few files packed
         # by different packers
         if s_entropy > 7.4:
             total_compressed_data += s_length
 
-    if (old_div((1.0 * total_compressed_data),total_pe_data_length)) > .2:
+    if ((1.0 * total_compressed_data)/total_pe_data_length) > .2:
         has_significant_amount_of_compressed_data = True
 
     return has_significant_amount_of_compressed_data
