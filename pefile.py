@@ -1093,7 +1093,7 @@ class Structure(object):
                     if key.startswith('Signature_'):
                         val_str = '{:8X}'.format(val)
                     else:
-                        val_str = '{#:8X}'.format(val)
+                        val_str = '0x{:8X}'.format(val)
 
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
@@ -2322,7 +2322,7 @@ class PE(object):
                     'AddressOfEntryPoint lies outside the sections\' boundaries. '
                     'AddressOfEntryPoint: 0x%x' %
                     self.OPTIONAL_HEADER.AddressOfEntryPoint )
-                
+
         if not fast_load:
             self.full_load()
 
@@ -2517,6 +2517,7 @@ class PE(object):
 
             reloc_size = Structure(self.__COFF_RELOCATION_format__).sizeof()
 
+            has_sym = hasattr(self, 'symbols')
             for i in range(section.NumberOfRelocations):
                 start = section.PointerToRelocations + reloc_size * i
                 end = start + reloc_size
@@ -2529,7 +2530,7 @@ class PE(object):
                     self.__data__[start : end],
                     file_offset = start)
 
-                if reloc.SymbolTableIndex >= len(self.symbols):
+                if has_sym and (reloc.SymbolTableIndex >= len(self.symbols)):
                     self.__warnings.append('Invalid symbol table index ({}) for relocation {} in section {}'.format(
                         reloc.SymbolTableIndex, i, section.get_name()))
                     continue
@@ -2660,21 +2661,25 @@ class PE(object):
             symbol_size = Structure(self.__COFF_SYMBOL_format__).sizeof()
             self.string_table_offset = self.FILE_HEADER.PointerToSymbolTable + self.FILE_HEADER.NumberOfSymbols * symbol_size
 
-            if self.string_table_offset + 4 >= len(self.__data__):
+            self.symbols = []
+            self.strings = {}
+
+            if (self.string_table_offset + 4) >= len(self.__data__):
                 self.__warnings.append('Symbol table is corrupt')
                 return
 
             string_table_size = struct.unpack('<I', self.__data__[self.string_table_offset : self.string_table_offset + 4])[0]
 
-            if string_table_size < 4:
+            # This can be an invalid offset triggering an index error later
+            offset = self.string_table_offset + string_table_size - 1
+            if (string_table_size < 4) or (offset >= len(self.__data__)):
                 self.__warnings.append('Invalid string table size')
                 return
 
-            if self.__data__[self.string_table_offset + string_table_size - 1] != 0:
+            if self.__data__[offset] != 0:
                 self.__warnings.append('String table corrupted, last string not terminated')
                 return
 
-            self.strings = {}
             offset = 4
             string_table_end = self.string_table_offset + string_table_size
             string_table = self.__data__[self.string_table_offset : string_table_end]
@@ -2697,7 +2702,6 @@ class PE(object):
                             name = s
                         else:
                             end = string_table[offset:].find(0)
-                            print(offset, end)
                             if end >= 0:
                                 name = string_table[offset:offset + end].decode('utf-8', 'replace')
 
@@ -2713,7 +2717,6 @@ class PE(object):
 
                 return name
 
-            self.symbols = []
             symbol_offset = self.FILE_HEADER.PointerToSymbolTable
 
             while symbol_offset < self.string_table_offset:
@@ -5503,13 +5506,16 @@ class PE(object):
         lines.append('-' * 79)
         reloc_table = MACHINE_TYPE_TO_RELOCATION.get(self.FILE_HEADER.Machine)
 
+        if not hasattr(self, 'symbols'):
+            lines.append('<PARSE ERROR>')
+            return lines
+
         for i, reloc in enumerate(section.relocations):
             symbol_name = self.symbols[reloc.SymbolTableIndex].__name__
 
             if reloc_table:
                 reloc_type_desc = reloc_table.get(reloc.Type)
-                if reloc_type_desc:
-                    reloc_type = reloc_type_desc
+                reloc_type = reloc_type_desc if reloc_type_desc else '<UNKNOWN>'
 
             lines.append('{index:8}{vaddr:#10x}{sym_table_index:8}  {symbol_name:35} {type}'.format(
                 index=i, vaddr=reloc.VirtualAddress, sym_table_index=reloc.SymbolTableIndex, symbol_name=symbol_name, type=reloc_type))
