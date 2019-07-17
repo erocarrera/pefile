@@ -5729,7 +5729,10 @@ class PE(object):
             raise TypeError('data should be of type: bytes')
 
         if 0 <= offset < len(self.__data__):
-            self.__data__ = ( self.__data__[:offset] + data + self.__data__[offset+len(data):] )
+            if hasattr(self.__data__, "__setitem__"):
+                self.__data__[offset:offset + len(data)] = data
+            else:
+                self.__data__ = ( self.__data__[:offset] + data + self.__data__[offset+len(data):] )
         else:
             return False
 
