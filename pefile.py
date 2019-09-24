@@ -1621,11 +1621,11 @@ def is_valid_dos_filename(s):
 if PY3:
     allowed_function_name = b(
         string.ascii_lowercase + string.ascii_uppercase +
-        string.digits + '_?@$()<>')
+        string.digits + '._?@$()<>')
 else:
     allowed_function_name = b(
         string.lowercase + string.uppercase +
-        string.digits + b'_?@$()<>')
+        string.digits + b'._?@$()<>')
 
 def is_valid_function_name(s):
     return (s is not None and
