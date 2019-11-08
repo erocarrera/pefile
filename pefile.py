@@ -948,6 +948,7 @@ class Structure(object):
         self.__keys__ = []
         self.__format_length__ = 0
         self.__field_offsets__ = dict()
+        self.__field_sizes__ = dict()
         self.__unpacked_data_elms__ = []
         self.__set_format__(format[1])
         self.__all_zeroes__ = False
@@ -998,6 +999,7 @@ class Structure(object):
                 self.__unpacked_data_elms__.append(None)
 
                 elm_names = elm_name.split(',')
+                elm_size = self.sizeof_type(elm_type)
                 names = []
                 for elm_name in elm_names:
                     if elm_name in self.__keys__:
@@ -1006,8 +1008,9 @@ class Structure(object):
                         elm_name =  '{0}_{1:d}'.format(elm_name, occ_count)
                     names.append(elm_name)
                     self.__field_offsets__[elm_name] = offset
+                    self.__field_sizes__[elm_name] = elm_size
 
-                offset += self.sizeof_type(elm_type)
+                offset += elm_size
 
                 # Some PE header structures have unions on them, so a certain
                 # value might have different names, so each key has a list of
@@ -1021,6 +1024,11 @@ class Structure(object):
         """Return size of the structure."""
 
         return self.__format_length__
+
+    def sizeof_field(self, field):
+        """Return size of the requested field."""
+
+        return self.__field_sizes__[field]
 
 
     def __unpack__(self, data):
