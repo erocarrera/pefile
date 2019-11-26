@@ -65,8 +65,8 @@ The following links provide detailed information about the PE format and its str
 
   * [corkami's wiki page about the PE format](https://code.google.com/p/corkami/wiki/PE) has grown to be one of the most in-depth repositories of information about the PE format
   * [corkami's treasure trove of PE weirdness](https://github.com/corkami/pocs/tree/master/PE)
-  * [An In-Depth Look into the Win32 Portable Executable File Format](http://msdn.microsoft.com/msdnmag/issues/02/02/PE/default.aspx)
-  * [An In-Depth Look into the Win32 Portable Executable File Format, Part 2](http://msdn.microsoft.com/msdnmag/issues/02/03/PE2/default.aspx)
+  * [An In-Depth Look into the Win32 Portable Executable File Format](http://msdn.microsoft.com/msdnmag/issues/02/02/PE/default.aspx) ([Archived](http://web.archive.org/web/20140606211610/http://msdn.microsoft.com/en-us/magazine/cc301805.aspx))
+  * [An In-Depth Look into the Win32 Portable Executable File Format, Part 2](http://msdn.microsoft.com/msdnmag/issues/02/03/PE2/default.aspx) ([Archived](http://web.archive.org/web/20140606211611/http://msdn.microsoft.com/en-us/magazine/cc301808.aspx))
   * [The Portable Executable File Format](http://www.csn.ul.ie/~caolan/publink/winresdump/winresdump/doc/pefile.html)
-  * [Get icons from Exe or DLL the PE way](http://www.codeproject.com/cpp/GetIconsfromExeorDLLs.asp)
-  * Solar Eclipse's Tiny PE page at "http://www.phreedom.org/solar/code/tinype/" is no longer available, corkami has a copy of TinyPE [here](https://code.google.com/p/corkami/source/browse/trunk/misc/MakePE/examples/PE/tinype.asm?r=179)
+  * [Get icons from Exe or DLL the PE way](https://www.codeproject.com/Articles/9303/Get-icons-from-Exe-or-DLL-the-PE-way)
+  * Solar Eclipse's Tiny PE page at "http://www.phreedom.org/solar/code/tinype/" is no longer available ([html-only archive](http://web.archive.org/web/20111001045025/http://www.phreedom.org/solar/code/tinype/)), corkami has a copy of TinyPE [here](https://code.google.com/p/corkami/source/browse/trunk/misc/MakePE/examples/PE/tinype.asm?r=179) (Code only)
