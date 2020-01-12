@@ -210,7 +210,8 @@ debug_types = [
     ('IMAGE_DEBUG_TYPE_VC_FEATURE',     12),
     ('IMAGE_DEBUG_TYPE_POGO',           13),
     ('IMAGE_DEBUG_TYPE_ILTCG',          14),
-    ('IMAGE_DEBUG_TYPE_MPX',            15) ]
+    ('IMAGE_DEBUG_TYPE_MPX',            15),
+    ('IMAGE_DEBUG_TYPE_REPRO',          16) ]
 
 DEBUG_TYPE = two_way_dict(debug_types)
 
