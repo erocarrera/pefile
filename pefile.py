@@ -2529,7 +2529,7 @@ class PE(object):
                     self.__data__[start : end],
                     file_offset = start)
 
-                if reloc.SymbolTableIndex >= len(self.symbols):
+                if hasattr(self, 'symbols') and reloc.SymbolTableIndex >= len(self.symbols):
                     self.__warnings.append('Invalid symbol table index ({}) for relocation {} in section {}'.format(
                         reloc.SymbolTableIndex, i, section.get_name()))
                     continue
