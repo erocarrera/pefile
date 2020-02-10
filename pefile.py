@@ -1093,7 +1093,7 @@ class Structure(object):
                     if key.startswith('Signature_'):
                         val_str = '{:8X}'.format(val)
                     else:
-                        val_str = '{#:8X}'.format(val)
+                        val_str = '{:#8X}'.format(val)
 
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
