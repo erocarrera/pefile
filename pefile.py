@@ -264,6 +264,7 @@ machine_types = [
     ('IMAGE_FILE_MACHINE_EBC',      0x0ebc),
     ('IMAGE_FILE_MACHINE_AMD64',    0x8664),
     ('IMAGE_FILE_MACHINE_M32R',     0x9041),
+    ('IMAGE_FILE_MACHINE_ARM64',    0xaa64),
     ('IMAGE_FILE_MACHINE_CEE',      0xc0ee),
  ]
 
