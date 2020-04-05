@@ -48,8 +48,7 @@ Prompted by the move to GitHub, the need to support Python 3 in addition to reso
   * [VirusTotal](http://www.virustotal.com/)
   * [bbfreeze](http://pypi.python.org/pypi/bbfreeze)
   * **pyemu**: [download](https://www.openrce.org/repositories/browse/codypierce), [whitepaper](https://www.blackhat.com/presentations/bh-usa-07/Pierce/Whitepaper/bh-usa-07-pierce-WP.pdf)
-  * [Offensive Computing](http://www.offensivecomputing.net/)
-  * [Immunity Debugger 1.1](https://www.openrce.org/blog/view/882/Immunity_Debugger_v1.1_Release)
+  * [Immunity Debugger 1.1](http://www.openrce.org/blog/view/882/Immunity_Debugger_v1.1_Release)
   * [PyInstaller](http://www.pyinstaller.org/)
   * [Cuckoo](http://docs.cuckoosandbox.org/en/latest/)
   * [MultiScanner](https://github.com/MITRECND/multiscanner)
@@ -65,8 +64,8 @@ The following links provide detailed information about the PE format and its str
 
   * [corkami's wiki page about the PE format](https://code.google.com/p/corkami/wiki/PE) has grown to be one of the most in-depth repositories of information about the PE format
   * [corkami's treasure trove of PE weirdness](https://github.com/corkami/pocs/tree/master/PE)
-  * [An In-Depth Look into the Win32 Portable Executable File Format](http://msdn.microsoft.com/msdnmag/issues/02/02/PE/default.aspx)
-  * [An In-Depth Look into the Win32 Portable Executable File Format, Part 2](http://msdn.microsoft.com/msdnmag/issues/02/03/PE2/default.aspx)
+  * [An In-Depth Look into the Win32 Portable Executable File Format](https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/february/inside-windows-win32-portable-executable-file-format-in-detail)
+  * [An In-Depth Look into the Win32 Portable Executable File Format, Part 2](https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/march/inside-windows-an-in-depth-look-into-the-win32-portable-executable-file-format-part-2%20)
   * [The Portable Executable File Format](http://www.csn.ul.ie/~caolan/publink/winresdump/winresdump/doc/pefile.html)
-  * [Get icons from Exe or DLL the PE way](http://www.codeproject.com/cpp/GetIconsfromExeorDLLs.asp)
+  * [Get icons from Exe or DLL the PE way](https://www.codeproject.com/Articles/9303/Get-icons-from-Exe-or-DLL-the-PE-way)
   * Solar Eclipse's Tiny PE page at "http://www.phreedom.org/solar/code/tinype/" is no longer available, corkami has a copy of TinyPE [here](https://code.google.com/p/corkami/source/browse/trunk/misc/MakePE/examples/PE/tinype.asm?r=179)
