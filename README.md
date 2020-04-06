@@ -10,7 +10,7 @@ _pefile_ is a multi-platform Python module to parse and work with [Portable Exec
 
 The structures defined in the Windows header files will be accessible as attributes in the PE instance. The naming of fields/attributes will try to adhere to the naming scheme in those headers. Only shortcuts added for convenience will depart from that convention.
 
-_pefile_ requires some basic understanding of the layout of a PE filerequires some basic understanding of the layout of a PE file — with it, it's possible to explore nearly every single feature of the PE file format.
+_pefile_ requires some basic understanding of the layout of a PE file — with it, it's possible to explore nearly every single feature of the PE file format.
 
 ## Features
 
@@ -35,7 +35,7 @@ Here are a few examples of what a dump produced with _pefile_ looks like for dif
 * [kernel32.dll](https://github.com/erocarrera/pefile/blob/wiki/FullDumpKernel32.md)
 * [TinyPE](https://github.com/erocarrera/pefile/blob/wiki/FullDumpTinyPE.md)
 
-To work with authenticated binaries, including  **Authenticode signatures**, please check the project [verify-sigs](http://code.google.com/p/verify-sigs).
+To work with authenticated binaries, including **Authenticode signatures**, please check the project [verify-sigs](http://code.google.com/p/verify-sigs).
 
 _pefile_ runs in several pipelines scanning hundreds of thousands of new PE files every day, and, while not perfect, it has grown to be pretty robust over time. That being said, small glitches are found now and then. If you bump into a PE that does not appear to be processed correctly, do report it, please! It will help make pefile a tiny bit more powerful.
 
