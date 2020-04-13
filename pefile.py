@@ -2286,9 +2286,6 @@ class PE(object):
         f.close()
         return
 
-
-
-
     def parse_sections(self, offset):
         """Fetch the PE file sections.
 
