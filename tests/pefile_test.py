@@ -74,8 +74,11 @@ class Test_pefile(unittest.TestCase):
             if control_data_hash != pe_file_data_hash:
                 print('\nHash differs for [%s]' % os.path.basename(pe_filename))
 
-                diff = difflib.ndiff(
-                    control_data.decode('utf-8').splitlines(), pe_file_data.splitlines())
+                control_file_lines = [
+                    l for l in control_data.decode('utf-8').splitlines()]
+                pefile_lines = pe_file_data.splitlines()
+
+                diff = difflib.ndiff(control_file_lines, pefile_lines)
 
                 # check the diff
                 for line in diff:
@@ -112,7 +115,7 @@ class Test_pefile(unittest.TestCase):
 
                     # Do the diff again to store it for analysis.
                     diff = list(difflib.unified_diff(
-                        control_data.decode('utf-8').splitlines(), pe_file_data.splitlines(),
+                        control_file_lines, pefile_lines,
                         fromfile="expected", tofile="new"))
                     error_diff_f = open('error_diff.txt', 'ab')
                     error_diff_f.write(

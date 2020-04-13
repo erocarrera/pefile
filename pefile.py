@@ -13,7 +13,7 @@ PEs as well as malware, which often attempts to abuse the format way beyond its
 standard use. To the best of my knowledge most of the abuse is handled
 gracefully.
 
-Copyright (c) 2005-2019 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2020 Ero Carrera <ero.carrera@gmail.com>
 """
 
 from __future__ import division
@@ -25,7 +25,7 @@ from builtins import range
 from builtins import str
 
 __author__ = 'Ero Carrera'
-__version__ = '2019.4.18'
+__version__ = '2020.4.13'
 __contact__ = 'ero.carrera@gmail.com'
 
 import collections
@@ -91,8 +91,8 @@ IMAGE_ORDINAL_FLAG64            = 0x8000000000000000
 OPTIONAL_HEADER_MAGIC_PE        = 0x10b
 OPTIONAL_HEADER_MAGIC_PE_PLUS   = 0x20b
 
-def two_way_dict(list):
-    return dict([(e[1], e[0]) for e in list] + list)
+def two_way_dict(pairs):
+    return dict([(e[1], e[0]) for e in pairs]+pairs)
 
 directory_entry_types = [
     ('IMAGE_DIRECTORY_ENTRY_EXPORT',        0),
@@ -305,164 +305,6 @@ dll_characteristics = [
     ('IMAGE_DLLCHARACTERISTICS_TERMINAL_SERVER_AWARE', 0x8000) ]
 
 DLL_CHARACTERISTICS = two_way_dict(dll_characteristics)
-
-
-coff_symbol_type = [
-    ('IMAGE_SYM_TYPE_NULL',   0),
-    ('IMAGE_SYM_TYPE_VOID',   1),
-    ('IMAGE_SYM_TYPE_CHAR',   2),
-    ('IMAGE_SYM_TYPE_SHORT',  3),
-    ('IMAGE_SYM_TYPE_INT',    4),
-    ('IMAGE_SYM_TYPE_LONG',   5),
-    ('IMAGE_SYM_TYPE_FLOAT',  6),
-    ('IMAGE_SYM_TYPE_DOUBLE', 7),
-    ('IMAGE_SYM_TYPE_STRUCT', 8),
-    ('IMAGE_SYM_TYPE_UNION',  9),
-    ('IMAGE_SYM_TYPE_ENUM',   10),
-    ('IMAGE_SYM_TYPE_MOE',    11),
-    ('IMAGE_SYM_TYPE_BYTE',   12),
-    ('IMAGE_SYM_TYPE_WORD',   13),
-    ('IMAGE_SYM_TYPE_UINT',   14),
-    ('IMAGE_SYM_TYPE_DWORD',  15), ]
-
-COFF_SYMBOL_TYPE = two_way_dict(coff_symbol_type)
-
-
-coff_symbol_derived_type = [
-    ('IMAGE_SYM_DTYPE_NULL',     0),
-    ('IMAGE_SYM_DTYPE_POINTER',  1),
-    ('IMAGE_SYM_DTYPE_FUNCTION', 2),
-    ('IMAGE_SYM_DTYPE_ARRAY',    3), ]
-
-COFF_SYMBOL_DERIVED_TYPE = two_way_dict(coff_symbol_derived_type)
-
-
-coff_storage_class = [
-    ('IMAGE_SYM_CLASS_END_OF_FUNCTION', -1),
-    ('IMAGE_SYM_CLASS_NULL',             0),
-    ('IMAGE_SYM_CLASS_AUTOMATIC',        1),
-    ('IMAGE_SYM_CLASS_EXTERNAL',         2),
-    ('IMAGE_SYM_CLASS_STATIC',           3),
-    ('IMAGE_SYM_CLASS_REGISTER',         4),
-    ('IMAGE_SYM_CLASS_EXTERNAL_DEF',     5),
-    ('IMAGE_SYM_CLASS_LABEL',            6),
-    ('IMAGE_SYM_CLASS_UNDEFINED_LABEL',  7),
-    ('IMAGE_SYM_CLASS_MEMBER_OF_STRUCT', 8),
-    ('IMAGE_SYM_CLASS_ARGUMENT',         9),
-    ('IMAGE_SYM_CLASS_STRUCT_TAG',       10),
-    ('IMAGE_SYM_CLASS_MEMBER_OF_UNION',  11),
-    ('IMAGE_SYM_CLASS_UNION_TAG',        12),
-    ('IMAGE_SYM_CLASS_TYPE_DEFINITION',  13),
-    ('IMAGE_SYM_CLASS_UNDEFINED_STATIC', 14),
-    ('IMAGE_SYM_CLASS_ENUM_TAG',         15),
-    ('IMAGE_SYM_CLASS_MEMBER_OF_ENUM',   16),
-    ('IMAGE_SYM_CLASS_REGISTER_PARAM',   17),
-    ('IMAGE_SYM_CLASS_BIT_FIELD',        18),
-    ('IMAGE_SYM_CLASS_BLOCK',            100),
-    ('IMAGE_SYM_CLASS_FUNCTION',         101),
-    ('IMAGE_SYM_CLASS_END_OF_STRUCT',    102),
-    ('IMAGE_SYM_CLASS_FILE',             103),
-    ('IMAGE_SYM_CLASS_SECTION',          104),
-    ('IMAGE_SYM_CLASS_WEAK_EXTERNAL',    105),
-    ('IMAGE_SYM_CLASS_CLR_TOKEN',        107), ]
-
-COFF_STORAGE_CLASS = two_way_dict(coff_storage_class)
-
-coff_section_number = [
-    ('IMAGE_SYM_UNDEFINED',    0),
-    ('IMAGE_SYM_ABSOLUTE',     -1),
-    ('IMAGE_SYM_DEBUG',        -2),
-    ('IMAGE_SYM_SECTION_MAX',  0xfeff), ]
-
-COFF_SECTION_NUMBER = two_way_dict(coff_section_number)
-
-
-coff_comdat_section = [
-    ('IMAGE_COMDAT_SELECT_NODUPLICATES', 1),
-    ('IMAGE_COMDAT_SELECT_ANY',          2),
-    ('IMAGE_COMDAT_SELECT_SAME_SIZE',    3),
-    ('IMAGE_COMDAT_SELECT_EXACT_MATCH',  4),
-    ('IMAGE_COMDAT_SELECT_ASSOCIATIVE',  5),
-    ('IMAGE_COMDAT_SELECT_LARGEST',      6),
-    ('IMAGE_COMDAT_SELECT_NEWEST',       7), ]
-
-COFF_COMDAT_SECTION = two_way_dict(coff_comdat_section)
-
-
-coff_x64_relocation_types = [
-    ('IMAGE_REL_AMD64_ABSOLUTE', 0x0000),
-    ('IMAGE_REL_AMD64_ADDR64',   0x0001),
-    ('IMAGE_REL_AMD64_ADDR32',   0x0002),
-    ('IMAGE_REL_AMD64_ADDR32NB', 0x0003),
-    ('IMAGE_REL_AMD64_REL32',    0x0004),
-    ('IMAGE_REL_AMD64_REL32_1',  0x0005),
-    ('IMAGE_REL_AMD64_REL32_2',  0x0006),
-    ('IMAGE_REL_AMD64_REL32_3',  0x0007),
-    ('IMAGE_REL_AMD64_REL32_4',  0x0008),
-    ('IMAGE_REL_AMD64_REL32_5',  0x0009),
-    ('IMAGE_REL_AMD64_SECTION',  0x000A),
-    ('IMAGE_REL_AMD64_SECREL',   0x000B),
-    ('IMAGE_REL_AMD64_SECREL7',  0x000C),
-    ('IMAGE_REL_AMD64_TOKEN',    0x000D),
-    ('IMAGE_REL_AMD64_SREL32',   0x000E),
-    ('IMAGE_REL_AMD64_PAIR',     0x000F),
-    ('IMAGE_REL_AMD64_SSPAN32',  0x0010), ]
-
-COFF_X64_RELOCATION_TYPES = two_way_dict(coff_x64_relocation_types)
-
-coff_i386_relocation_types = [
-    ('IMAGE_REL_I386_ABSOLUTE', 0x0000),
-    ('IMAGE_REL_I386_DIR16',    0x0001),
-    ('IMAGE_REL_I386_REL16',    0x0002),
-    ('IMAGE_REL_I386_DIR32',    0x0006),
-    ('IMAGE_REL_I386_DIR32NB',  0x0007),
-    ('IMAGE_REL_I386_SEG12',    0x0009),
-    ('IMAGE_REL_I386_SECTION',  0x000A),
-    ('IMAGE_REL_I386_SECREL',   0x000B),
-    ('IMAGE_REL_I386_TOKEN',    0x000C),
-    ('IMAGE_REL_I386_SECREL7',  0x000D),
-    ('IMAGE_REL_I386_REL32',    0x0014), ]
-
-COFF_I386_RELOCATION_TYPES = two_way_dict(coff_i386_relocation_types)
-
-MACHINE_TYPE_TO_RELOCATION = {
-    MACHINE_TYPE['IMAGE_FILE_MACHINE_I386']: COFF_I386_RELOCATION_TYPES,
-    MACHINE_TYPE['IMAGE_FILE_MACHINE_AMD64']: COFF_X64_RELOCATION_TYPES,
-}
-
-
-def is_coff_sym_function(symbol):
-    return (symbol.StorageClass == COFF_STORAGE_CLASS['IMAGE_SYM_CLASS_EXTERNAL'] and
-        symbol.SectionNumber > 0 and
-        symbol.Type == ((COFF_SYMBOL_DERIVED_TYPE['IMAGE_SYM_DTYPE_FUNCTION'] << 4) & COFF_SYMBOL_TYPE['IMAGE_SYM_TYPE_NULL']))
-
-def is_coff_sym_function_data(symbol):
-    return symbol.StorageClass == COFF_STORAGE_CLASS['IMAGE_SYM_CLASS_FUNCTION']
-
-def is_coff_sym_weak_external(symbol):
-    return (symbol.StorageClass == COFF_STORAGE_CLASS['IMAGE_SYM_CLASS_EXTERNAL'] and
-        symbol.SectionNumber == COFF_SECTION_NUMBER['IMAGE_SYM_UNDEFINED'] and
-        symbol.Value == 0)
-
-def is_coff_sym_file(symbol):
-    return (symbol.StorageClass == COFF_STORAGE_CLASS['IMAGE_SYM_CLASS_FILE'] and
-        symbol.Name == b'.file\0\0\0')
-
-def is_coff_sym_section(symbol):
-    return symbol.StorageClass == COFF_STORAGE_CLASS['IMAGE_SYM_CLASS_STATIC'] and symbol.Value == 0
-
-def is_coff_sym_clr_token_definition(symbol):
-    return symbol.StorageClass == COFF_STORAGE_CLASS['IMAGE_SYM_CLASS_CLR_TOKEN']
-
-
-comdat_select_types = [
-    ('IMAGE_COMDAT_SELECT_NODUPLICATES', 1),
-    ('IMAGE_COMDAT_SELECT_ANY',          2),
-    ('IMAGE_COMDAT_SELECT_SAME_SIZE',    3),
-    ('IMAGE_COMDAT_SELECT_EXACT_MATCH',  4),
-    ('IMAGE_COMDAT_SELECT_ASSOCIATIVE',  5) ]
-
-COMDAT_SELECT_TYPES = two_way_dict(comdat_select_types)
 
 FILE_ALIGNMENT_HARDCODED_VALUE = 0x200
 
@@ -803,6 +645,7 @@ else:
             return bytes(x)
         return codecs.encode(x, 'cp1252')
 
+
 class UnicodeStringWrapperPostProcessor(object):
     """This class attempts to help the process of identifying strings
     that might be plain Unicode or Pascal. A list of strings will be
@@ -990,6 +833,7 @@ class Structure(object):
         return STRUCT_SIZEOF_TYPES[_t] * count
 
     def __set_format__(self, format):
+
         offset = 0
         for elm in format:
             if ',' in elm:
@@ -1091,10 +935,9 @@ class Structure(object):
                 val = getattr(self, key)
                 if isinstance(val, (int, long)):
                     if key.startswith('Signature_'):
-                        val_str = '{:8X}'.format(val)
+                        val_str = '{:<8X}'.format(val)
                     else:
-                        val_str = '{#:8X}'.format(val)
-
+                        val_str = '0x{:<8X}'.format(val)
                     if key == 'TimeDateStamp' or key == 'dwTimeStamp':
                         try:
                             val_str += ' [%s UTC]' % time.asctime(time.gmtime(val))
@@ -1158,18 +1001,6 @@ class SectionStructure(Structure):
 
         Structure.__init__(self, *argl, **argd)
 
-    def get_name(self):
-        name = ''
-
-        if hasattr(self, 'Name'):
-            printable_bytes = [ord(i) for i in string.printable if i not in string.whitespace]
-            name = bytearray(self.Name)
-            name = ''.join(
-                    [chr(i) if (i in printable_bytes) else
-                    '\\x{0:02x}'.format(i) for i in name.rstrip(b'\x00')])
-
-        return name
-
     def get_data(self, start=None, length=None):
         """Get data chunk from a section.
 
@@ -1181,13 +1012,10 @@ class SectionStructure(Structure):
         Returns bytes() under Python 3.x and set() under Python 2.7
         """
 
-        PointerToRawData_adj = self.pe.adjust_FileAlignment(self.PointerToRawData,
-            self.pe.__file_alignment__())
-
-        VirtualAddress_adj = self.VirtualAddress
-        if not self.pe.is_obj():
-            VirtualAddress_adj = self.pe.adjust_SectionAlignment( self.VirtualAddress,
-                self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.__file_alignment__() )
+        PointerToRawData_adj = self.pe.adjust_FileAlignment( self.PointerToRawData,
+            self.pe.OPTIONAL_HEADER.FileAlignment )
+        VirtualAddress_adj = self.pe.adjust_SectionAlignment( self.VirtualAddress,
+            self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
 
         if start is None:
             offset = PointerToRawData_adj
@@ -1225,7 +1053,7 @@ class SectionStructure(Structure):
 
     def get_rva_from_offset(self, offset):
         return offset - self.pe.adjust_FileAlignment( self.PointerToRawData,
-            self.pe.__file_alignment__() ) + self.pe.adjust_SectionAlignment( self.VirtualAddress,
+            self.pe.OPTIONAL_HEADER.FileAlignment ) + self.pe.adjust_SectionAlignment( self.VirtualAddress,
             self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
 
 
@@ -1237,7 +1065,7 @@ class SectionStructure(Structure):
                 self.pe.OPTIONAL_HEADER.FileAlignment )
             ) + self.pe.adjust_FileAlignment(
                 self.PointerToRawData,
-                self.pe.__file_alignment__() )
+                self.pe.OPTIONAL_HEADER.FileAlignment )
 
 
     def contains_offset(self, offset):
@@ -1248,10 +1076,10 @@ class SectionStructure(Structure):
            # and do not take space in the file
            return False
         return ( self.pe.adjust_FileAlignment( self.PointerToRawData,
-                self.pe.__file_alignment__() ) <=
+                self.pe.OPTIONAL_HEADER.FileAlignment ) <=
                     offset <
                         self.pe.adjust_FileAlignment( self.PointerToRawData,
-                            self.pe.__file_alignment__() ) +
+                            self.pe.OPTIONAL_HEADER.FileAlignment ) +
                                 self.SizeOfRawData )
 
 
@@ -1264,7 +1092,7 @@ class SectionStructure(Structure):
         # In either of those cases we take the VirtualSize
         #
         if len(self.pe.__data__) - self.pe.adjust_FileAlignment( self.PointerToRawData,
-            self.pe.__file_alignment__()) < self.SizeOfRawData:
+            self.pe.OPTIONAL_HEADER.FileAlignment ) < self.SizeOfRawData:
             # PECOFF documentation v8 says:
             # VirtualSize: The total size of the section when loaded into memory.
             # If this value is greater than SizeOfRawData, the section is zero-padded.
@@ -1758,33 +1586,6 @@ class PE(object):
 
     __IMAGE_NT_HEADERS_format__ = ('IMAGE_NT_HEADERS', ('I,Signature',))
 
-    __COFF_RELOCATION_format__ = ('COFF_RELOCATION',
-        ('I,VirtualAddress', 'I,SymbolTableIndex', 'H,Type'))
-
-    __COFF_SYMBOL_format__ = ('COFF_SYMBOL',
-        ('8s,Name', 'I,Value', 'h,SectionNumber',
-        'H,Type', 'b,StorageClass', 'B,NumberOfAuxSymbols'))
-
-    __COFF_AUX_SYM_FUNCTION_DEFINITION_format__ = ('COFF_AUX_SYMBOL_FUNCTION_DEFINITION',
-        ('I,TagIndex', 'I,TotalSize', 'I,PointerToLinenumber', 'I,PointerToNextFunction', 'H,Unused'))
-
-    __COFF_AUX_SYM_FUNCTION_DATA_format__ = ('COFF_AUX_SYMBOL_FUNCTION_DATA',
-        ('I,Unused', 'H,Linenumber', '6s,Unused2', 'I,PointerToNextFunction', 'H,Unused3'))
-
-    __COFF_AUX_SYM_WEAK_EXTERNAL_format__ = ('COFF_AUX_SYMBOL_WEAK_EXTERNAL',
-        ('I,TagIndex', 'I,Characteristics', '10s,Unused'))
-
-    __COFF_AUX_SYM_FILE_format__ = ('COFF_AUX_SYMBOL_FILE',
-        ('18s,FileName',))
-
-    __COFF_AUX_SYM_SECTION_format__ = ('COFF_AUX_SYMBOL_SECTION',
-        ('I,Length', 'H,NumberOfRelocations', 'H,NumberOfLinenumbers', 'I,CheckSum',
-        'H,Number', 'B,Selection', '3s,Unused'))
-
-    __COFF_AUX_SYM_CLR_TOKEN_DEFINITION_format__ = ('COFF_AUX_SYMBOL_CLR_TOKEN_DEFINITION',
-        ('B,bAuxType', 'B,bReserved', 'I,SymbolTableIndex', 'x12,Reserved'))
-
-
     __IMAGE_SECTION_HEADER_format__ = ('IMAGE_SECTION_HEADER',
         ('8s,Name', 'I,Misc,Misc_PhysicalAddress,Misc_VirtualSize',
         'I,VirtualAddress', 'I,SizeOfRawData', 'I,PointerToRawData',
@@ -1924,14 +1725,16 @@ class PE(object):
     __IMAGE_BOUND_FORWARDER_REF_format__ = ('IMAGE_BOUND_FORWARDER_REF',
         ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,Reserved') )
 
-    def __init__(self, name=None, data=None, fast_load=None, is_obj=None,
+    def __init__(self, name=None, data=None, fast_load=None,
                  max_symbol_exports=MAX_SYMBOL_EXPORT_COUNT):
 
         self.max_symbol_exports = max_symbol_exports
+
         self.sections = []
+
         self.__warnings = []
+
         self.PE_TYPE = None
-        self.__is_obj = is_obj
 
         if name is None and data is None:
             raise ValueError('Must supply either name or data')
@@ -1948,7 +1751,7 @@ class PE(object):
 
         fast_load = fast_load or globals()['fast_load']
         try:
-            self.__parse__(name, data, fast_load, is_obj)
+            self.__parse__(name, data, fast_load)
         except:
             self.close()
             raise
@@ -1983,12 +1786,7 @@ class PE(object):
         return structure
 
 
-    def __file_alignment__(self):
-        # For executable images, file pointer must be a multiple of FileAlignment from the optional header.
-        return 4 if self.__is_obj else self.OPTIONAL_HEADER.FileAlignment
-
-
-    def __parse__(self, fname, data, fast_load, is_obj):
+    def __parse__(self, fname, data, fast_load):
         """Parse a Portable Executable file.
 
         Loads a PE file, parsing all its structures and making them available
@@ -2035,52 +1833,49 @@ class PE(object):
                             byte, 100.0 * byte_count / len(self.__data__)))
 
 
-        if not is_obj:
-            dos_header_data = self.__data__[:64]
-            if len(dos_header_data) != 64:
-                raise PEFormatError('Unable to read the DOS Header, possibly a truncated file.')
+        dos_header_data = self.__data__[:64]
+        if len(dos_header_data) != 64:
+            raise PEFormatError('Unable to read the DOS Header, possibly a truncated file.')
 
-            self.DOS_HEADER = self.__unpack_data__(
-                self.__IMAGE_DOS_HEADER_format__,
-                dos_header_data, file_offset=0)
+        self.DOS_HEADER = self.__unpack_data__(
+            self.__IMAGE_DOS_HEADER_format__,
+            dos_header_data, file_offset=0)
 
-            if self.DOS_HEADER.e_magic == IMAGE_DOSZM_SIGNATURE:
-                raise PEFormatError('Probably a ZM Executable (not a PE file).')
-            if not self.DOS_HEADER or self.DOS_HEADER.e_magic != IMAGE_DOS_SIGNATURE:
-                raise PEFormatError('DOS Header magic not found.')
+        if self.DOS_HEADER.e_magic == IMAGE_DOSZM_SIGNATURE:
+            raise PEFormatError('Probably a ZM Executable (not a PE file).')
+        if not self.DOS_HEADER or self.DOS_HEADER.e_magic != IMAGE_DOS_SIGNATURE:
+            raise PEFormatError('DOS Header magic not found.')
 
-            # OC Patch:
-            # Check for sane value in e_lfanew
-            #
-            if self.DOS_HEADER.e_lfanew > len(self.__data__):
-                raise PEFormatError('Invalid e_lfanew value, probably not a PE file')
+        # OC Patch:
+        # Check for sane value in e_lfanew
+        #
+        if self.DOS_HEADER.e_lfanew > len(self.__data__):
+            raise PEFormatError('Invalid e_lfanew value, probably not a PE file')
 
-            nt_headers_offset = self.DOS_HEADER.e_lfanew
+        nt_headers_offset = self.DOS_HEADER.e_lfanew
 
-            self.NT_HEADERS = self.__unpack_data__(
-                self.__IMAGE_NT_HEADERS_format__,
-                self.__data__[nt_headers_offset:nt_headers_offset+8],
-                file_offset = nt_headers_offset)
+        self.NT_HEADERS = self.__unpack_data__(
+            self.__IMAGE_NT_HEADERS_format__,
+            self.__data__[nt_headers_offset:nt_headers_offset+8],
+            file_offset = nt_headers_offset)
 
-            # We better check the signature right here, before the file screws
-            # around with sections:
-            # OC Patch:
-            # Some malware will cause the Signature value to not exist at all
-            if not self.NT_HEADERS or not self.NT_HEADERS.Signature:
-                raise PEFormatError('NT Headers not found.')
+        # We better check the signature right here, before the file screws
+        # around with sections:
+        # OC Patch:
+        # Some malware will cause the Signature value to not exist at all
+        if not self.NT_HEADERS or not self.NT_HEADERS.Signature:
+            raise PEFormatError('NT Headers not found.')
 
-            if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_NE_SIGNATURE:
-                raise PEFormatError('Invalid NT Headers signature. Probably a NE file')
-            if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_LE_SIGNATURE:
-                raise PEFormatError('Invalid NT Headers signature. Probably a LE file')
-            if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_LX_SIGNATURE:
-                raise PEFormatError('Invalid NT Headers signature. Probably a LX file')
-            if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_TE_SIGNATURE:
-                raise PEFormatError('Invalid NT Headers signature. Probably a TE file')
-            if self.NT_HEADERS.Signature != IMAGE_NT_SIGNATURE:
-                raise PEFormatError('Invalid NT Headers signature.')
-        else:
-            nt_headers_offset = -4
+        if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_NE_SIGNATURE:
+            raise PEFormatError('Invalid NT Headers signature. Probably a NE file')
+        if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_LE_SIGNATURE:
+            raise PEFormatError('Invalid NT Headers signature. Probably a LE file')
+        if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_LX_SIGNATURE:
+            raise PEFormatError('Invalid NT Headers signature. Probably a LX file')
+        if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_TE_SIGNATURE:
+            raise PEFormatError('Invalid NT Headers signature. Probably a TE file')
+        if self.NT_HEADERS.Signature != IMAGE_NT_SIGNATURE:
+            raise PEFormatError('Invalid NT Headers signature.')
 
         self.FILE_HEADER = self.__unpack_data__(
             self.__IMAGE_FILE_HEADER_format__,
@@ -2091,13 +1886,6 @@ class PE(object):
         if not self.FILE_HEADER:
             raise PEFormatError('File Header missing')
 
-        if is_obj:
-            if b(self.__data__[:8]) == b'!<arch>\n':
-                raise PEFormatError('COFF libraries are not supported')
-
-            if self.FILE_HEADER.SizeOfOptionalHeader != 0:
-                raise PEFormatError('Size of optional header must be zero for object files')
-
         # Set the image's flags according the the Characteristics member
         set_flags(self.FILE_HEADER, self.FILE_HEADER.Characteristics, image_flags)
 
@@ -2107,14 +1895,11 @@ class PE(object):
         # Note: location of sections can be controlled from PE header:
         sections_offset = optional_header_offset + self.FILE_HEADER.SizeOfOptionalHeader
 
-        if is_obj:
-            self.OPTIONAL_HEADER = None
-        else:
-            self.OPTIONAL_HEADER = self.__unpack_data__(
-                self.__IMAGE_OPTIONAL_HEADER_format__,
-                # Read up to 256 bytes to allow creating a copy of too much data
-                self.__data__[optional_header_offset:optional_header_offset+256],
-                file_offset = optional_header_offset)
+        self.OPTIONAL_HEADER = self.__unpack_data__(
+            self.__IMAGE_OPTIONAL_HEADER_format__,
+            # Read up to 256 bytes to allow creating a copy of too much data
+            self.__data__[optional_header_offset:optional_header_offset+256],
+            file_offset = optional_header_offset)
 
         # According to solardesigner's findings for his
         # Tiny PE project, the optional header does not
@@ -2127,7 +1912,7 @@ class PE(object):
         #
         MINIMUM_VALID_OPTIONAL_HEADER_RAW_SIZE = 69
 
-        if (not is_obj and self.OPTIONAL_HEADER is None and
+        if ( self.OPTIONAL_HEADER is None and
             len(self.__data__[optional_header_offset:optional_header_offset+0x200])
                 >= MINIMUM_VALID_OPTIONAL_HEADER_RAW_SIZE ):
 
@@ -2191,92 +1976,90 @@ class PE(object):
         # OC Patch:
         # Die gracefully if there is no OPTIONAL_HEADER field
         # 975440f5ad5e2e4a92c4d9a5f22f75c1
-        if not is_obj:
-            if self.OPTIONAL_HEADER is None:
-                raise PEFormatError("No Optional Header found, invalid PE32 or PE32+ file.")
-            if self.PE_TYPE is None:
-                self.__warnings.append(
-                    "Invalid type 0x{0:04x} in Optional Header.".format(
-                        self.OPTIONAL_HEADER.Magic))
+        if self.OPTIONAL_HEADER is None:
+            raise PEFormatError("No Optional Header found, invalid PE32 or PE32+ file.")
+        if self.PE_TYPE is None:
+            self.__warnings.append(
+                "Invalid type 0x{0:04x} in Optional Header.".format(
+                    self.OPTIONAL_HEADER.Magic))
 
-            dll_characteristics_flags = retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLLCHARACTERISTICS_')
+        dll_characteristics_flags = retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLLCHARACTERISTICS_')
 
-            # Set the Dll Characteristics flags according the the DllCharacteristics member
-            set_flags(
-                self.OPTIONAL_HEADER,
-                self.OPTIONAL_HEADER.DllCharacteristics,
-                dll_characteristics_flags)
-
-
-            self.OPTIONAL_HEADER.DATA_DIRECTORY = []
-            #offset = (optional_header_offset + self.FILE_HEADER.SizeOfOptionalHeader)
-            offset = (optional_header_offset + self.OPTIONAL_HEADER.sizeof())
+        # Set the Dll Characteristics flags according the the DllCharacteristics member
+        set_flags(
+            self.OPTIONAL_HEADER,
+            self.OPTIONAL_HEADER.DllCharacteristics,
+            dll_characteristics_flags)
 
 
-            self.NT_HEADERS.FILE_HEADER = self.FILE_HEADER
-            self.NT_HEADERS.OPTIONAL_HEADER = self.OPTIONAL_HEADER
+        self.OPTIONAL_HEADER.DATA_DIRECTORY = []
+        #offset = (optional_header_offset + self.FILE_HEADER.SizeOfOptionalHeader)
+        offset = (optional_header_offset + self.OPTIONAL_HEADER.sizeof())
 
-            # Windows 8 specific check
+
+        self.NT_HEADERS.FILE_HEADER = self.FILE_HEADER
+        self.NT_HEADERS.OPTIONAL_HEADER = self.OPTIONAL_HEADER
+
+        # Windows 8 specific check
+        #
+        if self.OPTIONAL_HEADER.AddressOfEntryPoint <  self.OPTIONAL_HEADER.SizeOfHeaders:
+            self.__warnings.append(
+                'SizeOfHeaders is smaller than AddressOfEntryPoint: this file cannot run under Windows 8.')
+
+        # The NumberOfRvaAndSizes is sanitized to stay within
+        # reasonable limits so can be casted to an int
+        #
+        if self.OPTIONAL_HEADER.NumberOfRvaAndSizes > 0x10:
+            self.__warnings.append(
+                'Suspicious NumberOfRvaAndSizes in the Optional Header. '
+                'Normal values are never larger than 0x10, the value is: 0x%x' %
+                self.OPTIONAL_HEADER.NumberOfRvaAndSizes )
+
+        MAX_ASSUMED_VALID_NUMBER_OF_RVA_AND_SIZES = 0x100
+        for i in range(int(0x7fffffff & self.OPTIONAL_HEADER.NumberOfRvaAndSizes)):
+
+            if len(self.__data__) - offset == 0:
+                break
+
+            if len(self.__data__) - offset < 8:
+                data = self.__data__[offset:] + b'\0'*8
+            else:
+                data = self.__data__[offset:offset+MAX_ASSUMED_VALID_NUMBER_OF_RVA_AND_SIZES]
+
+            dir_entry = self.__unpack_data__(
+                self.__IMAGE_DATA_DIRECTORY_format__,
+                data,
+                file_offset = offset)
+
+            if dir_entry is None:
+                break
+
+            # Would fail if missing an entry
+            # 1d4937b2fa4d84ad1bce0309857e70ca offending sample
+            try:
+                dir_entry.name = DIRECTORY_ENTRY[i]
+            except (KeyError, AttributeError):
+                break
+
+            offset += dir_entry.sizeof()
+
+            self.OPTIONAL_HEADER.DATA_DIRECTORY.append(dir_entry)
+
+            # If the offset goes outside the optional header,
+            # the loop is broken, regardless of how many directories
+            # NumberOfRvaAndSizes says there are
             #
-            if self.OPTIONAL_HEADER.AddressOfEntryPoint <  self.OPTIONAL_HEADER.SizeOfHeaders:
-                self.__warnings.append(
-                    'SizeOfHeaders is smaller than AddressOfEntryPoint: this file cannot run under Windows 8.')
+            # We assume a normally sized optional header, hence that we do
+            # a sizeof() instead of reading SizeOfOptionalHeader.
+            # Then we add a default number of directories times their size,
+            # if we go beyond that, we assume the number of directories
+            # is wrong and stop processing
+            if offset >= (optional_header_offset +
+                self.OPTIONAL_HEADER.sizeof() + 8*16) :
 
-            # The NumberOfRvaAndSizes is sanitized to stay within
-            # reasonable limits so can be casted to an int
-            #
-            if self.OPTIONAL_HEADER.NumberOfRvaAndSizes > 0x10:
-                self.__warnings.append(
-                    'Suspicious NumberOfRvaAndSizes in the Optional Header. '
-                    'Normal values are never larger than 0x10, the value is: 0x%x' %
-                    self.OPTIONAL_HEADER.NumberOfRvaAndSizes )
-
-            MAX_ASSUMED_VALID_NUMBER_OF_RVA_AND_SIZES = 0x100
-            for i in range(int(0x7fffffff & self.OPTIONAL_HEADER.NumberOfRvaAndSizes)):
-
-                if len(self.__data__) - offset == 0:
-                    break
-
-                if len(self.__data__) - offset < 8:
-                    data = self.__data__[offset:] + b'\0'*8
-                else:
-                    data = self.__data__[offset:offset+MAX_ASSUMED_VALID_NUMBER_OF_RVA_AND_SIZES]
-
-                dir_entry = self.__unpack_data__(
-                    self.__IMAGE_DATA_DIRECTORY_format__,
-                    data,
-                    file_offset = offset)
-
-                if dir_entry is None:
-                    break
-
-                # Would fail if missing an entry
-                # 1d4937b2fa4d84ad1bce0309857e70ca offending sample
-                try:
-                    dir_entry.name = DIRECTORY_ENTRY[i]
-                except (KeyError, AttributeError):
-                    break
-
-                offset += dir_entry.sizeof()
-
-                self.OPTIONAL_HEADER.DATA_DIRECTORY.append(dir_entry)
-
-                # If the offset goes outside the optional header,
-                # the loop is broken, regardless of how many directories
-                # NumberOfRvaAndSizes says there are
-                #
-                # We assume a normally sized optional header, hence that we do
-                # a sizeof() instead of reading SizeOfOptionalHeader.
-                # Then we add a default number of directories times their size,
-                # if we go beyond that, we assume the number of directories
-                # is wrong and stop processing
-                if offset >= (optional_header_offset +
-                    self.OPTIONAL_HEADER.sizeof() + 8*16) :
-
-                    break
+                break
 
 
-        self.parse_symbol_table()
         offset = self.parse_sections(sections_offset)
 
         # OC Patch:
@@ -2287,7 +2070,8 @@ class PE(object):
         # can't be found?
         #
         rawDataPointers = [
-            self.adjust_FileAlignment( s.PointerToRawData, self.__file_alignment__())
+            self.adjust_FileAlignment( s.PointerToRawData,
+                self.OPTIONAL_HEADER.FileAlignment )
             for s in self.sections if s.PointerToRawData>0 ]
 
         if len(rawDataPointers) > 0:
@@ -2301,28 +2085,27 @@ class PE(object):
             self.header = self.__data__[:lowest_section_offset]
 
 
-        if not is_obj:
-            # Check whether the entry point lies within a section
+        # Check whether the entry point lies within a section
+        #
+        if self.get_section_by_rva(self.OPTIONAL_HEADER.AddressOfEntryPoint) is not None:
+
+            # Check whether the entry point lies within the file
             #
-            if self.get_section_by_rva(self.OPTIONAL_HEADER.AddressOfEntryPoint) is not None:
-
-                # Check whether the entry point lies within the file
-                #
-                ep_offset = self.get_offset_from_rva(self.OPTIONAL_HEADER.AddressOfEntryPoint)
-                if ep_offset > len(self.__data__):
-
-                    self.__warnings.append(
-                        'Possibly corrupt file. AddressOfEntryPoint lies outside the file. '
-                        'AddressOfEntryPoint: 0x%x' %
-                        self.OPTIONAL_HEADER.AddressOfEntryPoint )
-
-            else:
+            ep_offset = self.get_offset_from_rva(self.OPTIONAL_HEADER.AddressOfEntryPoint)
+            if ep_offset > len(self.__data__):
 
                 self.__warnings.append(
-                    'AddressOfEntryPoint lies outside the sections\' boundaries. '
+                    'Possibly corrupt file. AddressOfEntryPoint lies outside the file. '
                     'AddressOfEntryPoint: 0x%x' %
                     self.OPTIONAL_HEADER.AddressOfEntryPoint )
-                
+
+        else:
+
+            self.__warnings.append(
+                'AddressOfEntryPoint lies outside the sections\' boundaries. '
+                'AddressOfEntryPoint: 0x%x' %
+                self.OPTIONAL_HEADER.AddressOfEntryPoint )
+
         if not fast_load:
             self.full_load()
 
@@ -2336,9 +2119,6 @@ class PE(object):
         ...
         XX Rich, checksum, 0, 0,...
         """
-
-        if self.__is_obj:
-            return
 
         # Rich Header constants
         #
@@ -2508,34 +2288,6 @@ class PE(object):
 
 
 
-    def parse_section_relocations(self, section):
-        section.relocations = []
-
-        if section.PointerToRelocations and section.NumberOfRelocations:
-            if not self.__is_obj:
-                self.__warnings.append("Image file shouldn't contain COFF relocations but it does (section {})".format(section.get_name()))
-
-            reloc_size = Structure(self.__COFF_RELOCATION_format__).sizeof()
-
-            for i in range(section.NumberOfRelocations):
-                start = section.PointerToRelocations + reloc_size * i
-                end = start + reloc_size
-
-                if end > len(self.__data__):
-                    self.__warnings.append('Invalid relocation {} in section {}'.format(i, section.get_name()))
-                    continue
-
-                reloc = self.__unpack_data__(self.__COFF_RELOCATION_format__,
-                    self.__data__[start : end],
-                    file_offset = start)
-
-                if reloc.SymbolTableIndex >= len(self.symbols):
-                    self.__warnings.append('Invalid symbol table index ({}) for relocation {} in section {}'.format(
-                        reloc.SymbolTableIndex, i, section.get_name()))
-                    continue
-
-                section.relocations.append(reloc)
-
 
     def parse_sections(self, offset):
         """Fetch the PE file sections.
@@ -2583,8 +2335,8 @@ class PE(object):
                 self.__warnings.append(
                     'Error parsing section {0}. SizeOfRawData is larger than file.'.format(i))
 
-            if not self.__is_obj and self.adjust_FileAlignment( section.PointerToRawData,
-                self.__file_alignment__() ) > len(self.__data__):
+            if self.adjust_FileAlignment( section.PointerToRawData,
+                self.OPTIONAL_HEADER.FileAlignment ) > len(self.__data__):
                 simultaneous_errors += 1
                 self.__warnings.append(
                     'Error parsing section {0}. PointerToRawData points beyond the end of the file.'.format(i))
@@ -2594,13 +2346,13 @@ class PE(object):
                 self.__warnings.append(
                     'Suspicious value found parsing section {0}. VirtualSize is extremely large > 256MiB.'.format(i))
 
-            if not self.__is_obj and self.adjust_SectionAlignment( section.VirtualAddress,
+            if self.adjust_SectionAlignment( section.VirtualAddress,
                 self.OPTIONAL_HEADER.SectionAlignment, self.OPTIONAL_HEADER.FileAlignment ) > 0x10000000:
                 simultaneous_errors += 1
                 self.__warnings.append(
                     'Suspicious value found parsing section {0}. VirtualAddress is beyond 0x10000000.'.format(i))
 
-            if (not self.__is_obj and self.OPTIONAL_HEADER.FileAlignment != 0 and
+            if ( self.OPTIONAL_HEADER.FileAlignment != 0 and
                 ( section.PointerToRawData % self.OPTIONAL_HEADER.FileAlignment) != 0):
                 simultaneous_errors += 1
                 self.__warnings.append(
@@ -2608,8 +2360,6 @@ class PE(object):
                     'PointerToRawData should normally be '
                     'a multiple of FileAlignment, this might imply the file '
                     'is trying to confuse tools which parse this incorrectly.').format(i))
-
-            self.parse_section_relocations(section)
 
             if simultaneous_errors >= MAX_SIMULTANEOUS_ERRORS:
                 self.__warnings.append('Too many warnings parsing section. Aborting.')
@@ -2653,113 +2403,6 @@ class PE(object):
             return offset
 
 
-    def parse_symbol_table(self):
-        """ Parse and process COFF symbol table, if present """
-
-        if self.FILE_HEADER.PointerToSymbolTable:
-            symbol_size = Structure(self.__COFF_SYMBOL_format__).sizeof()
-            self.string_table_offset = self.FILE_HEADER.PointerToSymbolTable + self.FILE_HEADER.NumberOfSymbols * symbol_size
-
-            if self.string_table_offset + 4 >= len(self.__data__):
-                self.__warnings.append('Symbol table is corrupt')
-                return
-
-            string_table_size = struct.unpack('<I', self.__data__[self.string_table_offset : self.string_table_offset + 4])[0]
-
-            if string_table_size < 4:
-                self.__warnings.append('Invalid string table size')
-                return
-
-            if self.__data__[self.string_table_offset + string_table_size - 1] != 0:
-                self.__warnings.append('String table corrupted, last string not terminated')
-                return
-
-            self.strings = {}
-            offset = 4
-            string_table_end = self.string_table_offset + string_table_size
-            string_table = self.__data__[self.string_table_offset : string_table_end]
-
-            while offset < string_table_size:
-                s = self.get_string_from_data(offset, string_table)
-                self.strings[offset] = s.decode('utf-8', 'replace')
-                offset += len(s) + 1
-
-            def get_symbol_name(symbol, string_table, string_table_size):
-                name = None
-                long_name_flag = struct.unpack('<I', symbol.Name[:4])[0]
-
-                if long_name_flag == 0:
-                    offset = struct.unpack('<I', symbol.Name[4:8])[0]
-
-                    if offset < string_table_size:
-                        s = self.strings.get(offset)
-                        if s:
-                            name = s
-                        else:
-                            end = string_table[offset:].find(0)
-                            print(offset, end)
-                            if end >= 0:
-                                name = string_table[offset:offset + end].decode('utf-8', 'replace')
-
-                    if name is None:
-                        self.__warnings.append('Invalid string table offset for symbol name encountered')
-                        name = ''
-
-                else:
-                    end = symbol.Name.find(b'\0')
-                    if end < 0:
-                        end = len(symbol.Name)
-                    name = symbol.Name[:end].decode('ascii', 'replace')
-
-                return name
-
-            self.symbols = []
-            symbol_offset = self.FILE_HEADER.PointerToSymbolTable
-
-            while symbol_offset < self.string_table_offset:
-                symbol = self.__unpack_data__(self.__COFF_SYMBOL_format__,
-                    self.__data__[symbol_offset:symbol_offset + symbol_size],
-                    file_offset = symbol_offset)
-
-                symbol.__name__ = get_symbol_name(symbol, string_table, string_table_size)
-                symbol.__is_aux__ = False
-                symbol_offset += symbol_size
-                self.symbols.append(symbol)
-
-                for i in range(symbol.NumberOfAuxSymbols):
-                    if symbol_offset >= self.string_table_offset:
-                        self.__warnings.append('Auxiliary symbol positioned outside of symbol table for symbol {}'.format(symbol.__name__))
-                        break
-
-                    if is_coff_sym_function(symbol):
-                        format = self.__COFF_AUX_SYM_FUNCTION_DEFINITION_format__
-                    elif is_coff_sym_function_data(symbol):
-                        format = self.__COFF_AUX_SYM_FUNCTION_DATA_format__
-                    elif is_coff_sym_weak_external(symbol):
-                        format = self.__COFF_AUX_SYM_WEAK_EXTERNAL_format__
-                    elif is_coff_sym_file(symbol):
-                        format = self.__COFF_AUX_SYM_FILE_format__
-                    elif is_coff_sym_section(symbol):
-                        format = self.__COFF_AUX_SYM_SECTION_format__
-                    elif is_coff_sym_clr_token_definition(symbol):
-                        format = self.__COFF_AUX_SYM_CLR_TOKEN_DEFINITION_format__
-                    else:
-                        self.__warnings.append('Unknown auxiliary symbol encountered for symbol {}'.format(symbol.__name__))
-                        format = self.__COFF_SYMBOL_format__
-
-                    aux_symbol = self.__unpack_data__(format,
-                        self.__data__[symbol_offset:symbol_offset + symbol_size],
-                        file_offset = symbol_offset)
-
-                    aux_symbol.__is_aux__ = True
-                    self.symbols.append(aux_symbol)
-                    symbol_offset += symbol_size
-
-            if len(self.symbols) != self.FILE_HEADER.NumberOfSymbols:
-                self.__warnings.append('Symbol table possibly corrupted, {} string(s) found, but header reports {}'.format(
-                    len(self.symbols), self.FILE_HEADER.NumberOfSymbols))
-
-
 
     def parse_data_directories(self, directories=None,
                                forwarded_exports_only=False,
@@ -2791,9 +2434,6 @@ class PE(object):
         the import table and the entries in the IMAGE_DIRECTORY_ENTRY_IMPORT
         attribute will not have a `symbols` attribute.
         """
-
-        if self.__is_obj:
-            return
 
         directory_parsing = (
             ('IMAGE_DIRECTORY_ENTRY_IMPORT', self.parse_import_directory),
@@ -2909,7 +2549,7 @@ class PE(object):
                 rva += bnd_frwd_ref.sizeof()
 
                 offset = start+bnd_frwd_ref.OffsetModuleName
-                name_str = self.get_string_from_data(
+                name_str =  self.get_string_from_data(
                     0, self.__data__[offset : offset + MAX_STRING_LENGTH])
 
                 # OffsetModuleName points to a DLL name. These shouldn't be too long.
@@ -4637,13 +4277,11 @@ class PE(object):
 
             srd = section.SizeOfRawData
             prd = self.adjust_FileAlignment(
-                section.PointerToRawData, self.__file_alignment__())
-            VirtualAddress_adj = section.VirtualAddress
-            if not self.__is_obj:
-              VirtualAddress_adj = self.adjust_SectionAlignment(
-                  section.VirtualAddress,
-                  self.OPTIONAL_HEADER.SectionAlignment,
-                  self.OPTIONAL_HEADER.FileAlignment )
+                section.PointerToRawData, self.OPTIONAL_HEADER.FileAlignment)
+            VirtualAddress_adj = self.adjust_SectionAlignment(
+                section.VirtualAddress,
+                self.OPTIONAL_HEADER.SectionAlignment,
+                self.OPTIONAL_HEADER.FileAlignment )
 
             if (srd > len(self.__data__) or
                 prd > len(self.__data__) or
@@ -4733,9 +4371,8 @@ class PE(object):
         s = self.get_section_by_offset(offset)
         if not s:
             if self.sections:
-                section_alignment = 1 if self.__is_obj else self.OPTIONAL_HEADER.SectionAlignment
                 lowest_rva = min( [ self.adjust_SectionAlignment( s.VirtualAddress,
-                    section_alignment, self.__file_alignment__() ) for s in self.sections] )
+                    self.OPTIONAL_HEADER.SectionAlignment, self.OPTIONAL_HEADER.FileAlignment ) for s in self.sections] )
                 if offset < lowest_rva:
                     # We will assume that the offset lies within the headers, or
                     # at least points before where the earliest section starts
@@ -4891,28 +4528,25 @@ class PE(object):
                 dump.add_newline()
 
 
-        if not self.__is_obj:
-            dump.add_header('DOS_HEADER')
-            dump.add_lines(self.DOS_HEADER.dump())
-            dump.add_newline()
+        dump.add_header('DOS_HEADER')
+        dump.add_lines(self.DOS_HEADER.dump())
+        dump.add_newline()
 
-            dump.add_header('NT_HEADERS')
-            dump.add_lines(self.NT_HEADERS.dump())
-            dump.add_newline()
+        dump.add_header('NT_HEADERS')
+        dump.add_lines(self.NT_HEADERS.dump())
+        dump.add_newline()
 
         dump.add_header('FILE_HEADER')
         dump.add_lines(self.FILE_HEADER.dump())
 
         image_flags = retrieve_flags(IMAGE_CHARACTERISTICS, 'IMAGE_FILE_')
 
+        dump.add('Flags: ')
         flags = []
         for flag in sorted(image_flags):
             if getattr(self.FILE_HEADER, flag[0]):
                 flags.append(flag[0])
-        if flags:
-            dump.add('Flags: ')
-            dump.add_line(', '.join(flags))
-
+        dump.add_line(', '.join(flags))
         dump.add_newline()
 
         if hasattr(self, 'OPTIONAL_HEADER') and self.OPTIONAL_HEADER is not None:
@@ -4921,33 +4555,14 @@ class PE(object):
 
         dll_characteristics_flags = retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLLCHARACTERISTICS_')
 
-        if not self.__is_obj:
-            dump.add('DllCharacteristics: ')
-            flags = []
-            for flag in sorted(dll_characteristics_flags):
-                if getattr(self.OPTIONAL_HEADER, flag[0]):
-                    flags.append(flag[0])
-            dump.add_line(', '.join(flags))
-            dump.add_newline()
+        dump.add('DllCharacteristics: ')
+        flags = []
+        for flag in sorted(dll_characteristics_flags):
+            if getattr(self.OPTIONAL_HEADER, flag[0]):
+                flags.append(flag[0])
+        dump.add_line(', '.join(flags))
+        dump.add_newline()
 
-        if self.FILE_HEADER.PointerToSymbolTable:
-            dump.add_header('SYMBOL_TABLE')
-            for i, symbol in enumerate(self.symbols):
-                if symbol.__is_aux__:
-                    indent = 2
-                    prefix = ' ' * indent
-                    suffix = ' AUX'
-                else:
-                    indent = 0
-                    prefix = suffix = ''
-
-                dump.add_line('{}{}{}'.format(prefix, i, suffix))
-                dump.add_lines(symbol.dump(), indent)
-
-                if not symbol.__is_aux__:
-                    dump.add_line('Decoded name: {}'.format(symbol.__name__))
-
-                dump.add_newline()
 
         dump.add_header('PE Sections')
 
@@ -4974,9 +4589,7 @@ class PE(object):
                 dump.add_line('SHA-512 hash: %s' % section.get_hash_sha512() )
             dump.add_newline()
 
-            if section.PointerToRelocations and section.NumberOfRelocations:
-                dump.add_lines(self.dump_section_relocations(section))
-                dump.add_newline()
+
 
         if (hasattr(self, 'OPTIONAL_HEADER') and
             hasattr(self.OPTIONAL_HEADER, 'DATA_DIRECTORY') ):
@@ -5243,10 +4856,8 @@ class PE(object):
         if warnings:
             dump_dict['Parsing Warnings'] = warnings
 
-        if not self.__is_obj:
-            dump_dict['DOS_HEADER'] = self.DOS_HEADER.dump_dict()
-            dump_dict['NT_HEADERS'] = self.NT_HEADERS.dump_dict()
-
+        dump_dict['DOS_HEADER'] = self.DOS_HEADER.dump_dict()
+        dump_dict['NT_HEADERS'] = self.NT_HEADERS.dump_dict()
         dump_dict['FILE_HEADER'] = self.FILE_HEADER.dump_dict()
 
         image_flags = retrieve_flags(IMAGE_CHARACTERISTICS, 'IMAGE_FILE_')
@@ -5261,11 +4872,10 @@ class PE(object):
 
         dll_characteristics_flags = retrieve_flags(DLL_CHARACTERISTICS, 'IMAGE_DLLCHARACTERISTICS_')
 
-        if not self.__is_obj:
-            dump_dict['DllCharacteristics'] = list()
-            for flag in dll_characteristics_flags:
-                if getattr(self.OPTIONAL_HEADER, flag[0]):
-                    dump_dict['DllCharacteristics'].append(flag[0])
+        dump_dict['DllCharacteristics'] = list()
+        for flag in dll_characteristics_flags:
+            if getattr(self.OPTIONAL_HEADER, flag[0]):
+                dump_dict['DllCharacteristics'].append(flag[0])
 
         dump_dict['PE Sections'] = list()
 
@@ -5497,26 +5107,6 @@ class PE(object):
         return dump_dict
 
 
-    def dump_section_relocations(self, section):
-        lines = [' Section relocations:']
-        lines.append(' Ordinal   Address  Symbol' + ' ' * 38 + 'Relocation type')
-        lines.append('-' * 79)
-        reloc_table = MACHINE_TYPE_TO_RELOCATION.get(self.FILE_HEADER.Machine)
-
-        for i, reloc in enumerate(section.relocations):
-            symbol_name = self.symbols[reloc.SymbolTableIndex].__name__
-
-            if reloc_table:
-                reloc_type_desc = reloc_table.get(reloc.Type)
-                if reloc_type_desc:
-                    reloc_type = reloc_type_desc
-
-            lines.append('{index:8}{vaddr:#10x}{sym_table_index:8}  {symbol_name:35} {type}'.format(
-                index=i, vaddr=reloc.VirtualAddress, sym_table_index=reloc.SymbolTableIndex, symbol_name=symbol_name, type=reloc_type))
-
-        return lines
-
-
     # OC Patch
     def get_physical_by_rva(self, rva):
         """Gets the physical address in the PE file from an RVA value."""
@@ -5741,7 +5331,7 @@ class PE(object):
 
         for section in self.sections:
             section_data_start = self.adjust_FileAlignment( section.PointerToRawData,
-                self.__file_alignment__() )
+                self.OPTIONAL_HEADER.FileAlignment )
             section_data_end = section_data_start+section.SizeOfRawData
             if section_data_start < len(self.__data__) and section_data_end < len(self.__data__):
                 self.__data__ = self.__data__[:section_data_start] + section.get_data() + self.__data__[section_data_end:]
@@ -6004,10 +5594,6 @@ class PE(object):
         return False
 
 
-    def is_obj(self):
-        return self.__is_obj
-
-
     def get_overlay_data_start_offset(self):
         """Get the offset of data appended to the file and not contained within
         the area described in the headers."""
@@ -6120,22 +5706,6 @@ class PE(object):
         if section_alignment and val % section_alignment:
             return section_alignment * ( int(val / section_alignment) )
         return val
-
-
-class COFF(PE):
-    """This class represents COFF object files.
-
-    It relies on PE class, where the actual implementation is.
-    Alternative way of loading would be to create PE class with is_obj=True.
-
-    obj = pefile.COFF('main.obj')
-    obj = pefile.PE('main.obj', is_obj=True)
-
-    Optional header will not be available, as well as directory entries and
-    some other image-only structures.
-    """
-    def __init__(self, name=None, data=None, fast_load=None):
-        PE.__init__(self, name, data, fast_load, is_obj=True)
 
 
 def main():
