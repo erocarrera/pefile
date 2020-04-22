@@ -1678,22 +1678,42 @@ class PE(object):
         'I,CriticalSectionDefaultTimeout',
         'I,DeCommitFreeBlockThreshold',
         'I,DeCommitTotalFreeThreshold',
-        'I,LockPrefixTable',
+        'I,LockPrefixTable',                          #VA
         'I,MaximumAllocationSize',
         'I,VirtualMemoryThreshold',
         'I,ProcessHeapFlags',
         'I,ProcessAffinityMask',
         'H,CSDVersion',
         'H,Reserved1',
-        'I,EditList',
-        'I,SecurityCookie',
-        'I,SEHandlerTable',
+        'I,EditList',                                 #VA
+        'I,SecurityCookie',                           #VA
+        'I,SEHandlerTable',                           #VA
         'I,SEHandlerCount',
-        'I,GuardCFCheckFunctionPointer',
-        'I,Reserved2',
-        'I,GuardCFFunctionTable',
+        'I,GuardCFCheckFunctionPointer',              #VA
+        'I,GuardCFDispatchFunctionPointer',           #VA
+        'I,GuardCFFunctionTable',                     #VA
         'I,GuardCFFunctionCount',
-        'I,GuardFlags' ) )
+        'I,GuardFlags',
+        'H,CodeIntegrityFlags',
+        'H,CodeIntegrityCatalog',
+        'I,CodeIntegrityCatalogOffset',
+        'I,CodeIntegrityReserved',
+        'I,GuardAddressTakenIatEntryTable',           #VA
+        'I,GuardAddressTakenIatEntryCount',
+        'I,GuardLongJumpTargetTable',                 #VA
+        'I,GuardLongJumpTargetCount',
+        'I,DynamicValueRelocTable',                   #VA
+        'I,CHPEMetadataPointer',
+        'I,GuardRFFailureRoutine',                    #VA
+        'I,GuardRFFailureRoutineFunctionPointer',     #VA
+        'I,DynamicValueRelocTableOffset',
+        'H,DynamicValueRelocTableSection',
+        'H,Reserved2',
+        'I,GuardRFVerifyStackPointerFunctionPointer', #VA
+        'I,HotPatchTableOffset',
+        'I,Reserved3',
+        'I,EnclaveConfigurationPointer'               #VA            
+        ) )
 
     __IMAGE_LOAD_CONFIG_DIRECTORY64_format__ = ('IMAGE_LOAD_CONFIG_DIRECTORY',
         ('I,Size',
@@ -1705,22 +1725,42 @@ class PE(object):
         'I,CriticalSectionDefaultTimeout',
         'Q,DeCommitFreeBlockThreshold',
         'Q,DeCommitTotalFreeThreshold',
-        'Q,LockPrefixTable',
+        'Q,LockPrefixTable',                           #VA
         'Q,MaximumAllocationSize',
         'Q,VirtualMemoryThreshold',
         'Q,ProcessAffinityMask',
         'I,ProcessHeapFlags',
         'H,CSDVersion',
         'H,Reserved1',
-        'Q,EditList',
-        'Q,SecurityCookie',
-        'Q,SEHandlerTable',
+        'Q,EditList',                                  #VA
+        'Q,SecurityCookie',                            #VA
+        'Q,SEHandlerTable',                            #VA
         'Q,SEHandlerCount',
-        'Q,GuardCFCheckFunctionPointer',
-        'Q,Reserved2',
-        'Q,GuardCFFunctionTable',
+        'Q,GuardCFCheckFunctionPointer',               #VA
+        'Q,GuardCFDispatchFunctionPointer',            #VA
+        'Q,GuardCFFunctionTable',                      #VA
         'Q,GuardCFFunctionCount',
-        'I,GuardFlags' ) )
+        'I,GuardFlags',
+        'H,CodeIntegrityFlags',
+        'H,CodeIntegrityCatalog',
+        'I,CodeIntegrityCatalogOffset',
+        'I,CodeIntegrityReserved',
+        'Q,GuardAddressTakenIatEntryTable',            #VA
+        'Q,GuardAddressTakenIatEntryCount',
+        'Q,GuardLongJumpTargetTable',                  #VA
+        'Q,GuardLongJumpTargetCount',
+        'Q,DynamicValueRelocTable',                    #VA
+        'Q,CHPEMetadataPointer',                       #VA
+        'Q,GuardRFFailureRoutine',                     #VA
+        'Q,GuardRFFailureRoutineFunctionPointer',      #VA
+        'I,DynamicValueRelocTableOffset',
+        'H,DynamicValueRelocTableSection',
+        'H,Reserved2',
+        'Q,GuardRFVerifyStackPointerFunctionPointer',  #VA
+        'I,HotPatchTableOffset',
+        'I,Reserved3',
+        'Q,EnclaveConfigurationPointer'                #VA
+        ) )
 
     __IMAGE_BOUND_IMPORT_DESCRIPTOR_format__ = ('IMAGE_BOUND_IMPORT_DESCRIPTOR',
         ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,NumberOfModuleForwarderRefs'))
@@ -2622,14 +2662,28 @@ class PE(object):
         """"""
 
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
+            load_config_dir_sz = self.get_word_at_rva(rva)
             format = self.__IMAGE_LOAD_CONFIG_DIRECTORY_format__
         elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
+            load_config_dir_sz = self.get_dword_at_rva(rva)
             format = self.__IMAGE_LOAD_CONFIG_DIRECTORY64_format__
         else:
             self.__warnings.append(
                 'Don\'t know how to parse LOAD_CONFIG information for non-PE32/'
                 'PE32+ file')
             return None
+
+        #load config directory size can be less than represented by 'format' variable,
+        #generate truncated format which correspond load config directory size
+        global STRUCT_SIZEOF_TYPES
+        fields_counter = 0
+        cumulative_sz  = 0
+        for field in format[1]:
+            fields_counter += 1
+            cumulative_sz  += STRUCT_SIZEOF_TYPES[field.split(",")[0]]
+            if cumulative_sz == load_config_dir_sz:
+                break
+        format = (format[0],format[1][:fields_counter])
 
         load_config_struct = None
         try:
@@ -5446,19 +5500,39 @@ class PE(object):
                 self.DIRECTORY_ENTRY_TLS.struct.AddressOfIndex        += relocation_difference
                 self.DIRECTORY_ENTRY_TLS.struct.AddressOfCallBacks    += relocation_difference
             if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG'):
-                if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.LockPrefixTable:
-                    self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.LockPrefixTable += relocation_difference
-                if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.EditList:
-                    self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.EditList += relocation_difference
-                if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.SecurityCookie:
-                    self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.SecurityCookie += relocation_difference
-                if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.SEHandlerTable:
-                    self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.SEHandlerTable += relocation_difference
-                if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.GuardCFCheckFunctionPointer:
-                    self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.GuardCFCheckFunctionPointer += relocation_difference
-                if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.GuardCFFunctionTable:
-                    self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.GuardCFFunctionTable += relocation_difference
+                load_config = self.DIRECTORY_ENTRY_LOAD_CONFIG.struct
+                if hasattr(load_config,"LockPrefixTable") and load_config.LockPrefixTable:
+                    load_config.LockPrefixTable += relocation_difference
+                if hasattr(load_config,"EditList") and load_config.EditList:
+                    load_config.EditList += relocation_difference
+                if hasattr(load_config,"SecurityCookie") and load_config.SecurityCookie:
+                    load_config.SecurityCookie += relocation_difference
+                if hasattr(load_config,"SEHandlerTable") and load_config.SEHandlerTable:
+                    load_config.SEHandlerTable += relocation_difference
+                if hasattr(load_config,"GuardCFCheckFunctionPointer") and load_config.GuardCFCheckFunctionPointer:
+                    load_config.GuardCFCheckFunctionPointer += relocation_difference
+                if hasattr(load_config,"GuardCFDispatchFunctionPointer") and load_config.GuardCFDispatchFunctionPointer:
+                    load_config.GuardCFDispatchFunctionPointer += relocation_difference
+                if hasattr(load_config,"GuardCFFunctionTable") and load_config.GuardCFFunctionTable:
+                    load_config.GuardCFFunctionTable += relocation_difference
+                if hasattr(load_config,"GuardAddressTakenIatEntryTable") and load_config.GuardAddressTakenIatEntryTable:
+                    load_config.GuardAddressTakenIatEntryTable += relocation_difference
+                if hasattr(load_config,"GuardLongJumpTargetTable") and load_config.GuardLongJumpTargetTable:
+                    load_config.GuardLongJumpTargetTable += relocation_difference
+                if hasattr(load_config,"DynamicValueRelocTable") and load_config.DynamicValueRelocTable:
+                    load_config.DynamicValueRelocTable += relocation_difference
+                if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS and hasattr(load_config,"CHPEMetadataPointer") and load_config.CHPEMetadataPointer:
+                    load_config.CHPEMetadataPointer += relocation_difference
+                if hasattr(load_config,"GuardRFFailureRoutine") and load_config.GuardRFFailureRoutine:
+                    load_config.GuardRFFailureRoutine += relocation_difference
+                if hasattr(load_config,"GuardRFFailureRoutineFunctionPointer") and load_config.GuardRFFailureRoutineFunctionPointer:
+                    load_config.GuardRFVerifyStackPointerFunctionPointer += relocation_difference
+                if hasattr(load_config,"GuardRFVerifyStackPointerFunctionPointer") and load_config.GuardRFVerifyStackPointerFunctionPointer:
+                    load_config.GuardRFVerifyStackPointerFunctionPointer += relocation_difference
+                if hasattr(load_config,"EnclaveConfigurationPointer") and load_config.EnclaveConfigurationPointer:
+                    load_config.EnclaveConfigurationPointer += relocation_difference
 
+                    
     def verify_checksum(self):
 
         return self.OPTIONAL_HEADER.CheckSum == self.generate_checksum()
