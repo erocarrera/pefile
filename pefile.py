@@ -1190,7 +1190,9 @@ class ImportDescData(DataContainer):
     """Holds import descriptor information.
 
     dll:        name of the imported DLL
+
     imports:    list of imported symbols (ImportData instances)
+
     struct:     IMAGE_IMPORT_DESCRIPTOR structure
     """
 
@@ -1198,7 +1200,9 @@ class ImportData(DataContainer):
     """Holds imported symbol's information.
 
     ordinal:    Ordinal of the symbol
+    
     name:       Name of the symbol
+    
     bound:      If the symbol is bound, this contains
                 the address.
     """
@@ -1255,16 +1259,20 @@ class ExportDirData(DataContainer):
     """Holds export directory information.
 
     struct:     IMAGE_EXPORT_DIRECTORY structure
+
     symbols:    list of exported symbols (ExportData instances)
-"""
+    """
 
 class ExportData(DataContainer):
     """Holds exported symbols' information.
 
     ordinal:    ordinal of the symbol
+    
     address:    address of the symbol
+    
     name:       name of the symbol (None if the symbol is
                 exported by ordinal only)
+    
     forwarder:  if the symbol is forwarded it will
                 contain the name of the target symbol,
                 None otherwise.
@@ -1302,6 +1310,7 @@ class ResourceDirData(DataContainer):
     """Holds resource directory information.
 
     struct:     IMAGE_RESOURCE_DIRECTORY structure
+
     entries:    list of entries (ResourceDirEntryData instances)
     """
 
@@ -1309,18 +1318,23 @@ class ResourceDirEntryData(DataContainer):
     """Holds resource directory entry data.
 
     struct:     IMAGE_RESOURCE_DIRECTORY_ENTRY structure
+    
     name:       If the resource is identified by name this
                 attribute will contain the name string. None
                 otherwise. If identified by id, the id is
                 available at 'struct.Id'
+    
     id:         the id, also in struct.Id
+    
     directory:  If this entry has a lower level directory
                 this attribute will point to the
                 ResourceDirData instance representing it.
+    
     data:       If this entry has no further lower directories
                 and points to the actual resource data, this
                 attribute will reference the corresponding
                 ResourceDataEntryData instance.
+    
     (Either of the 'directory' or 'data' attribute will exist,
     but not both.)
     """
@@ -1329,7 +1343,9 @@ class ResourceDataEntryData(DataContainer):
     """Holds resource data entry information.
 
     struct:     IMAGE_RESOURCE_DATA_ENTRY structure
+
     lang:       Primary language ID
+
     sublang:    Sublanguage ID
     """
 
@@ -1337,6 +1353,7 @@ class DebugData(DataContainer):
     """Holds debug information.
 
     struct:     IMAGE_DEBUG_DIRECTORY structure
+
     entries:    list of entries (IMAGE_DEBUG_TYPE instances)
     """
 
@@ -1344,6 +1361,7 @@ class BaseRelocationData(DataContainer):
     """Holds base relocation information.
 
     struct:     IMAGE_BASE_RELOCATION structure
+
     entries:    list of relocation data (RelocationData instances)
     """
 
@@ -1353,6 +1371,7 @@ class RelocationData(DataContainer):
     type:       Type of relocation
                 The type string can be obtained by
                 RELOCATION_TYPE[type]
+
     rva:        RVA of the relocation
     """
     def __setattr__(self, name, val):
@@ -1395,7 +1414,9 @@ class BoundImportDescData(DataContainer):
     system and must, therefore, re-bind the PE's imports.
 
     struct:     IMAGE_BOUND_IMPORT_DESCRIPTOR structure
+    
     name:       DLL name
+    
     entries:    list of entries (BoundImportRefData instances)
                 the entries will exist if this DLL has forwarded
                 symbols. If so, the destination DLL will have an
@@ -1406,6 +1427,7 @@ class LoadConfigData(DataContainer):
     """Holds Load Config data.
 
     struct:     IMAGE_LOAD_CONFIG_DIRECTORY structure
+
     name:       dll name
     """
 
@@ -1416,6 +1438,7 @@ class BoundImportRefData(DataContainer):
     for forwarded DLLs, if any.
 
     struct:     IMAGE_BOUND_FORWARDER_REF structure
+
     name:       dll name
     """
 
@@ -1475,6 +1498,7 @@ class PE(object):
     which can be quite time consuming.
 
     pe = pefile.PE('module.dll')
+
     pe = pefile.PE(name='module.dll')
 
     would load 'module.dll' and process it. If the data is already
@@ -1490,10 +1514,10 @@ class PE(object):
 
     Basic headers information will be available in the attributes:
 
-    DOS_HEADER
-    NT_HEADERS
-    FILE_HEADER
-    OPTIONAL_HEADER
+    - DOS_HEADER
+    - NT_HEADERS
+    - FILE_HEADER
+    - OPTIONAL_HEADER
 
     All of them will contain among their attributes the members of the
     corresponding structures as defined in WINNT.H
@@ -1508,29 +1532,29 @@ class PE(object):
     Directory entries will be available as attributes (if they exist):
     (no other entries are processed at this point)
 
-    DIRECTORY_ENTRY_IMPORT (list of ImportDescData instances)
-    DIRECTORY_ENTRY_EXPORT (ExportDirData instance)
-    DIRECTORY_ENTRY_RESOURCE (ResourceDirData instance)
-    DIRECTORY_ENTRY_DEBUG (list of DebugData instances)
-    DIRECTORY_ENTRY_BASERELOC (list of BaseRelocationData instances)
-    DIRECTORY_ENTRY_TLS
-    DIRECTORY_ENTRY_BOUND_IMPORT (list of BoundImportData instances)
+    - DIRECTORY_ENTRY_IMPORT (list of ImportDescData instances)
+    - DIRECTORY_ENTRY_EXPORT (ExportDirData instance)
+    - DIRECTORY_ENTRY_RESOURCE (ResourceDirData instance)
+    - DIRECTORY_ENTRY_DEBUG (list of DebugData instances)
+    - DIRECTORY_ENTRY_BASERELOC (list of BaseRelocationData instances)
+    - DIRECTORY_ENTRY_TLS
+    - DIRECTORY_ENTRY_BOUND_IMPORT (list of BoundImportData instances)
 
     The following dictionary attributes provide ways of mapping different
     constants. They will accept the numeric value and return the string
     representation and the opposite, feed in the string and get the
     numeric constant:
 
-    DIRECTORY_ENTRY
-    IMAGE_CHARACTERISTICS
-    SECTION_CHARACTERISTICS
-    DEBUG_TYPE
-    SUBSYSTEM_TYPE
-    MACHINE_TYPE
-    RELOCATION_TYPE
-    RESOURCE_TYPE
-    LANG
-    SUBLANG
+    - DIRECTORY_ENTRY
+    - IMAGE_CHARACTERISTICS
+    - SECTION_CHARACTERISTICS
+    - DEBUG_TYPE
+    - SUBSYSTEM_TYPE
+    - MACHINE_TYPE
+    - RELOCATION_TYPE
+    - RESOURCE_TYPE
+    - LANG
+    - SUBLANG
     """
 
     #
@@ -2297,8 +2321,8 @@ class PE(object):
         a buffer containing the section's data.
 
         The "Characteristics" member will be processed and attributes
-        representing the section characteristics (with the 'IMAGE_SCN_'
-        string trimmed from the constant's names) will be added to the
+        representing the section characteristics (with ``IMAGE_SCN_``
+        trimmed from the constants' names) will be added to the
         section instance.
 
         Refer to the SectionStructure class for additional info.
@@ -5343,9 +5367,10 @@ class PE(object):
         This method will apply the relocation information to the image. Given the new base,
         all the relocations will be processed and both the raw data and the section's data
         will be fixed accordingly.
+        
         The resulting image can be retrieved as well through the method:
 
-            get_memory_mapped_image()
+            ``get_memory_mapped_image()``
 
         In order to get something that would more closely match what could be found in memory
         once the Windows loader finished its work.
@@ -5460,11 +5485,13 @@ class PE(object):
                     self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.GuardCFFunctionTable += relocation_difference
 
     def verify_checksum(self):
+        """"""
 
         return self.OPTIONAL_HEADER.CheckSum == self.generate_checksum()
 
 
     def generate_checksum(self):
+        """"""
         # This will make sure that the data representing the PE image
         # is updated with any changes that might have been made by
         # assigning values to header fields as those are not automatically

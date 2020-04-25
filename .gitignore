@@ -6,6 +6,13 @@
 tests/test_files/*
 venv*
 
+# OS auto-generated files
+.DS_Store
+
+# Dev auto-generated files
+.idea
+.vscode
+
 # Back-up files
 *~
 *.swp
@@ -20,3 +27,7 @@ venv*
 /build
 /dist
 /pefile.egg-info
+
+# Sphinx auto-generated build files
+*.bat
+docs/_build

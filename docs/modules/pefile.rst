@@ -1,0 +1,4 @@
+pefile
+==================================
+.. automodule:: pefile
+   :members:
