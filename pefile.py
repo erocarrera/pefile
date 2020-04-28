@@ -1125,7 +1125,7 @@ class SectionStructure(Structure):
     def contains(self, rva):
         """*Deprecated.*
 
-        Use the ``pefile.SectionStructure.contains_rva`` function instead.
+        Use :py:func:`contains_rva` instead.
         """
         #print "DEPRECATION WARNING: you should use contains_rva() instead of contains()"
         return self.contains_rva(rva)
@@ -1197,7 +1197,7 @@ class ImportDescData(DataContainer):
         Name of the imported DLL.
 
      imports
-        List of imported symbols as ``pefile.ImportData`` instances.
+        List of imported symbols as :py:class:`ImportData` instances.
 
      struct
         ``IMAGE_IMPORT_DESCRIPTOR`` structure.
@@ -1271,7 +1271,7 @@ class ExportDirData(DataContainer):
         ``IMAGE_EXPORT_DIRECTORY`` structure.
 
     symbols
-        List of exported symbols as ``pefile.ExportData`` instances.
+        List of exported symbols as :py:class:`ExportData` instances.
     """
 
 class ExportData(DataContainer):
@@ -1326,7 +1326,7 @@ class ResourceDirData(DataContainer):
         ``IMAGE_RESOURCE_DIRECTORY`` structure.
 
     entries
-        List of entries as ``pefile.ResourceDirEntryData`` instances.
+        List of entries as :py:class:`ResourceDirEntryData` instances.
     """
 
 class ResourceDirEntryData(DataContainer):
@@ -1344,12 +1344,12 @@ class ResourceDirEntryData(DataContainer):
 
     directory
         If this entry has a lower-level directory, then this attribute will point to the
-        ``pefile.ResourceDirData`` instance representing it.
+        :py:class:`ResourceDirData` instance representing it.
 
     data
         If this entry has no further lower-level directories, and points to the
         actual resource data, then this attribute will reference the corresponding
-        ``pefile.ResourceDataEntryData`` instance.
+        :py:class:`ResourceDataEntryData` instance.
     
     Either of the ``directory`` or ``data`` attribute will exist, but not both.
     """
@@ -1384,7 +1384,7 @@ class BaseRelocationData(DataContainer):
         ``IMAGE_BASE_RELOCATION`` structure.
 
     entries
-        List of relocation data as ``pefile.RelocationData`` instances.
+        List of relocation data as :py:class:`RelocationData` instances.
     """
 
 class RelocationData(DataContainer):
@@ -1444,7 +1444,7 @@ class BoundImportDescData(DataContainer):
         DLL name.
 
     entries
-        List of entries as ``pefile.BoundImportRefData`` instances.
+        List of entries as :py:class:`BoundImportRefData` instances.
         The entries will exist if this DLL has forwarded
         symbols. If so, the destination DLL will have an
         entry in this list.
@@ -1492,6 +1492,7 @@ else: # Python 2.x
         b"!#$%&'()-@^_`{}~+,.;=[]")
 
 def is_valid_dos_filename(s):
+    """ """
     if s is None or not isinstance(s, (str, bytes, bytearray)):
         return False
     # Allow path separators as import names can contain directories.
@@ -1513,6 +1514,7 @@ else:
         string.digits + b'_?@$()<>')
 
 def is_valid_function_name(s):
+    """ """
     return (s is not None and
         isinstance(s, (str, bytes, bytearray)) and
         all(c in allowed_function_name for c in set(s)))
@@ -1539,9 +1541,9 @@ class PE(object):
         3. ``pe = pefile.PE(data=module_dll_data)``
 
     The ``fast_load`` argument can be set to a default by setting its value in the
-    module itself by means, for instance, of ``pefile.fast_load = True``.
+    module like this: ``pefile.fast_load = True``.
     That will make all the subsequent instances not to load the
-    whole PE structure. The ``PE.full_load`` method can be used to parse
+    whole PE structure. The :py:meth:`full_load` method can be used to parse
     the missing data at a later stage.
 
     Basic headers information will be available in these attributes:
@@ -1564,13 +1566,13 @@ class PE(object):
     Directory entries will be available as attributes (if they exist).
     No other entries are processed at this point.
 
-    - ``DIRECTORY_ENTRY_IMPORT``: list of ``pefile.ImportDescData`` instances
-    - ``DIRECTORY_ENTRY_EXPORT``: ``pefile.ExportDirData`` instance
-    - ``DIRECTORY_ENTRY_RESOURCE``: ``pefile.ResourceDirData`` instance
-    - ``DIRECTORY_ENTRY_DEBUG``: list of ``pefile.DebugData`` instances
-    - ``DIRECTORY_ENTRY_BASERELOC``: list of ``pefile.BaseRelocationData`` instances
-    - ``DIRECTORY_ENTRY_TLS``: ``pefile.TlsData`` instance
-    - ``DIRECTORY_ENTRY_BOUND_IMPORT``: list of ``pefile.BoundImportDescData`` instances
+    - ``DIRECTORY_ENTRY_IMPORT``: list of :py:class:`ImportDescData` instances
+    - ``DIRECTORY_ENTRY_EXPORT``: :py:class:`ExportDirData` instance
+    - ``DIRECTORY_ENTRY_RESOURCE``: :py:class:`ResourceDirData` instance
+    - ``DIRECTORY_ENTRY_DEBUG``: list of :py:class:`DebugData` instances
+    - ``DIRECTORY_ENTRY_BASERELOC``: list of :py:class:`BaseRelocationData` instances
+    - ``DIRECTORY_ENTRY_TLS``: :py:class:`TlsData` instance
+    - ``DIRECTORY_ENTRY_BOUND_IMPORT``: list of :py:class:`BoundImportDescData` instances
 
     The following dictionary attributes provide ways of mapping different
     constants. They will accept the numeric value and return the string
@@ -2307,7 +2309,7 @@ class PE(object):
         assigning to attributes in the PE objects) and write
         the changes back to a file whose name is provided as
         an argument. The filename is optional, if not
-        provided the data will be returned as a ``str`` object.
+        provided the data will be returned as a string.
         """
 
         file_data = bytearray(self.__data__)
@@ -2360,7 +2362,7 @@ class PE(object):
         trimmed from the constants' names) will be added to the
         section instance.
 
-        Refer to the ``pefile.SectionStructure`` class for additional info.
+        Refer to the :py:class:`SectionStructure` class for additional info.
         """
 
         self.sections = []
@@ -2955,8 +2957,8 @@ class PE(object):
         its entries.
 
         The root will have the corresponding member of its structure,
-        ``IMAGE_RESOURCE_DIRECTORY`` plus ``entries``, a list of all the
-        entries in the directory.
+        ``IMAGE_RESOURCE_DIRECTORY`` plus ``entries``,
+        a list of all the entries in the directory.
 
         Those entries will have, correspondingly, all the structure's
         members (``IMAGE_RESOURCE_DIRECTORY_ENTRY``) and an additional one,
@@ -3620,7 +3622,7 @@ class PE(object):
         Given the RVA of the export directory, it will process all
         its entries.
 
-        The exports will be made available as a list of ``pefile.ExportData``
+        The exports will be made available as a list of :py:class:`ExportData`
         instances in the ``IMAGE_DIRECTORY_ENTRY_EXPORT`` PE attribute.
         """
 
@@ -4322,7 +4324,7 @@ class PE(object):
         tools. It's a common trick to see in packed executables.
 
         If the optional ``ImageBase`` argument is supplied, the file's relocations
-        will be applied to the image by calling the ``pefile.PE.relocate_image`` method. Beware
+        will be applied to the image by calling the :py:func:`relocate_image` method. Beware
         that the relocation information is applied permanently.
         """
 
@@ -5415,7 +5417,7 @@ class PE(object):
         will be fixed accordingly.
         
         The resulting image can be retrieved by the
-        ``pefile.PE.get_memory_mapped_image`` method as well.
+        :py:func:`get_memory_mapped_image` method as well.
 
         In order to get something that would more closely match what could be found in memory
         once the Windows loader finished its work.
@@ -5585,9 +5587,10 @@ class PE(object):
     def is_exe(self):
         """Check whether the file is a standard executable.
 
-        This will return true only if the file has the ``IMAGE_FILE_EXECUTABLE_IMAGE``
-        flag set and the ``IMAGE_FILE_DLL`` not set and the file does not appear to be
-        a driver either.
+        This will return true only if the file has the
+        ``IMAGE_FILE_EXECUTABLE_IMAGE`` flag set
+        and the ``IMAGE_FILE_DLL`` not set
+        and the file does not appear to be a driver either.
         """
 
         EXE_flag = IMAGE_CHARACTERISTICS['IMAGE_FILE_EXECUTABLE_IMAGE']
@@ -5602,7 +5605,8 @@ class PE(object):
     def is_dll(self):
         """Check whether the file is a standard DLL.
 
-        This will return true only if the image has the ``IMAGE_FILE_DLL`` flag set.
+        This will return true only if the image has
+        the ``IMAGE_FILE_DLL`` flag set.
         """
 
         DLL_flag = IMAGE_CHARACTERISTICS['IMAGE_FILE_DLL']
