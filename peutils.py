@@ -1,11 +1,6 @@
 # -*- coding: Latin-1 -*-
-"""peutils, Portable Executable utilities module
+"""Portable Executable Utilities Module"""
 
-
-Copyright (c) 2005-2020 Ero Carrera <ero.carrera@gmail.com>
-
-All rights reserved.
-"""
 from __future__ import division
 from future import standard_library
 standard_library.install_aliases()
@@ -28,16 +23,20 @@ class SignatureDatabase(object):
 
     Usage:
 
+    .. code-block::
+
         sig_db = SignatureDatabase('/path/to/signature/file')
 
     and/or
+
+    .. code-block::
 
         sig_db = SignatureDatabase()
         sig_db.load('/path/to/signature/file')
 
     Signature databases can be combined by performing multiple loads.
 
-    The filename parameter can be a URL too. In that case the
+    The ``filename`` parameter can be a URL, too. In that case, the
     signature database will be downloaded from that location.
     """
 
@@ -76,9 +75,9 @@ class SignatureDatabase(object):
     def generate_section_signatures(self, pe, name, sig_length=512):
         """Generates signatures for all the sections in a PE file.
 
-        If the section contains any data a signature will be created
+        If the section contains any data, then a signature will be created
         for it. The signature name will be a combination of the
-        parameter 'name' and the section number and its name.
+        parameter ``name``, plus the section number and section name.
         """
 
         section_signatures = list()
@@ -108,8 +107,8 @@ class SignatureDatabase(object):
     def generate_ep_signature(self, pe, name, sig_length=512):
         """Generate signatures for the entry point of a PE file.
 
-        Creates a signature whose name will be the parameter 'name'
-        and the section number and its name.
+        Creates a signature whose name will be the parameter ``name``,
+        plus the section number and section name.
         """
 
         offset = pe.get_offset_from_rva(pe.OPTIONAL_HEADER.AddressOfEntryPoint)
@@ -144,8 +143,8 @@ class SignatureDatabase(object):
     def match(self, pe, ep_only=True, section_start_only=False):
         """Matches and returns the exact match(es).
 
-        If ep_only is True the result will be a string with
-        the packer name. Otherwise it will be a list of the
+        If ``ep_only`` is True, then the result will be a string with
+        the packer name. Otherwise, it will be a list of the
         form (file_offset, packer_name) specifying where
         in the file the signature was found.
         """
@@ -259,6 +258,7 @@ class SignatureDatabase(object):
 
 
     def match_data(self, code_data, ep_only=True, section_start_only=False):
+        """ """
 
         data = code_data
         scan_addresses = [ 0 ]
@@ -307,9 +307,14 @@ class SignatureDatabase(object):
     def __match_signature_tree(self, signature_tree, data, depth = 0):
         """Recursive function to find matches along the signature tree.
 
-        signature_tree  is the part of the tree left to walk
-        data    is the data being checked against the signature tree
-        depth   keeps track of how far we have gone down the tree
+        signature_tree
+            The part of the tree left to walk.
+
+        data
+            The data being checked against the signature tree.
+
+        depth
+            Keeps track of how far we have gone down the tree.
         """
 
 
@@ -487,15 +492,16 @@ class SignatureDatabase(object):
 
 
 def is_valid( pe ):
-    """"""
+    """ """
     pass
 
 
 def is_suspicious( pe ):
-    """
-    unusual locations of import tables
-    non recognized section names
-    presence of long ASCII strings
+    """ Returns True if:
+
+    - import tables are in unusual locations
+    - section names are unrecognized
+    - there is a presence of long ASCII strings
     """
 
     relocations_overlap_entry_point = False
@@ -546,11 +552,11 @@ def is_suspicious( pe ):
 
 
 def is_probably_packed( pe ):
-    """Returns True is there is a high likelihood that a file is packed or contains compressed data.
+    """Returns True if there is a high likelihood that a file is packed or contains compressed data.
 
-    The sections of the PE file will be analyzed, if enough sections
-    look like containing compressed data and the data makes
-    up for more than 20% of the total file size, the function will
+    The sections of the PE file will be analyzed. If enough sections
+    look like they contain compressed data, and the data makes
+    up for more than 20% of the total file size, then the function will
     return True.
     """
 
