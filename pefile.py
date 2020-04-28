@@ -1,19 +1,16 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-"""pefile, Portable Executable reader module
+"""Portable Executable Reader Module
 
-All the PE file basic structures are available with their default names as
-attributes of the instance returned.
+All of the basic PE file structures are available with their default names as attributes
+of the instance returned.
 
-Processed elements such as the import table are made available with lowercase
-names, to differentiate them from the upper case basic structure names.
+Processed elements, such as the import table, are available with lowercase names
+to differentiate them from the uppercase basic-structure names.
 
-pefile has been tested against many edge cases such as corrupted and malformed
-PEs as well as malware, which often attempts to abuse the format way beyond its
-standard use. To the best of my knowledge most of the abuse is handled
-gracefully.
-
-Copyright (c) 2005-2020 Ero Carrera <ero.carrera@gmail.com>
+*pefile* has been tested against many edge cases, such as corrupted and malformed PEs,
+as well as malware, which often attempts to abuse the format beyond its intended use.
+To the best of my knowledge, most of the abuse is handled gracefully.
 """
 
 from __future__ import division
@@ -594,10 +591,10 @@ def parse_strings(data, counter, l):
 
 
 def retrieve_flags(flag_dict, flag_filter):
-    """Read the flags from a dictionary and return them in a usable form.
+    """Read the flags from a dictionary and return them in a usable format.
 
-    Will return a list of (flag, value) for all flags in "flag_dict"
-    matching the filter "flag_filter".
+    Will return a list of (flag, value) pairs for all flags in ``flag_dict``
+    matching the filter ``flag_filter``.
     """
 
     return [(flag, value) for flag, value in list(flag_dict.items()) if
@@ -605,11 +602,11 @@ def retrieve_flags(flag_dict, flag_filter):
 
 
 def set_flags(obj, flag_field, flags):
-    """Will process the flags and set attributes in the object accordingly.
+    """Process the flags and set attributes in the object accordingly.
 
-    The object "obj" will gain attributes named after the flags provided in
-    "flags" and valued True/False, matching the results of applying each
-    flag value from "flags" to flag_field.
+    The object ``obj`` will gain attributes named after the flags provided in
+    ``flags`` and valued True/False, matching the results of applying each
+    flag value from ``flags`` to ``flag_field``.
     """
 
     for flag, value in flags:
@@ -650,10 +647,11 @@ else:
 
 
 class UnicodeStringWrapperPostProcessor(object):
-    """This class attempts to help the process of identifying strings
-    that might be plain Unicode or Pascal. A list of strings will be
-    wrapped on it with the hope the overlappings will help make the
-    decision about their type."""
+    """Attempt to identify strings in plain Unicode or Pascal.
+
+    A list of strings will be wrapped on the object with the
+    hope that any overlapping will clarify its type.
+    """
 
     def __init__(self, pe, rva_ptr):
         self.pe = pe
@@ -669,15 +667,17 @@ class UnicodeStringWrapperPostProcessor(object):
         return self.decode('utf-8', 'backslashreplace_')
 
     def decode(self, *args):
+        """ """
         if not self.string:
             return ''
         return self.string.decode(*args)
 
     def invalidate(self):
-        """Make this instance None, to express it's no known string type."""
+        """Make this instance None to express that it's no known string type."""
         self = None
 
     def render_pascal_16(self):
+        """ """
         try:
             self.string = self.pe.get_string_u_at_rva(
                 self.rva_ptr+2,
@@ -688,9 +688,11 @@ class UnicodeStringWrapperPostProcessor(object):
                 'attempting to read from RVA 0x{0:x}'.format(self.rva_ptr+2))
 
     def get_pascal_16_length(self):
+        """ """
         return self.__get_word_value_at_rva(self.rva_ptr)
 
     def __get_word_value_at_rva(self, rva):
+        """ """
         try:
             data = self.pe.get_data(self.rva_ptr, 2)
         except PEFormatError as e:
@@ -741,7 +743,7 @@ class Dump(object):
     def add_lines(self, txt, indent=0):
         """Adds a list of lines.
 
-        The list can be indented with the optional argument 'indent'.
+        The list can be indented with the optional ``indent`` argument.
         """
         for line in txt:
             self.add_line(line, indent)
@@ -749,14 +751,14 @@ class Dump(object):
     def add_line(self, txt, indent=0):
         """Adds a line.
 
-        The line can be indented with the optional argument 'indent'.
+        The line can be indented with the optional ``indent`` argument.
         """
         self.add(txt+'\n', indent)
 
     def add(self, txt, indent=0):
         """Adds some text, no newline will be appended.
 
-        The text can be indented with the optional argument 'indent'.
+        The text can be indented with the optional ``indent`` argument.
         """
         self.text.append(u'{0}{1}'.format(' '*indent, txt))
 
@@ -822,7 +824,7 @@ class Structure(object):
         self.__file_offset__ = offset
 
     def all_zeroes(self):
-        """Returns true is the unpacked data is all zeros."""
+        """Returns True if the unpacked data is all zeros."""
 
         return self.__all_zeroes__
 
@@ -865,8 +867,7 @@ class Structure(object):
 
 
     def sizeof(self):
-        """Return size of the structure."""
-
+        """Returns the size of the structure."""
         return self.__format_length__
 
 
@@ -995,7 +996,7 @@ class Structure(object):
 
 
 class SectionStructure(Structure):
-    """Convenience section handling class."""
+    """Convenience section-handling class."""
 
     def __init__(self, *argl, **argd):
         if 'pe' in argd:
@@ -1007,12 +1008,12 @@ class SectionStructure(Structure):
     def get_data(self, start=None, length=None):
         """Get data chunk from a section.
 
-        Allows to query data from the section by passing the
+        Query data from the section by passing the
         addresses where the PE file would be loaded by default.
         It is then possible to retrieve code and data by their real
         addresses as they would be if loaded.
 
-        Returns bytes() under Python 3.x and set() under Python 2.7
+        Returns ``bytes()`` for Python 3.x and ``set()`` for Python 2.7.
         """
 
         PointerToRawData_adj = self.pe.adjust_FileAlignment( self.PointerToRawData,
@@ -1055,12 +1056,14 @@ class SectionStructure(Structure):
 
 
     def get_rva_from_offset(self, offset):
+        """ """
         return offset - self.pe.adjust_FileAlignment( self.PointerToRawData,
             self.pe.OPTIONAL_HEADER.FileAlignment ) + self.pe.adjust_SectionAlignment( self.VirtualAddress,
             self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
 
 
     def get_offset_from_rva(self, rva):
+        """ """
         return (rva -
             self.pe.adjust_SectionAlignment(
                 self.VirtualAddress,
@@ -1087,7 +1090,7 @@ class SectionStructure(Structure):
 
 
     def contains_rva(self, rva):
-        """Check whether the section contains the address provided."""
+        """Check whether the section contains the given address."""
 
         # Check if the SizeOfRawData is realistic. If it's bigger than the size of
         # the whole PE file minus the start address of the section it could be
@@ -1119,14 +1122,17 @@ class SectionStructure(Structure):
 
         return VirtualAddress_adj <= rva < VirtualAddress_adj + size
 
-
     def contains(self, rva):
+        """*Deprecated.*
+
+        Use the ``pefile.SectionStructure.contains_rva`` function instead.
+        """
         #print "DEPRECATION WARNING: you should use contains_rva() instead of contains()"
         return self.contains_rva(rva)
 
 
     def get_entropy(self):
-        """Calculate and return the entropy for the section."""
+        """Calculate and return the entropy of the section."""
 
         return self.entropy_H( self.get_data() )
 
@@ -1175,7 +1181,6 @@ class SectionStructure(Structure):
         return entropy
 
 
-
 class DataContainer(object):
     """Generic data container."""
 
@@ -1185,26 +1190,30 @@ class DataContainer(object):
             bare_setattr(key, value)
 
 
-
 class ImportDescData(DataContainer):
     """Holds import descriptor information.
 
-    dll:        name of the imported DLL
+     dll
+        Name of the imported DLL.
 
-    imports:    list of imported symbols (ImportData instances)
+     imports
+        List of imported symbols as ``pefile.ImportData`` instances.
 
-    struct:     IMAGE_IMPORT_DESCRIPTOR structure
+     struct
+        ``IMAGE_IMPORT_DESCRIPTOR`` structure.
     """
 
 class ImportData(DataContainer):
     """Holds imported symbol's information.
 
-    ordinal:    Ordinal of the symbol
-    
-    name:       Name of the symbol
-    
-    bound:      If the symbol is bound, this contains
-                the address.
+    ordinal
+        Ordinal of the symbol.
+
+    name
+        Name of the symbol.
+
+    bound
+        If the symbol is bound, this contains the address.
     """
 
 
@@ -1258,24 +1267,28 @@ class ImportData(DataContainer):
 class ExportDirData(DataContainer):
     """Holds export directory information.
 
-    struct:     IMAGE_EXPORT_DIRECTORY structure
+    struct
+        ``IMAGE_EXPORT_DIRECTORY`` structure.
 
-    symbols:    list of exported symbols (ExportData instances)
+    symbols
+        List of exported symbols as ``pefile.ExportData`` instances.
     """
 
 class ExportData(DataContainer):
     """Holds exported symbols' information.
 
-    ordinal:    ordinal of the symbol
-    
-    address:    address of the symbol
-    
-    name:       name of the symbol (None if the symbol is
-                exported by ordinal only)
-    
-    forwarder:  if the symbol is forwarded it will
-                contain the name of the target symbol,
-                None otherwise.
+    ordinal
+        Ordinal of the symbol.
+
+    address
+        Address of the symbol.
+
+    name
+        Name of the symbol; None if the symbol is exported by ordinal only.
+
+    forwarder
+        If the symbol is forwarded, it will contain the name of the
+        target symbol, otherwise None.
     """
 
     def __setattr__(self, name, val):
@@ -1309,70 +1322,80 @@ class ExportData(DataContainer):
 class ResourceDirData(DataContainer):
     """Holds resource directory information.
 
-    struct:     IMAGE_RESOURCE_DIRECTORY structure
+    struct
+        ``IMAGE_RESOURCE_DIRECTORY`` structure.
 
-    entries:    list of entries (ResourceDirEntryData instances)
+    entries
+        List of entries as ``pefile.ResourceDirEntryData`` instances.
     """
 
 class ResourceDirEntryData(DataContainer):
-    """Holds resource directory entry data.
+    """Holds resource directory entry data:
 
-    struct:     IMAGE_RESOURCE_DIRECTORY_ENTRY structure
+    struct
+        ``IMAGE_RESOURCE_DIRECTORY_ENTRY`` structure.
+
+    name
+        If the resource is identified by name, then this attribute will contain the name string.
+        None otherwise. If identified by ID, then the ID is available at ``struct.Id``.
+
+    id
+        The id, also in ``struct.Id``.
+
+    directory
+        If this entry has a lower-level directory, then this attribute will point to the
+        ``pefile.ResourceDirData`` instance representing it.
+
+    data
+        If this entry has no further lower-level directories, and points to the
+        actual resource data, then this attribute will reference the corresponding
+        ``pefile.ResourceDataEntryData`` instance.
     
-    name:       If the resource is identified by name this
-                attribute will contain the name string. None
-                otherwise. If identified by id, the id is
-                available at 'struct.Id'
-    
-    id:         the id, also in struct.Id
-    
-    directory:  If this entry has a lower level directory
-                this attribute will point to the
-                ResourceDirData instance representing it.
-    
-    data:       If this entry has no further lower directories
-                and points to the actual resource data, this
-                attribute will reference the corresponding
-                ResourceDataEntryData instance.
-    
-    (Either of the 'directory' or 'data' attribute will exist,
-    but not both.)
+    Either of the ``directory`` or ``data`` attribute will exist, but not both.
     """
 
 class ResourceDataEntryData(DataContainer):
     """Holds resource data entry information.
 
-    struct:     IMAGE_RESOURCE_DATA_ENTRY structure
+    struct
+        ``IMAGE_RESOURCE_DATA_ENTRY`` structure.
 
-    lang:       Primary language ID
+    lang
+        Primary language ID.
 
-    sublang:    Sublanguage ID
+    sublang
+        Sublanguage ID.
     """
 
 class DebugData(DataContainer):
     """Holds debug information.
 
-    struct:     IMAGE_DEBUG_DIRECTORY structure
+    struct
+        ``IMAGE_DEBUG_DIRECTORY`` structure.
 
-    entries:    list of entries (IMAGE_DEBUG_TYPE instances)
+    entries
+        List of entries as ``IMAGE_DEBUG_TYPE`` instances.
     """
 
 class BaseRelocationData(DataContainer):
     """Holds base relocation information.
 
-    struct:     IMAGE_BASE_RELOCATION structure
+    struct
+        ``IMAGE_BASE_RELOCATION`` structure.
 
-    entries:    list of relocation data (RelocationData instances)
+    entries
+        List of relocation data as ``pefile.RelocationData`` instances.
     """
 
 class RelocationData(DataContainer):
     """Holds relocation information.
 
-    type:       Type of relocation
-                The type string can be obtained by
-                RELOCATION_TYPE[type]
+    type
+        Type of relocation. The type string can be obtained
+        by ``RELOCATION_TYPE[type]``.
 
-    rva:        RVA of the relocation
+    rva
+        RVA of the relocation.
     """
     def __setattr__(self, name, val):
 
@@ -1400,7 +1423,8 @@ class RelocationData(DataContainer):
 class TlsData(DataContainer):
     """Holds TLS information.
 
-    struct:     IMAGE_TLS_DIRECTORY structure
+    struct
+        ``IMAGE_TLS_DIRECTORY`` structure.
     """
 
 class BoundImportDescData(DataContainer):
@@ -1413,22 +1437,27 @@ class BoundImportDescData(DataContainer):
     whether it differs from the one currently present in the
     system and must, therefore, re-bind the PE's imports.
 
-    struct:     IMAGE_BOUND_IMPORT_DESCRIPTOR structure
-    
-    name:       DLL name
-    
-    entries:    list of entries (BoundImportRefData instances)
-                the entries will exist if this DLL has forwarded
-                symbols. If so, the destination DLL will have an
-                entry in this list.
+    struct
+        ``IMAGE_BOUND_IMPORT_DESCRIPTOR`` structure.
+
+    name
+        DLL name.
+
+    entries
+        List of entries as ``pefile.BoundImportRefData`` instances.
+        The entries will exist if this DLL has forwarded
+        symbols. If so, the destination DLL will have an
+        entry in this list.
     """
 
 class LoadConfigData(DataContainer):
     """Holds Load Config data.
 
-    struct:     IMAGE_LOAD_CONFIG_DIRECTORY structure
+    struct
+        ``IMAGE_LOAD_CONFIG_DIRECTORY`` structure.
 
-    name:       dll name
+    name
+        DLL name.
     """
 
 class BoundImportRefData(DataContainer):
@@ -1437,9 +1466,11 @@ class BoundImportRefData(DataContainer):
     Contains the same information as the bound descriptor but
     for forwarded DLLs, if any.
 
-    struct:     IMAGE_BOUND_FORWARDER_REF structure
+    struct
+        ``IMAGE_BOUND_FORWARDER_REF`` structure.
 
-    name:       dll name
+    name
+        DLL name.
     """
 
 
@@ -1492,69 +1523,70 @@ class PE(object):
 
     This class provides access to most of the information in a PE file.
 
-    It expects to be supplied the name of the file to load or PE data
-    to process and an optional argument 'fast_load' (False by default)
+    It expects to be supplied the name of the file to load, or PE data
+    to process and an optional argument ``fast_load`` (None by default),
     which controls whether to load all the directories information,
     which can be quite time consuming.
 
-    pe = pefile.PE('module.dll')
+    Three ways to load and process ``module.dll``:
 
-    pe = pefile.PE(name='module.dll')
+        1. ``pe = pefile.PE('module.dll')``
 
-    would load 'module.dll' and process it. If the data is already
-    available in a buffer the same can be achieved with:
+        2. ``pe = pefile.PE(name='module.dll')``
 
-    pe = pefile.PE(data=module_dll_data)
+    If the data is already available in a buffer, the same can be achieved with:
 
-    The "fast_load" can be set to a default by setting its value in the
-    module itself by means, for instance, of a "pefile.fast_load = True".
+        3. ``pe = pefile.PE(data=module_dll_data)``
+
+    The ``fast_load`` argument can be set to a default by setting its value in the
+    module itself by means, for instance, of ``pefile.fast_load = True``.
     That will make all the subsequent instances not to load the
-    whole PE structure. The "full_load" method can be used to parse
+    whole PE structure. The ``PE.full_load`` method can be used to parse
     the missing data at a later stage.
 
-    Basic headers information will be available in the attributes:
+    Basic headers information will be available in these attributes:
 
-    - DOS_HEADER
-    - NT_HEADERS
-    - FILE_HEADER
-    - OPTIONAL_HEADER
+    - ``DOS_HEADER``
+    - ``NT_HEADERS``
+    - ``FILE_HEADER``
+    - ``OPTIONAL_HEADER``
 
     All of them will contain among their attributes the members of the
-    corresponding structures as defined in WINNT.H
+    corresponding structures as defined in ``WINNT.H``.
 
     The raw data corresponding to the header (from the beginning of the
     file up to the start of the first section) will be available in the
-    instance's attribute 'header' as a string.
+    instance's attribute ``header`` as a string.
 
-    The sections will be available as a list in the 'sections' attribute.
+    The sections will be available as a list in the ``sections`` attribute.
     Each entry will contain as attributes all the structure's members.
 
-    Directory entries will be available as attributes (if they exist):
-    (no other entries are processed at this point)
+    Directory entries will be available as attributes (if they exist).
+    No other entries are processed at this point.
 
-    - DIRECTORY_ENTRY_IMPORT (list of ImportDescData instances)
-    - DIRECTORY_ENTRY_EXPORT (ExportDirData instance)
-    - DIRECTORY_ENTRY_RESOURCE (ResourceDirData instance)
-    - DIRECTORY_ENTRY_DEBUG (list of DebugData instances)
-    - DIRECTORY_ENTRY_BASERELOC (list of BaseRelocationData instances)
-    - DIRECTORY_ENTRY_TLS
-    - DIRECTORY_ENTRY_BOUND_IMPORT (list of BoundImportData instances)
+    - ``DIRECTORY_ENTRY_IMPORT``: list of ``pefile.ImportDescData`` instances
+    - ``DIRECTORY_ENTRY_EXPORT``: ``pefile.ExportDirData`` instance
+    - ``DIRECTORY_ENTRY_RESOURCE``: ``pefile.ResourceDirData`` instance
+    - ``DIRECTORY_ENTRY_DEBUG``: list of ``pefile.DebugData`` instances
+    - ``DIRECTORY_ENTRY_BASERELOC``: list of ``pefile.BaseRelocationData`` instances
+    - ``DIRECTORY_ENTRY_TLS``: ``pefile.TlsData`` instance
+    - ``DIRECTORY_ENTRY_BOUND_IMPORT``: list of ``pefile.BoundImportDescData`` instances
 
     The following dictionary attributes provide ways of mapping different
     constants. They will accept the numeric value and return the string
     representation and the opposite, feed in the string and get the
     numeric constant:
 
-    - DIRECTORY_ENTRY
-    - IMAGE_CHARACTERISTICS
-    - SECTION_CHARACTERISTICS
-    - DEBUG_TYPE
-    - SUBSYSTEM_TYPE
-    - MACHINE_TYPE
-    - RELOCATION_TYPE
-    - RESOURCE_TYPE
-    - LANG
-    - SUBLANG
+    - ``DIRECTORY_ENTRY``
+    - ``IMAGE_CHARACTERISTICS``
+    - ``SECTION_CHARACTERISTICS``
+    - ``DEBUG_TYPE``
+    - ``SUBSYSTEM_TYPE``
+    - ``MACHINE_TYPE``
+    - ``RELOCATION_TYPE``
+    - ``RESOURCE_TYPE``
+    - ``LANG``
+    - ``SUBLANG``
     """
 
     #
@@ -2137,14 +2169,17 @@ class PE(object):
             self.full_load()
 
     def parse_rich_header(self):
-        """Parses the rich header
-        see http://www.ntcore.com/files/richsign.htm for more information
+        """Parses the rich header. See `Microsoft's Rich Signature <http://www.ntcore.com/files/richsign.htm>`__
+        for more information.
 
         Structure:
-        00 DanS ^ checksum, checksum, checksum, checksum
-        10 Symbol RVA ^ checksum, Symbol size ^ checksum...
-        ...
-        XX Rich, checksum, 0, 0,...
+
+        .. code-block::
+
+            00 DanS ^ checksum, checksum, checksum, checksum
+            10 Symbol RVA ^ checksum, Symbol size ^ checksum...
+            ...
+            XX Rich, checksum, 0, 0,...
         """
 
         # Rich Header constants
@@ -2245,7 +2280,7 @@ class PE(object):
         """Process the data directories.
 
         This method will load the data directories which might not have
-        been loaded if the "fast_load" option was used.
+        been loaded if the ``fast_load`` option was used.
         """
 
         self.parse_data_directories()
@@ -2272,7 +2307,7 @@ class PE(object):
         assigning to attributes in the PE objects) and write
         the changes back to a file whose name is provided as
         an argument. The filename is optional, if not
-        provided the data will be returned as a 'str' object.
+        provided the data will be returned as a ``str`` object.
         """
 
         file_data = bytearray(self.__data__)
@@ -2316,16 +2351,16 @@ class PE(object):
     def parse_sections(self, offset):
         """Fetch the PE file sections.
 
-        The sections will be readily available in the "sections" attribute.
-        Its attributes will contain all the section information plus "data"
+        The sections will be readily available in the ``sections`` attribute.
+        Its attributes will contain all the section information plus ``data``,
         a buffer containing the section's data.
 
-        The "Characteristics" member will be processed and attributes
+        The ``characteristics`` member will be processed and attributes
         representing the section characteristics (with ``IMAGE_SCN_``
         trimmed from the constants' names) will be added to the
         section instance.
 
-        Refer to the SectionStructure class for additional info.
+        Refer to the ``pefile.SectionStructure`` class for additional info.
         """
 
         self.sections = []
@@ -2433,7 +2468,7 @@ class PE(object):
                                import_dllnames_only=False):
         """Parse and process the PE file's data directories.
 
-        If the optional argument 'directories' is given, only
+        If the optional ``directories`` argument is provided, only
         the directories at the specified indexes will be parsed.
         Such functionality allows parsing of areas of interest
         without the burden of having to parse all others.
@@ -2441,22 +2476,27 @@ class PE(object):
 
         For export / import only:
 
-          directories = [ 0, 1 ]
+        .. code-block::
+
+            directories = [ 0, 1 ]
 
         or (more verbosely):
 
-          directories = [ DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'],
-            DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'] ]
+        .. code-block::
 
-        If 'directories' is a list, the ones that are processed will be removed,
+            directories = [ DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'],
+                DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'] ]
+
+        If ``directories`` is a list, the ones that are processed will be removed,
         leaving only the ones that are not present in the image.
 
-        If `forwarded_exports_only` is True, the IMAGE_DIRECTORY_ENTRY_EXPORT
-        attribute will only contain exports that are forwarded to another DLL.
+        If ``forwarded_exports_only`` is True, then the
+        ``IMAGE_DIRECTORY_ENTRY_EXPORT`` attribute will only
+        contain exports that are forwarded to another DLL.
 
-        If `import_dllnames_only` is True, symbols will not be parsed from
-        the import table and the entries in the IMAGE_DIRECTORY_ENTRY_IMPORT
-        attribute will not have a `symbols` attribute.
+        If ``import_dllnames_only`` is True, then symbols will not be parsed from
+        the import table and the entries in the ``IMAGE_DIRECTORY_ENTRY_IMPORT``
+        attribute will not have a ``symbols`` attribute.
         """
 
         directory_parsing = (
@@ -2505,7 +2545,7 @@ class PE(object):
 
 
     def parse_directory_bound_imports(self, rva, size):
-        """"""
+        """ """
 
         bnd_descr = Structure(self.__IMAGE_BOUND_IMPORT_DESCRIPTOR_format__)
         bnd_descr_size = bnd_descr.sizeof()
@@ -2615,7 +2655,7 @@ class PE(object):
 
 
     def parse_directory_tls(self, rva, size):
-        """"""
+        """ """
 
         # By default let's pretend the format is a 32-bit PE. It may help
         # produce some output for files where the Magic in the Optional Header
@@ -2643,7 +2683,7 @@ class PE(object):
 
 
     def parse_directory_load_config(self, rva, size):
-        """"""
+        """ """
 
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
             format = self.__IMAGE_LOAD_CONFIG_DIRECTORY_format__
@@ -2673,7 +2713,7 @@ class PE(object):
 
 
     def parse_relocations_directory(self, rva, size):
-        """"""
+        """ """
 
         rlc_size = Structure(self.__IMAGE_BASE_RELOCATION_format__).sizeof()
         end = rva+size
@@ -2730,7 +2770,7 @@ class PE(object):
 
 
     def parse_relocations(self, data_rva, rva, size):
-        """"""
+        """ """
 
         try:
             data = self.get_data(data_rva, size)
@@ -2776,7 +2816,7 @@ class PE(object):
 
 
     def parse_debug_directory(self, rva, size):
-        """"""
+        """ """
 
         dbg_size = Structure(self.__IMAGE_DEBUG_DIRECTORY_format__).sizeof()
 
@@ -2915,18 +2955,18 @@ class PE(object):
         its entries.
 
         The root will have the corresponding member of its structure,
-        IMAGE_RESOURCE_DIRECTORY plus 'entries', a list of all the
+        ``IMAGE_RESOURCE_DIRECTORY`` plus ``entries``, a list of all the
         entries in the directory.
 
         Those entries will have, correspondingly, all the structure's
-        members (IMAGE_RESOURCE_DIRECTORY_ENTRY) and an additional one,
-        "directory", pointing to the IMAGE_RESOURCE_DIRECTORY structure
+        members (``IMAGE_RESOURCE_DIRECTORY_ENTRY``) and an additional one,
+        ``directory``, pointing to the ``IMAGE_RESOURCE_DIRECTORY`` structure
         representing upper layers of the tree. This one will also have
-        an 'entries' attribute, pointing to the 3rd, and last, level.
+        an ``entries`` attribute, pointing to the third, and last, level.
         Another directory with more entries. Those last entries will
-        have a new attribute (both 'leaf' or 'data_entry' can be used to
+        have a new attribute (both ``leaf`` or ``data_entry`` can be used to
         access it). This structure finally points to the resource data.
-        All the members of this structure, IMAGE_RESOURCE_DATA_ENTRY,
+        All the members of this structure, ``IMAGE_RESOURCE_DATA_ENTRY``,
         are available as its attributes.
         """
 
@@ -3217,25 +3257,28 @@ class PE(object):
     def parse_version_information(self, version_struct):
         """Parse version information structure.
 
-        The date will be made available in three attributes of the PE object.
+        The date will be made available in three attributes of the PE object:
 
-        VS_VERSIONINFO     will contain the first three fields of the main structure:
-            'Length', 'ValueLength', and 'Type'
+        VS_VERSIONINFO
+            Contains the first three fields of the main structure:
+            ``Length``, ``ValueLength``, and ``Type``.
 
-        VS_FIXEDFILEINFO    will hold the rest of the fields, accessible as sub-attributes:
-            'Signature', 'StrucVersion', 'FileVersionMS', 'FileVersionLS',
-            'ProductVersionMS', 'ProductVersionLS', 'FileFlagsMask', 'FileFlags',
-            'FileOS', 'FileType', 'FileSubtype', 'FileDateMS', 'FileDateLS'
+        VS_FIXEDFILEINFO
+            Jold the rest of the fields, accessible as sub-attributes:
+            ``Signature``, ``StrucVersion``, ``FileVersionMS``, ``FileVersionLS``,
+            ``ProductVersionMS``, ``ProductVersionLS``, ``FileFlagsMask``, ``FileFlags``,
+            ``FileOS``, ``FileType``, ``FileSubtype``, ``FileDateMS``, ``FileDateLS``.
 
-        FileInfo    is a list of all StringFileInfo and VarFileInfo structures.
+        FileInfo
+            List of all ``StringFileInfo`` and ``VarFileInfo`` structures.
 
-        StringFileInfo structures will have a list as an attribute named 'StringTable'
-        containing all the StringTable structures. Each of those structures contains a
-        dictionary 'entries' with all the key / value version information string pairs.
+            ``StringFileInfo`` structures will have a list as an attribute named ``StringTable``
+            containing all the ``StringTable`` structures. Each of those structures contains a
+            dictionary ``entries`` with all the key/value version information string pairs.
 
-        VarFileInfo structures will have a list as an attribute named 'Var' containing
-        all Var structures. Each Var structure will have a dictionary as an attribute
-        named 'entry' which will contain the name and value of the Var.
+            ``VarFileInfo`` structures will have a list as an attribute named ``Var`` containing
+            all ``Var`` structures. Each ``Var`` structure will have a dictionary as an attribute
+            named ``entry`` which will contain the name and value of the ``Var``.
         """
 
 
@@ -3577,8 +3620,8 @@ class PE(object):
         Given the RVA of the export directory, it will process all
         its entries.
 
-        The exports will be made available as a list of ExportData
-        instances in the 'IMAGE_DIRECTORY_ENTRY_EXPORT' PE attribute.
+        The exports will be made available as a list of ``pefile.ExportData``
+        instances in the ``IMAGE_DIRECTORY_ENTRY_EXPORT`` PE attribute.
         """
 
         try:
@@ -3798,6 +3841,7 @@ class PE(object):
                              name=self.get_string_at_rva(export_dir.Name))
 
     def dword_align(self, offset, base):
+        """ """
         return ((offset+base+3) & 0xfffffffc) - (base & 0xfffffffc)
 
 
@@ -3879,6 +3923,7 @@ class PE(object):
 
 
     def get_imphash(self):
+        """ """
         impstrs = []
         exts = ['ocx', 'sys', 'dll']
         if not hasattr(self, "DIRECTORY_ENTRY_IMPORT"):
@@ -4017,7 +4062,7 @@ class PE(object):
         """Parse the imported symbols.
 
         It will fill a list, which will be available as the dictionary
-        attribute "imports". Its keys will be the DLL names and the values
+        attribute ``imports``. Its keys will be the DLL names and the values
         of all the symbols imported from that object.
         """
 
@@ -4156,6 +4201,7 @@ class PE(object):
 
 
     def get_import_table(self, rva, max_length=None):
+        """ """
 
         table = []
 
@@ -4264,19 +4310,19 @@ class PE(object):
         """Returns the data corresponding to the memory layout of the PE file.
 
         The data includes the PE header and the sections loaded at offsets
-        corresponding to their relative virtual addresses. (the VirtualAddress
+        corresponding to their relative virtual addresses (the ``VirtualAddress``
         section header member).
         Any offset in this data corresponds to the absolute memory address
-        ImageBase+offset.
+        ``ImageBase+offset``.
 
-        The optional argument 'max_virtual_address' provides with means of limiting
+        The optional argument ``max_virtual_address`` provides with means of limiting
         which sections are processed.
-        Any section with their VirtualAddress beyond this value will be skipped.
+        Any section with their ``VirtualAddress`` beyond this value will be skipped.
         Normally, sections with values beyond this range are just there to confuse
         tools. It's a common trick to see in packed executables.
 
-        If the 'ImageBase' optional argument is supplied, the file's relocations
-        will be applied to the image by calling the 'relocate_image()' method. Beware
+        If the optional ``ImageBase`` argument is supplied, the file's relocations
+        will be applied to the image by calling the ``pefile.PE.relocate_image`` method. Beware
         that the relocation information is applied permanently.
         """
 
@@ -4334,7 +4380,7 @@ class PE(object):
         """Returns a list of all the strings found withing the resources (if any).
 
         This method will scan all entries in the resources directory of the PE, if
-        there is one, and will return a list() with the strings.
+        there is one, and will return a list of the strings.
 
         An empty list will be returned otherwise.
         """
@@ -4355,7 +4401,7 @@ class PE(object):
 
 
     def get_data(self, rva=0, length=None):
-        """Get data regardless of the section where it lies on.
+        """Get data regardless of its section.
 
         Given a RVA and the size of the chunk to retrieve, this method
         will find the section where the data lies and return the data.
@@ -4390,7 +4436,7 @@ class PE(object):
 
 
     def get_rva_from_offset(self, offset):
-        """Get the RVA corresponding to this file offset. """
+        """Get the RVA corresponding to this file offset."""
 
         s = self.get_section_by_offset(offset)
         if not s:
@@ -4447,7 +4493,7 @@ class PE(object):
         return self.get_string_from_data(0, s.get_data(rva, length=max_length))
 
     def get_bytes_from_data(self, offset, data):
-        """."""
+        """ """
         if offset > len(data):
             return b''
         d = data[offset:]
@@ -4464,7 +4510,7 @@ class PE(object):
         return s
 
     def get_string_u_at_rva(self, rva, max_length = 2**16, encoding=None):
-        """Get an Unicode string located at the given address."""
+        """Get a Unicode string located at the given address."""
 
         # If the RVA is invalid let the exception reach the callers. All
         # call-sites of get_string_u_at_rva() will handle it.
@@ -5145,15 +5191,15 @@ class PE(object):
     ##
 
     def get_data_from_dword(self, dword):
-        """Return a four byte string representing the double word value. (little endian)."""
+        """Return a four byte string representing the double word value (little endian)."""
         return struct.pack('<L', dword & 0xffffffff)
 
 
     def get_dword_from_data(self, data, offset):
-        """Convert four bytes of data to a double word (little endian)
+        """Convert four bytes of data to a double word (little endian).
 
-        'offset' is assumed to index into a dword array. So setting it to
-        N will return a dword out of the data starting at offset N*4.
+        The ``offset`` is assumed to index into a dword array. So setting it to
+        ``N`` will return a dword out of the data starting at offset ``N*4``.
 
         Returns None if the data can't be turned into a double word.
         """
@@ -5167,8 +5213,8 @@ class PE(object):
     def get_dword_at_rva(self, rva):
         """Return the double word value at the given RVA.
 
-        Returns None if the value can't be read, i.e. the RVA can't be mapped
-        to a file offset.
+        Returns None if the value can't be read (i.e., the RVA can't be mapped
+        to a file offset).
         """
 
         try:
@@ -5178,7 +5224,7 @@ class PE(object):
 
 
     def get_dword_from_offset(self, offset):
-        """Return the double word value at the given file offset. (little endian)"""
+        """Return the double word value at the given file offset (little endian)."""
 
         if offset+4 > len(self.__data__):
             return None
@@ -5202,15 +5248,15 @@ class PE(object):
     ##
 
     def get_data_from_word(self, word):
-        """Return a two byte string representing the word value. (little endian)."""
+        """Return a two byte string representing the word value (little endian)."""
         return struct.pack('<H', word)
 
 
     def get_word_from_data(self, data, offset):
-        """Convert two bytes of data to a word (little endian)
+        """Convert two bytes of data to a word (little endian).
 
-        'offset' is assumed to index into a word array. So setting it to
-        N will return a dword out of the data starting at offset N*2.
+        The ``offset`` is assumed to index into a word array. So setting it to
+        ``N`` will return a dword out of the data starting at offset ``N*2``.
 
         Returns None if the data can't be turned into a word.
         """
@@ -5224,8 +5270,8 @@ class PE(object):
     def get_word_at_rva(self, rva):
         """Return the word value at the given RVA.
 
-        Returns None if the value can't be read, i.e. the RVA can't be mapped
-        to a file offset.
+        Returns None if the value can't be read (i.e., the RVA can't be mapped
+        to a file offset).
         """
 
         try:
@@ -5235,7 +5281,7 @@ class PE(object):
 
 
     def get_word_from_offset(self, offset):
-        """Return the word value at the given file offset. (little endian)"""
+        """Return the word value at the given file offset (little endian)."""
 
         if offset+2 > len(self.__data__):
             return None
@@ -5258,15 +5304,15 @@ class PE(object):
     ##
 
     def get_data_from_qword(self, word):
-        """Return an eight byte string representing the quad-word value. (little endian)."""
+        """Return an eight byte string representing the quad-word value (little endian)."""
         return struct.pack('<Q', word)
 
 
     def get_qword_from_data(self, data, offset):
-        """Convert eight bytes of data to a word (little endian)
+        """Convert eight bytes of data to a word (little endian).
 
-        'offset' is assumed to index into a word array. So setting it to
-        N will return a dword out of the data starting at offset N*8.
+        The ``offset`` is assumed to index into a word array. So setting it to
+        ``N`` will return a dword out of the data starting at offset ``N*8``.
 
         Returns None if the data can't be turned into a quad word.
         """
@@ -5280,8 +5326,8 @@ class PE(object):
     def get_qword_at_rva(self, rva):
         """Return the quad-word value at the given RVA.
 
-        Returns None if the value can't be read, i.e. the RVA can't be mapped
-        to a file offset.
+        Returns None if the value can't be read (i.e., the RVA can't be mapped
+        to a file offset).
         """
 
         try:
@@ -5291,7 +5337,7 @@ class PE(object):
 
 
     def get_qword_from_offset(self, offset):
-        """Return the quad-word value at the given file offset. (little endian)"""
+        """Return the quad-word value at the given file offset (little endian)."""
 
         if offset+8 > len(self.__data__):
             return None
@@ -5368,9 +5414,8 @@ class PE(object):
         all the relocations will be processed and both the raw data and the section's data
         will be fixed accordingly.
         
-        The resulting image can be retrieved as well through the method:
-
-            ``get_memory_mapped_image()``
+        The resulting image can be retrieved by the
+        ``pefile.PE.get_memory_mapped_image`` method as well.
 
         In order to get something that would more closely match what could be found in memory
         once the Windows loader finished its work.
@@ -5485,13 +5530,13 @@ class PE(object):
                     self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.GuardCFFunctionTable += relocation_difference
 
     def verify_checksum(self):
-        """"""
+        """ """
 
         return self.OPTIONAL_HEADER.CheckSum == self.generate_checksum()
 
 
     def generate_checksum(self):
-        """"""
+        """ """
         # This will make sure that the data representing the PE image
         # is updated with any changes that might have been made by
         # assigning values to header fields as those are not automatically
@@ -5534,15 +5579,15 @@ class PE(object):
         checksum = checksum & 0xffff
 
         # The length is the one of the original data, not the padded one
-        #
         return checksum + len(self.__data__)
 
 
     def is_exe(self):
         """Check whether the file is a standard executable.
 
-        This will return true only if the file has the IMAGE_FILE_EXECUTABLE_IMAGE flag set
-        and the IMAGE_FILE_DLL not set and the file does not appear to be a driver either.
+        This will return true only if the file has the ``IMAGE_FILE_EXECUTABLE_IMAGE``
+        flag set and the ``IMAGE_FILE_DLL`` not set and the file does not appear to be
+        a driver either.
         """
 
         EXE_flag = IMAGE_CHARACTERISTICS['IMAGE_FILE_EXECUTABLE_IMAGE']
@@ -5557,7 +5602,7 @@ class PE(object):
     def is_dll(self):
         """Check whether the file is a standard DLL.
 
-        This will return true only if the image has the IMAGE_FILE_DLL flag set.
+        This will return true only if the image has the ``IMAGE_FILE_DLL`` flag set.
         """
 
         DLL_flag = IMAGE_CHARACTERISTICS['IMAGE_FILE_DLL']
