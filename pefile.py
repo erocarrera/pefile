@@ -3672,7 +3672,7 @@ class PE(object):
             if symbol_counts[(symbol_name, symbol_address)] > 10:
                 self.__warnings.append(
                     'Export directory contains more than 10 repeated entries '
-                    '({:s}, 0x{:x}). Assuming corrupt.'.format(
+                    '({}, 0x{:x}). Assuming corrupt.'.format(
                         symbol_name, symbol_address))
                 break
             elif len(symbol_counts) > self.max_symbol_exports:
