@@ -2176,7 +2176,7 @@ class PE(object):
 
         Structure:
 
-        .. code-block::
+        .. code-block:: python
 
             00 DanS ^ checksum, checksum, checksum, checksum
             10 Symbol RVA ^ checksum, Symbol size ^ checksum...
@@ -2478,13 +2478,13 @@ class PE(object):
 
         For export / import only:
 
-        .. code-block::
+        .. code-block:: python
 
             directories = [ 0, 1 ]
 
         or (more verbosely):
 
-        .. code-block::
+        .. code-block:: python
 
             directories = [ DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'],
                 DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'] ]

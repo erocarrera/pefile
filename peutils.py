@@ -23,13 +23,13 @@ class SignatureDatabase(object):
 
     Usage:
 
-    .. code-block::
+    .. code-block:: python
 
         sig_db = SignatureDatabase('/path/to/signature/file')
 
     and/or
 
-    .. code-block::
+    .. code-block:: python
 
         sig_db = SignatureDatabase()
         sig_db.load('/path/to/signature/file')
