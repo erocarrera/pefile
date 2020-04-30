@@ -9,14 +9,14 @@ Loading a PE file
 
 Import the module and parse a file.
 
-.. code-block::
+.. code-block:: python
     
     import pefile
     pe =  pefile.PE(‘/path/to/pefile.exe’)
 
 Optionally, setting the ``fast_load`` argument to ``True`` will prevent parsing the directories. In large PE files this can make loading significantly faster and it might be a good idea to use it none of the information from the data directories is needed.
 
-.. code-block::
+.. code-block:: python
     
     import pefile
     pe =  pefile.PE(‘/path/to/pefile.exe’, fast_load=True)
@@ -25,17 +25,16 @@ A later call to the :py:func:`full_load()` method would parse the missing inform
 
 It's also possible to just parse raw PE data:
 
-.. code-block::
+.. code-block:: python
     
     pe = pefile.PE(data=str_object_with_pe_file_data)
-
 
 Reading and writing standard header members
 ===========================================================
 
 Once the PE file is successfully parsed, the data is readily available as attributes of the PE instance.
 
-.. code-block::
+.. code-block:: python
     
     pe.OPTIONAL_HEADER.AddressOfEntryPoint
     pe.OPTIONAL_HEADER.ImageBase
@@ -43,13 +42,13 @@ Once the PE file is successfully parsed, the data is readily available as attrib
 
 All of these values support assignment.
 
-.. code-block::
+.. code-block:: python
     
     pe.OPTIONAL_HEADER.AddressOfEntryPoint = 0xdeadbeef
 
 A subsequent call to ``pe.write`` will write the modified file to disk.
 
-.. code-block::
+.. code-block:: python
     
     pe.write(filename='file_to_write.exe')
 
@@ -63,14 +62,13 @@ Notes about the write support
 - All other modifications, i.e. changing individual values in header/structure members should work well.
 - One possible useful application of this could be to correct malformed headers used by some malware in order to cause certain analysis tools to malfunction.
 
-
 Iterating through the sections
 ===========================================================
 
 Sections are added to a list accesible as the attribute ``sections`` in the PE instance.
 The common structure members of the section header are reachable as attributes.
 
-.. code-block::
+.. code-block:: python
     
     for section in pe.sections:
       print (section.Name, hex(section.VirtualAddress),
@@ -79,19 +77,18 @@ The common structure members of the section header are reachable as attributes.
 Output
 -----------------------------------------------------------
 
-.. code-block::
+.. code-block:: python
     
     ('.text', '0x1000L', '0x6D72L', 28160L)
     ('.data', '0x8000L', '0x1BA8L', 1536L)
     ('.rsrc', '0xA000L', '0x8948L', 35328L)
-
 
 Listing the imported symbols
 ===========================================================
 
 Each directory, if it exists in the PE file being processed, has an entry as ``DIRECTORY_ENTRY_directoryname`` in the PE instance. The imported symbols can be listed as follows:
 
-.. code-block::
+.. code-block:: python
     
     # If the PE file was loaded using the fast_load=True argument, we will need to parse the data directories:
 
@@ -102,11 +99,10 @@ Each directory, if it exists in the PE file being processed, has an entry as ``D
       for imp in entry.imports:
         print '\t', hex(imp.address), imp.name
 
-
 Output
 -----------------------------------------------------------
 
-.. code-block::
+.. code-block:: python
     
     comdlg32.dll
             0x10012A0L PageSetupDlgW
@@ -117,22 +113,20 @@ Output
             0x1001154L DragFinish
             0x1001158L DragQueryFileW
 
-
 Listing the exported symbols
 ===========================================================
 
 Similarly, the exported symbols can be listed as follows:
 
-.. code-block::
+.. code-block:: python
     
     for exp in pe.DIRECTORY_ENTRY_EXPORT.symbols:
       print hex(pe.OPTIONAL_HEADER.ImageBase + exp.address), exp.name, exp.ordinal
 
-
 Output
 -----------------------------------------------------------
 
-.. code-block::
+.. code-block:: python
     
     0x7ca0ab4f SHUpdateRecycleBinIcon 336
     0x7cab44c0 SHValidateUNC 173
@@ -142,16 +136,14 @@ Output
     0x7ca7aec6 SheChangeDirW 340
     0x7ca8baae SheConvertPathW 341
 
-
 Dumping all the information
 ===========================================================
 
-.. code-block::
+.. code-block:: python
     
     print pe.dump_info()
 
 Will produce a full textial dump of all the parsed information.
-
 
 Retrieving the bytes at the entry point
 ===========================================================
@@ -160,7 +152,7 @@ We can use *pefile* together with tools like `pydasm <http://dkbza.org/pydasm.ht
 
 We first fetch the entry point address, the retrieve 100 bytes starting at the entry point and we loop through the data disassembling as we go:
 
-.. code-block::
+.. code-block:: python
     
     ep = pe.OPTIONAL_HEADER.AddressOfEntryPoint
     ep_ava = ep+pe.OPTIONAL_HEADER.ImageBase
@@ -171,11 +163,10 @@ We first fetch the entry point address, the retrieve 100 bytes starting at the e
       print pydasm.get_instruction_string(i, pydasm.FORMAT_INTEL, ep_ava+offset)
       offset += i.length
 
-
 Output
 -----------------------------------------------------------
 
-.. code-block::
+.. code-block:: python
     
     push byte 0x70
     push dword 0x1001888
@@ -192,7 +183,6 @@ Output
     jnz 0x1006b1d
     movzx eax,[ecx+0x18
 
-
 Parsing part of the file
 ===========================================================
 
@@ -202,7 +192,7 @@ It is possible to indicate *pefile* to only load a minimal set of the headers (u
 
 The following example loads the basic headers and then goes on to parse most of the directories avoiding the relocation information.
 
-.. code-block::
+.. code-block:: python
     
     pe = pefile.PE(os.sys.argv[1], fast_load=True)
     pe.parse_data_directories( directories=[ 

@@ -4,7 +4,7 @@ Reading Resource Strings
 
 The following `document <http://www.skynet.ie/~caolan/publink/winresdump/winresdump/doc/resfmt.txt>`__ has some useful notes on how resource strings are stored within the resources section in a PE file. Quoting directly from the document:
 
-.. code-block::
+.. code-block:: python
 
  4.8 String Table Resources 
  
@@ -38,7 +38,7 @@ Hence, to extract those string from the file, we can write a small Python script
 
 First we need to read the directory entry for the resources and see if there's an entry of type ``RT_STRING`` (value 6).
 
-.. code-block::
+.. code-block:: python
 
     print [entry.id for entry in pe.DIRECTORY_ENTRY_RESOURCE.entries]
 
@@ -46,7 +46,7 @@ Would produce something like ``(3, 4, 5, 6, 9, 14, 24)``. Therefore we know that
 
 A dump of the corresponding resource directory entry looks like:
 
-.. code-block::
+.. code-block:: python
 
       Id: [0x6] (RT_STRING)
       [IMAGE_RESOURCE_DIRECTORY_ENTRY]
@@ -86,7 +86,7 @@ We can iterate through the entries with the following code:
 
 (the strings will be saved in the ``strings`` list)
 
-.. code-block::
+.. code-block:: python
 
     # The List will contain all the extracted Unicode strings
     strings = list()
