@@ -5436,16 +5436,16 @@ class PE(object):
             self.OPTIONAL_HEADER.ImageBase = new_ImageBase
 
             #correct VAs(virtual addresses) occurrences in directory information
-            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_IMPORT'):
+            if hasattr(self, 'DIRECTORY_ENTRY_IMPORT'):
                 for dll in self.DIRECTORY_ENTRY_IMPORT:
                     for func in dll.imports:
                         func.address += relocation_difference
-            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_TLS'):
+            if hasattr(self, 'DIRECTORY_ENTRY_TLS'):
                 self.DIRECTORY_ENTRY_TLS.struct.StartAddressOfRawData += relocation_difference
                 self.DIRECTORY_ENTRY_TLS.struct.EndAddressOfRawData   += relocation_difference
                 self.DIRECTORY_ENTRY_TLS.struct.AddressOfIndex        += relocation_difference
                 self.DIRECTORY_ENTRY_TLS.struct.AddressOfCallBacks    += relocation_difference
-            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG'):
+            if hasattr(self, 'DIRECTORY_ENTRY_LOAD_CONFIG'):
                 if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.LockPrefixTable:
                     self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.LockPrefixTable += relocation_difference
                 if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.EditList:
