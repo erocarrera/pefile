@@ -5561,6 +5561,10 @@ class PE(object):
         #           SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_NOT_PAGED']) for
         #        section in self.sections ):
         #    return True
+        if (self.OPTIONAL_HEADER.Subsystem in (
+                SUBSYSTEM_TYPE['IMAGE_SUBSYSTEM_NATIVE'],
+                SUBSYSTEM_TYPE['IMAGE_SUBSYSTEM_NATIVE_WINDOWS'])):
+                return True
 
         # If the import directory was not parsed (fast_load = True); do it now.
         if not hasattr(self, 'DIRECTORY_ENTRY_IMPORT'):
@@ -5707,6 +5711,85 @@ class PE(object):
             return section_alignment * ( int(val / section_alignment) )
         return val
 
+    @staticmethod
+    def align(val_to_align, alignment):
+        return int((val_to_align + alignment - 1) / alignment) * alignment
+
+
+    # if characteristics == 0:
+    #     # CODE | EXECUTE | READ | WRITE
+    #     characteristics = 0xE0000020
+
+    def add_section(self, name, virtual_size, raw_size, characteristics=0xE0000020, data=None):
+        number_of_section = self.FILE_HEADER.NumberOfSections
+        last_section = number_of_section - 1
+        file_alignment = self.OPTIONAL_HEADER.FileAlignment
+        section_alignment = self.OPTIONAL_HEADER.SectionAlignment
+        new_section_offset = (self.sections[number_of_section - 1].get_file_offset() + 40)
+
+        if data and raw_size < len(data):
+            raise Exception("Invalid raw_size.")
+        if data and virtual_size < len(data):
+            raise Exception("Invalid virtual_size.")
+
+        # Look for valid values for the new section header
+        raw_size = self.align(raw_size, file_alignment)
+        virtual_size = self.align(virtual_size, section_alignment)
+        raw_offset = self.align((self.sections[last_section].PointerToRawData +
+                            self.sections[last_section].SizeOfRawData),
+                        file_alignment)
+
+        virtual_offset = self.align((self.sections[last_section].VirtualAddress +
+                                self.sections[last_section].Misc_VirtualSize),
+                            section_alignment)
+        
+        # Section name must be equal to 8 bytes
+        if len(name) < 8:
+            name += ((8 - len(name)) * b'\x00')
+
+        # Create the section
+        # Set the name
+        self.set_bytes_at_offset(new_section_offset, name)
+        # Set the virtual size
+        self.set_dword_at_offset(new_section_offset + 8, virtual_size)
+        # Set the virtual offset
+        self.set_dword_at_offset(new_section_offset + 12, virtual_offset)
+        # Set the raw size
+        self.set_dword_at_offset(new_section_offset + 16, raw_size)
+        # Set the raw offset
+        self.set_dword_at_offset(new_section_offset + 20, raw_offset)
+        # Set the following fields to zero
+        self.set_bytes_at_offset(new_section_offset + 24, (12 * b'\x00'))
+        # Set the characteristics
+        self.set_dword_at_offset(new_section_offset + 36, characteristics)
+
+        # Edit the value in the File and Optional headers
+        self.FILE_HEADER.NumberOfSections += 1
+        self.OPTIONAL_HEADER.SizeOfImage = virtual_size + virtual_offset
+
+        # extend file
+        if len(self.__data__) < raw_offset:
+            self.__data__ += (raw_offset - len(self.__data__)) * b'\x00'
+        self.__data__ = self.__data__[:raw_offset]
+        self.__data__ += raw_size * b'\x00'
+
+        # write new data
+        if data:
+            write_data = data
+            if len(write_data) < raw_size:
+                write_data += (raw_size - len(write_data)) * b'\x00'
+            self.set_bytes_at_offset(raw_offset, write_data)
+        else:
+            self.set_bytes_at_offset(raw_offset, raw_size * b'\x00')
+        
+        new_pe_data = self.write()
+        try:
+            backup_from_file = self.__from_file
+            self.__parse__(None, new_pe_data, fast_load)
+            self.__from_file = backup_from_file
+        except:
+            raise
+        
 
 def main():
     import sys
