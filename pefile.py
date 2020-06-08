@@ -5715,17 +5715,15 @@ class PE(object):
     def align(val_to_align, alignment):
         return int((val_to_align + alignment - 1) / alignment) * alignment
 
-
-    # if characteristics == 0:
-    #     # CODE | EXECUTE | READ | WRITE
-    #     characteristics = 0xE0000020
-
+    # name: name of new section
+    # virtual_size: virtual size of new section
+    # raw_size: raw size of new section
+    # characteristics: Defines the section characteristics. 0xE0000020 = CODE | EXECUTE | READ | WRITE
     def add_section(self, name, virtual_size, raw_size, characteristics=0xE0000020, data=None):
-        number_of_section = self.FILE_HEADER.NumberOfSections
-        last_section = number_of_section - 1
+        last_section = self.FILE_HEADER.NumberOfSections - 1
         file_alignment = self.OPTIONAL_HEADER.FileAlignment
         section_alignment = self.OPTIONAL_HEADER.SectionAlignment
-        new_section_offset = (self.sections[number_of_section - 1].get_file_offset() + 40)
+        new_section_offset = (self.sections[last_section].get_file_offset() + 40)
 
         if data and raw_size < len(data):
             raise Exception("Invalid raw_size.")
@@ -5767,26 +5765,26 @@ class PE(object):
         self.FILE_HEADER.NumberOfSections += 1
         self.OPTIONAL_HEADER.SizeOfImage = virtual_size + virtual_offset
 
+        # prepare section data
+        if data:
+            written_data = data
+            if len(written_data) < raw_size:
+                written_data += (raw_size - len(written_data)) * b'\x00'
+        else:
+            written_data = raw_size * b'\x00'
+
         # extend file
         if len(self.__data__) < raw_offset:
             self.__data__ += (raw_offset - len(self.__data__)) * b'\x00'
-        self.__data__ = self.__data__[:raw_offset]
-        self.__data__ += raw_size * b'\x00'
+        self.__data__ = self.__data__[:raw_offset] + written_data
 
-        # write new data
-        if data:
-            write_data = data
-            if len(write_data) < raw_size:
-                write_data += (raw_size - len(write_data)) * b'\x00'
-            self.set_bytes_at_offset(raw_offset, write_data)
-        else:
-            self.set_bytes_at_offset(raw_offset, raw_size * b'\x00')
-        
+        # reparse PE file
         new_pe_data = self.write()
         try:
-            backup_from_file = self.__from_file
+            temp = self.__from_file
+            fast_load = globals()['fast_load']
             self.__parse__(None, new_pe_data, fast_load)
-            self.__from_file = backup_from_file
+            self.__from_file = temp
         except:
             raise
         
