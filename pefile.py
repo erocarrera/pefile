@@ -45,10 +45,62 @@ from hashlib import sha256
 from hashlib import sha512
 from hashlib import md5
 
+import functools
+import copy as copymod
+
+
 PY3 = sys.version_info > (3,)
 
 if PY3:
     long = int
+    # lru_cache with a shallow copy of the objects returned (list, dicts, ..)
+    # we don't use deepcopy as it's _really_ slow and the data we retrieved using this is enough with copy.copy
+    # taken from https://stackoverflow.com/questions/54909357/how-to-get-functools-lru-cache-to-return-new-instances
+    def lru_cache(maxsize=128, typed=False, copy=False):
+        if not copy:
+            return functools.lru_cache(maxsize, typed)
+
+        def decorator(f):
+            cached_func = functools.lru_cache(maxsize, typed)(f)
+            @functools.wraps(f)
+            def wrapper(*args, **kwargs):
+                # return copymod.deepcopy(cached_func(*args, **kwargs))
+                return copymod.copy(cached_func(*args, **kwargs))
+            return wrapper
+        return decorator
+else:
+    # lru_cache that does nothing on python2
+    def lru_cache(maxsize=128, typed=False, copy=False):
+        def decorator(f):
+            @functools.wraps(f)
+            def wrapper(*args, **kwargs):
+                return f(*args, **kwargs)
+            return wrapper
+        return decorator
+
+
+@lru_cache(maxsize=2048)
+def cache_adjust_FileAlignment(val, file_alignment):
+    if file_alignment < FILE_ALIGNMENT_HARDCODED_VALUE:
+        return val
+    return (int(val / 0x200)) * 0x200
+
+
+@lru_cache(maxsize=2048)
+def cache_adjust_SectionAlignment(val, section_alignment, file_alignment):
+    if section_alignment < 0x1000: # page size
+        section_alignment = file_alignment
+
+    # 0x200 is the minimum valid FileAlignment according to the documentation
+    # although ntoskrnl.exe has an alignment of 0x80 in some Windows versions
+    #
+    #elif section_alignment < 0x80:
+    #    section_alignment = 0x80
+
+    if section_alignment and val % section_alignment:
+        return section_alignment * ( int(val / section_alignment) )
+    return val
+
 
 def count_zeroes(data):
     try:
@@ -600,7 +652,7 @@ def retrieve_flags(flag_dict, flag_filter):
     matching the filter "flag_filter".
     """
 
-    return [(flag, value) for flag, value in list(flag_dict.items()) if
+    return [(flag, flag_dict[flag]) for flag in flag_dict.keys() if
             isinstance(flag, (str, bytes)) and flag.startswith(flag_filter)]
 
 
@@ -772,13 +824,61 @@ class Dump(object):
         """Get the text in its current state."""
         return u''.join(u'{0}'.format(b) for b in self.text)
 
-
 STRUCT_SIZEOF_TYPES = {
     'x': 1, 'c': 1, 'b': 1, 'B': 1,
     'h': 2, 'H': 2,
     'i': 4, 'I': 4, 'l': 4, 'L': 4, 'f': 4,
     'q': 8, 'Q': 8, 'd': 8,
     's': 1 }
+
+@lru_cache(maxsize=2048)
+def sizeof_type(t):
+    count = 1
+    _t = t
+    if t[0] in string.digits:
+        # extract the count
+        count = int( ''.join([d for d in t if d in string.digits]) )
+        _t = ''.join([d for d in t if d not in string.digits])
+    return STRUCT_SIZEOF_TYPES[_t] * count
+
+@lru_cache(maxsize=2048, copy=True)
+def set_format(format):
+
+    __format__ = '<'
+    __unpacked_data_elms__ = []
+    __field_offsets__ = dict()
+    __keys__ = []
+    __format_length__ = 0
+
+    offset = 0
+    for elm in format:
+        if ',' in elm:
+            elm_type, elm_name = elm.split(',', 1)
+            __format__ += elm_type
+            __unpacked_data_elms__.append(None)
+
+            elm_names = elm_name.split(',')
+            names = []
+            for elm_name in elm_names:
+                if elm_name in __keys__:
+                    search_list = [x[:len(elm_name)] for x in __keys__]
+                    occ_count = search_list.count(elm_name)
+                    elm_name =  '{0}_{1:d}'.format(elm_name, occ_count)
+                names.append(elm_name)
+                __field_offsets__[elm_name] = offset
+
+            offset += sizeof_type(elm_type)
+
+            # Some PE header structures have unions on them, so a certain
+            # value might have different names, so each key has a list of
+            # all the possible members referring to the data.
+            __keys__.append(names)
+
+    __format_length__ = struct.calcsize(__format__)
+
+    return ( __format__, __unpacked_data_elms__, __field_offsets__, __keys__, __format_length__)
+
+
 
 class Structure(object):
     """Prepare structure object to extract members from data.
@@ -795,7 +895,14 @@ class Structure(object):
         self.__format_length__ = 0
         self.__field_offsets__ = dict()
         self.__unpacked_data_elms__ = []
-        self.__set_format__(format[1])
+
+        d = format[1]
+        # need a tuple to be hashable in set_format using lru cache
+        if not isinstance(format[1], tuple):
+            d = tuple(format[1])
+
+        self.__format__, self.__unpacked_data_elms__, self.__field_offsets__, self.__keys__, self.__format_length__ = set_format(d)
+
         self.__all_zeroes__ = False
         self.__file_offset__ = file_offset
         if name:
@@ -825,43 +932,6 @@ class Structure(object):
         """Returns true is the unpacked data is all zeros."""
 
         return self.__all_zeroes__
-
-    def sizeof_type(self, t):
-        count = 1
-        _t = t
-        if t[0] in string.digits:
-            # extract the count
-            count = int( ''.join([d for d in t if d in string.digits]) )
-            _t = ''.join([d for d in t if d not in string.digits])
-        return STRUCT_SIZEOF_TYPES[_t] * count
-
-    def __set_format__(self, format):
-
-        offset = 0
-        for elm in format:
-            if ',' in elm:
-                elm_type, elm_name = elm.split(',', 1)
-                self.__format__ += elm_type
-                self.__unpacked_data_elms__.append(None)
-
-                elm_names = elm_name.split(',')
-                names = []
-                for elm_name in elm_names:
-                    if elm_name in self.__keys__:
-                        search_list = [x[:len(elm_name)] for x in self.__keys__]
-                        occ_count = search_list.count(elm_name)
-                        elm_name =  '{0}_{1:d}'.format(elm_name, occ_count)
-                    names.append(elm_name)
-                    self.__field_offsets__[elm_name] = offset
-
-                offset += self.sizeof_type(elm_type)
-
-                # Some PE header structures have unions on them, so a certain
-                # value might have different names, so each key has a list of
-                # all the possible members referring to the data.
-                self.__keys__.append(names)
-
-        self.__format_length__ = struct.calcsize(self.__format__)
 
 
     def sizeof(self):
@@ -1003,6 +1073,20 @@ class SectionStructure(Structure):
             del argd['pe']
 
         Structure.__init__(self, *argl, **argd)
+        self.PointerToRawData_adj = None
+        self.VirtualAddress_adj = None
+
+    def get_PointerToRawData_adj(self):
+        if self.PointerToRawData_adj is None:
+            if self.PointerToRawData is not None:
+                self.PointerToRawData_adj = self.pe.adjust_FileAlignment( self.PointerToRawData, self.pe.OPTIONAL_HEADER.FileAlignment )
+        return self.PointerToRawData_adj
+
+    def get_VirtualAddress_adj(self):
+        if self.VirtualAddress_adj is None:
+            if self.VirtualAddress is not None:
+                self.VirtualAddress_adj = self.pe.adjust_SectionAlignment( self.VirtualAddress,  self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
+        return self.VirtualAddress_adj
 
     def get_data(self, start=None, length=None):
         """Get data chunk from a section.
@@ -1015,15 +1099,10 @@ class SectionStructure(Structure):
         Returns bytes() under Python 3.x and set() under Python 2.7
         """
 
-        PointerToRawData_adj = self.pe.adjust_FileAlignment( self.PointerToRawData,
-            self.pe.OPTIONAL_HEADER.FileAlignment )
-        VirtualAddress_adj = self.pe.adjust_SectionAlignment( self.VirtualAddress,
-            self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
-
         if start is None:
-            offset = PointerToRawData_adj
+            offset = self.get_PointerToRawData_adj()
         else:
-            offset = ( start - VirtualAddress_adj ) + PointerToRawData_adj
+            offset = ( start - self.get_VirtualAddress_adj() ) + self.get_PointerToRawData_adj()
 
         if length is not None:
             end = offset + length
@@ -1055,20 +1134,11 @@ class SectionStructure(Structure):
 
 
     def get_rva_from_offset(self, offset):
-        return offset - self.pe.adjust_FileAlignment( self.PointerToRawData,
-            self.pe.OPTIONAL_HEADER.FileAlignment ) + self.pe.adjust_SectionAlignment( self.VirtualAddress,
-            self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
+        return offset - self.get_PointerToRawData_adj() + self.get_VirtualAddress_adj()
 
 
     def get_offset_from_rva(self, rva):
-        return (rva -
-            self.pe.adjust_SectionAlignment(
-                self.VirtualAddress,
-                self.pe.OPTIONAL_HEADER.SectionAlignment,
-                self.pe.OPTIONAL_HEADER.FileAlignment )
-            ) + self.pe.adjust_FileAlignment(
-                self.PointerToRawData,
-                self.pe.OPTIONAL_HEADER.FileAlignment )
+        return rva - self.get_VirtualAddress_adj() + self.get_PointerToRawData_adj()
 
 
     def contains_offset(self, offset):
@@ -1078,24 +1148,20 @@ class SectionStructure(Structure):
            # bss and other sections containing only uninitialized data must have 0
            # and do not take space in the file
            return False
-        return ( self.pe.adjust_FileAlignment( self.PointerToRawData,
-                self.pe.OPTIONAL_HEADER.FileAlignment ) <=
-                    offset <
-                        self.pe.adjust_FileAlignment( self.PointerToRawData,
-                            self.pe.OPTIONAL_HEADER.FileAlignment ) +
-                                self.SizeOfRawData )
+        PointerToRawData_adj = self.get_PointerToRawData_adj()
+        return ( PointerToRawData_adj <= offset <  PointerToRawData_adj + self.SizeOfRawData )
 
 
     def contains_rva(self, rva):
         """Check whether the section contains the address provided."""
 
+        VirtualAddress_adj = self.get_VirtualAddress_adj()
         # Check if the SizeOfRawData is realistic. If it's bigger than the size of
         # the whole PE file minus the start address of the section it could be
         # either truncated or the SizeOfRawData contains a misleading value.
         # In either of those cases we take the VirtualSize
         #
-        if len(self.pe.__data__) - self.pe.adjust_FileAlignment( self.PointerToRawData,
-            self.pe.OPTIONAL_HEADER.FileAlignment ) < self.SizeOfRawData:
+        if len(self.pe.__data__) - self.get_PointerToRawData_adj() < self.SizeOfRawData:
             # PECOFF documentation v8 says:
             # VirtualSize: The total size of the section when loaded into memory.
             # If this value is greater than SizeOfRawData, the section is zero-padded.
@@ -1106,8 +1172,6 @@ class SectionStructure(Structure):
         else:
             size = max(self.SizeOfRawData, self.Misc_VirtualSize)
 
-        VirtualAddress_adj = self.pe.adjust_SectionAlignment( self.VirtualAddress,
-            self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
 
         # Check whether there's any section after the current one that starts before the
         # calculated end for the current one. If so, cut the current section's size
@@ -1458,6 +1522,7 @@ else:
         string.lowercase + string.uppercase +
         string.digits + b'_?@$()<>')
 
+@lru_cache(maxsize=2048)
 def is_valid_function_name(s):
     return (s is not None and
         isinstance(s, (str, bytes, bytearray)) and
@@ -4483,10 +4548,9 @@ class PE(object):
     def get_section_by_offset(self, offset):
         """Get the section containing the given file offset."""
 
-        sections = [s for s in self.sections if s.contains_offset(offset)]
-
-        if sections:
-            return sections[0]
+        for section in self.sections:
+            if section.contains_offset(offset):
+                return section
 
         return None
 
@@ -5436,16 +5500,16 @@ class PE(object):
             self.OPTIONAL_HEADER.ImageBase = new_ImageBase
 
             #correct VAs(virtual addresses) occurrences in directory information
-            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_IMPORT'):
+            if hasattr(self, 'DIRECTORY_ENTRY_IMPORT'):
                 for dll in self.DIRECTORY_ENTRY_IMPORT:
                     for func in dll.imports:
                         func.address += relocation_difference
-            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_TLS'):
+            if hasattr(self, 'DIRECTORY_ENTRY_TLS'):
                 self.DIRECTORY_ENTRY_TLS.struct.StartAddressOfRawData += relocation_difference
                 self.DIRECTORY_ENTRY_TLS.struct.EndAddressOfRawData   += relocation_difference
                 self.DIRECTORY_ENTRY_TLS.struct.AddressOfIndex        += relocation_difference
                 self.DIRECTORY_ENTRY_TLS.struct.AddressOfCallBacks    += relocation_difference
-            if hasattr(self, 'IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG'):
+            if hasattr(self, 'DIRECTORY_ENTRY_LOAD_CONFIG'):
                 if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.LockPrefixTable:
                     self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.LockPrefixTable += relocation_difference
                 if self.DIRECTORY_ENTRY_LOAD_CONFIG.struct.EditList:
@@ -5669,15 +5733,13 @@ class PE(object):
     def adjust_FileAlignment(self, val, file_alignment ):
         if file_alignment > FILE_ALIGNMENT_HARDCODED_VALUE:
             # If it's not a power of two, report it:
-            if not power_of_two(file_alignment) and self.FileAlignment_Warning is False:
+            if self.FileAlignment_Warning is False and not power_of_two(file_alignment):
                 self.__warnings.append(
                     'If FileAlignment > 0x200 it should be a power of 2. Value: %x' % (
                         file_alignment)  )
                 self.FileAlignment_Warning = True
 
-        if file_alignment < FILE_ALIGNMENT_HARDCODED_VALUE:
-            return val
-        return (int(val / 0x200)) * 0x200
+        return cache_adjust_FileAlignment(val, file_alignment)
 
 
     # According to the document:
@@ -5694,18 +5756,8 @@ class PE(object):
                         file_alignment, section_alignment)  )
                 self.SectionAlignment_Warning = True
 
-        if section_alignment < 0x1000: # page size
-            section_alignment = file_alignment
+        return cache_adjust_SectionAlignment(val, section_alignment, file_alignment)
 
-        # 0x200 is the minimum valid FileAlignment according to the documentation
-        # although ntoskrnl.exe has an alignment of 0x80 in some Windows versions
-        #
-        #elif section_alignment < 0x80:
-        #    section_alignment = 0x80
-
-        if section_alignment and val % section_alignment:
-            return section_alignment * ( int(val / section_alignment) )
-        return val
 
 
 def main():
