@@ -4984,6 +4984,7 @@ class PE(object):
 
                 if hasattr(self, 'FileInfo'):
                     fileinfo_list = list()
+                    version_info_list.append(fileinfo_list)
                     for entry in self.FileInfo[idx]:
                         fileinfo_list.append(entry.dump_dict())
 
