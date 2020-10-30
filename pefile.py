@@ -3921,7 +3921,7 @@ class PE(object):
 
     def get_imphash(self):
         impstrs = []
-        exts = ['ocx', 'sys', 'dll']
+        exts = ['ocx', 'sys', 'dll', 'drv']
         if not hasattr(self, "DIRECTORY_ENTRY_IMPORT"):
             return ""
         for entry in self.DIRECTORY_ENTRY_IMPORT:
