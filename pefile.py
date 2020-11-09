@@ -44,6 +44,7 @@ from hashlib import sha1
 from hashlib import sha256
 from hashlib import sha512
 from hashlib import md5
+from binascii import hexlify
 
 import functools
 import copy as copymod
@@ -111,6 +112,33 @@ def count_zeroes(data):
         count = data.count(0)
     return count
 
+
+def read_compressed_int(data):
+    """
+    Given bytes, read a compressed integer per
+    spec ECMA-335 II.23.2 Blobs and signatures.
+    Returns tuple: value, number of bytes read
+    """
+    if not data:
+        # TODO: error
+        return None
+    if data[0] & 0x80 == 0:
+        # values 0x00 to 0x7f
+        return data[0], 1
+    elif data[0] & 0x40 == 0:
+        # values 0x80 to 0x3fff
+        value = (data[0] & 0x7f) << 8
+        value |= data[1]
+        return value, 2
+    elif data[0] & 0x20 == 0:
+        # values 0x4000 to 0x1fffffff
+        value = (data[0] & 0x3f) << 24
+        value |= data[1] << 16
+        value |= data[2] << 8
+        value |= data[3]
+        return value, 4
+    # TODO: error
+
 fast_load = False
 
 # This will set a maximum length of a string to be retrieved from the file.
@@ -142,6 +170,9 @@ IMAGE_ORDINAL_FLAG              = 0x80000000
 IMAGE_ORDINAL_FLAG64            = 0x8000000000000000
 OPTIONAL_HEADER_MAGIC_PE        = 0x10b
 OPTIONAL_HEADER_MAGIC_PE_PLUS   = 0x20b
+
+CLR_METADATA_SIGNATURE          = 0x424a5342
+
 
 def two_way_dict(pairs):
     return dict([(e[1], e[0]) for e in pairs]+pairs)
@@ -597,6 +628,317 @@ sublang =  [
  ('SUBLANG_GAELIC_MANX',                    0x03) ]
 
 SUBLANG = two_way_dict(sublang)
+
+clr_flags = [
+    ('CLR_ILONLY',                          0x00000001),
+    ('CLR_32BITREQUIRED',                   0x00000002),
+    ('CLR_IL_LIBRARY',                      0x00000004),
+    ('CLR_STRONGNAMESIGNED',                0x00000008),
+    ('CLR_NATIVE_ENTRYPOINT',               0x00000010),
+    ('CLR_TRACKDEBUGDATA',                  0x00010000),
+    ('CLR_PREFER_32BIT',                    0x00020000),
+]
+
+CLR_FLAGS = two_way_dict(clr_flags)
+
+clr_CorTypeAttr = [
+    # Use this mask to retrieve the type visibility information.
+    ('tdVisibilityMask',    0x00000007),
+    ('tdNotPublic',         0x00000000),     # Class is not public scope.
+    ('tdPublic',            0x00000001),     # Class is public scope.
+    ('tdNestedPublic',      0x00000002),     # Class is nested with public visibility.
+    ('tdNestedPrivate',     0x00000003),     # Class is nested with private visibility.
+    ('tdNestedFamily',      0x00000004),     # Class is nested with family visibility.
+    ('tdNestedAssembly',    0x00000005),     # Class is nested with assembly visibility.
+    ('tdNestedFamANDAssem', 0x00000006),     # Class is nested with family and assembly visibility.
+    ('tdNestedFamORAssem',  0x00000007),     # Class is nested with family or assembly visibility.
+
+    # Use this mask to retrieve class layout information
+    ('tdLayoutMask',        0x00000018),
+    ('tdAutoLayout',        0x00000000),     # Class fields are auto-laid out
+    ('tdSequentialLayout',  0x00000008),     # Class fields are laid out sequentially
+    ('tdExplicitLayout',    0x00000010),     # Layout is supplied explicitly
+    # end layout mask
+
+    # Use this mask to retrieve class semantics information.
+    ('tdClassSemanticsMask',0x00000060),
+    ('tdClass',             0x00000000),     # Type is a class.
+    ('tdInterface',         0x00000020),     # Type is an interface.
+    # end semantics mask
+
+    # Special semantics in addition to class semantics.
+    ('tdAbstract',          0x00000080),     # Class is abstract
+    ('tdSealed',            0x00000100),     # Class is concrete and may not be extended
+    ('tdSpecialName',       0x00000400),     # Class name is special. Name describes how.
+
+    # Implementation attributes.
+    ('tdImport',            0x00001000),     # Class / interface is imported
+    ('tdSerializable',      0x00002000),     # The class is Serializable.
+
+    # Use tdStringFormatMask to retrieve string information for native interop
+    ('tdStringFormatMask',  0x00030000),
+    ('tdAnsiClass',         0x00000000),     # LPTSTR is interpreted as ANSI in this class
+    ('tdUnicodeClass',      0x00010000),     # LPTSTR is interpreted as UNICODE
+    ('tdAutoClass',         0x00020000),     # LPTSTR is interpreted automatically
+    ('tdCustomFormatClass', 0x00030000),     # A non-standard encoding specified by CustomFormatMask
+    ('tdCustomFormatMask',  0x00C00000),     # Use this mask to retrieve non-standard encoding information for native interop. The meaning of the values of these 2 bits is unspecified.
+
+    # end string format mask
+
+    ('tdBeforeFieldInit',   0x00100000),     # Initialize the class any time before first static field access.
+    ('tdForwarder',         0x00200000),     # This ExportedType is a type forwarder.
+
+    # Flags reserved for runtime use.
+    ('tdReservedMask',      0x00040800),
+    ('tdRTSpecialName',     0x00000800),     # Runtime should check name encoding.
+    ('tdHasSecurity',       0x00040000),     # Class has security associate with it.
+]
+
+CLR_CORTYPEATTR = two_way_dict(clr_CorTypeAttr)
+
+clr_CorFieldAttr = [
+    # member access mask - Use this mask to retrieve accessibility information.
+    ('fdFieldAccessMask',   0x0007),
+    ('fdPrivateScope',      0x0000),     # Member not referenceable.
+    ('fdPrivate',           0x0001),     # Accessible only by the parent type.
+    ('fdFamANDAssem',       0x0002),     # Accessible by sub-types only in this Assembly.
+    ('fdAssembly',          0x0003),     # Accessibly by anyone in the Assembly.
+    ('fdFamily',            0x0004),     # Accessible only by type and sub-types.
+    ('fdFamORAssem',        0x0005),     # Accessibly by sub-types anywhere, plus anyone in assembly.
+    ('fdPublic',            0x0006),     # Accessibly by anyone who has visibility to this scope.
+    # end member access mask
+
+    # field contract attributes.
+    ('fdStatic',            0x0010),     # Defined on type, else per instance.
+    ('fdInitOnly',          0x0020),     # Field may only be initialized, not written to after init.
+    ('fdLiteral',           0x0040),     # Value is compile time constant.
+    ('fdNotSerialized',     0x0080),     # Field does not have to be serialized when type is remoted.
+
+    ('fdSpecialName',       0x0200),     # field is special. Name describes how.
+
+    # interop attributes
+    ('fdPinvokeImpl',       0x2000),     # Implementation is forwarded through pinvoke.
+
+    # Reserved flags for runtime use only.
+    ('fdReservedMask',      0x9500),
+    ('fdRTSpecialName',     0x0400),     # Runtime(metadata internal APIs) should check name encoding.
+    ('fdHasFieldMarshal',   0x1000),     # Field has marshalling information.
+    ('fdHasDefault',        0x8000),     # Field has default.
+    ('fdHasFieldRVA',       0x0100),     # Field has RVA.
+]
+
+CLR_CORFIELDATTR = two_way_dict(clr_CorFieldAttr)
+
+clr_CorMethodAttr = [
+    # member access mask - Use this mask to retrieve accessibility information.
+    ('mdMemberAccessMask',             0x0007),
+    ('mdPrivateScope',                 0x0000),     # Member not referenceable.
+    ('mdPrivate',                      0x0001),     # Accessible only by the parent type.
+    ('mdFamANDAssem',                  0x0002),     # Accessible by sub-types only in this Assembly.
+    ('mdAssem',                        0x0003),     # Accessibly by anyone in the Assembly.
+    ('mdFamily',                       0x0004),     # Accessible only by type and sub-types.
+    ('mdFamORAssem',                   0x0005),     # Accessibly by sub-types anywhere, plus anyone in assembly.
+    ('mdPublic',                       0x0006),     # Accessibly by anyone who has visibility to this scope.
+    # end member access mask
+
+    # method contract attributes.
+    ('mdStatic',                       0x0010),     # Defined on type, else per instance.
+    ('mdFinal',                        0x0020),     # Method may not be overridden.
+    ('mdVirtual',                      0x0040),     # Method virtual.
+    ('mdHideBySig',                    0x0080),     # Method hides by name+sig, else just by name.
+
+    # vtable layout mask - Use this mask to retrieve vtable attributes.
+    ('mdVtableLayoutMask',             0x0100),
+    ('mdReuseSlot',                    0x0000),     # The default.
+    ('mdNewSlot',                      0x0100),     # Method always gets a new slot in the vtable.
+    # end vtable layout mask
+
+    # method implementation attributes.
+    ('mdCheckAccessOnOverride',        0x0200),     # Overridability is the same as the visibility.
+    ('mdAbstract',                     0x0400),     # Method does not provide an implementation.
+    ('mdSpecialName',                  0x0800),     # Method is special. Name describes how.
+
+    # interop attributes
+    ('mdPinvokeImpl',                  0x2000),     # Implementation is forwarded through pinvoke.
+    ('mdUnmanagedExport',              0x0008),     # Managed method exported via thunk to unmanaged code.
+
+    # Reserved flags for runtime use only.
+    ('mdReservedMask',                 0xd000),
+    ('mdRTSpecialName',                0x1000),     # Runtime should check name encoding.
+    ('mdHasSecurity',                  0x4000),     # Method has security associate with it.
+    ('mdRequireSecObject',             0x8000),     # Method calls another method containing security code.
+]
+
+CLR_CORMETHODATTR = two_way_dict(clr_CorMethodAttr)
+
+clr_CorMethodImpl =  [
+    # code impl mask
+    ('miCodeTypeMask',         0x0003),   # Flags about code type.
+    ('miIL',                   0x0000),   # Method impl is IL.
+    ('miNative',               0x0001),   # Method impl is native.
+    ('miOPTIL',                0x0002),   # Method impl is OPTIL
+    ('miRuntime',              0x0003),   # Method impl is provided by the runtime.
+    # end code impl mask
+
+    # managed mask
+    ('miManagedMask',          0x0004),   # Flags specifying whether the code is managed or unmanaged.
+    ('miUnmanaged',            0x0004),   # Method impl is unmanaged, otherwise managed.
+    ('miManaged',              0x0000),   # Method impl is managed.
+    # end managed mask
+
+    # implementation info and interop
+    ('miForwardRef',           0x0010),   # Indicates method is defined; used primarily in merge scenarios.
+    ('miPreserveSig',          0x0080),   # Indicates method sig is not to be mangled to do HRESULT conversion.
+
+    ('miInternalCall',         0x1000),   # Reserved for internal use.
+
+    ('miSynchronized',         0x0020),   # Method is single threaded through the body.
+    ('miNoInlining',           0x0008),   # Method may not be inlined.
+    ('miMaxMethodImplVal',     0xffff),   # Range check value
+]
+
+CLR_CORMETHODIMPL = two_way_dict(clr_CorMethodImpl)
+
+clr_CorParamAttr = [
+    ('pdIn',                           0x0001),     # Param is [In]
+    ('pdOut',                          0x0002),     # Param is [out]
+    ('pdOptional',                     0x0010),     # Param is optional
+
+    # Reserved flags for Runtime use only.
+    ('pdReservedMask',                 0xf000),
+    ('pdHasDefault',                   0x1000),     # Param has default value.
+    ('pdHasFieldMarshal',              0x2000),     # Param has FieldMarshal.
+
+    ('pdUnused',                       0xcfe0),
+]
+
+CLR_CORPARAMATTR = two_way_dict(clr_CorParamAttr)
+
+clr_CorEventAttr = [
+    ('evSpecialName',              0x0200),     # event is special. Name describes how.
+
+    # Reserved flags for Runtime use only.
+    ('evReservedMask',             0x0400),
+    ('evRTSpecialName',            0x0400),     # Runtime(metadata internal APIs) should check name encoding.
+]
+
+CLR_COREVENTATTR = two_way_dict(clr_CorEventAttr)
+
+clr_CorPropertyAttr = [
+    ('prSpecialName',              0x0200),     # property is special. Name describes how.
+
+    # Reserved flags for Runtime use only.
+    ('prReservedMask',             0xf400),
+    ('prRTSpecialName',            0x0400),     # Runtime(metadata internal APIs) should check name encoding.
+    ('prHasDefault',               0x1000),     # Property has default
+
+    ('prUnused',                   0xe9ff),
+]
+
+CLR_CORPROPERTYATTR = two_way_dict(clr_CorPropertyAttr)
+
+clr_CorMethodSemanticsAttr = [
+    ('msSetter',       0x0001),     # Setter for property
+    ('msGetter',       0x0002),     # Getter for property
+    ('msOther',        0x0004),     # other method for property or event
+    ('msAddOn',        0x0008),     # AddOn method for event
+    ('msRemoveOn',     0x0010),     # RemoveOn method for event
+    ('msFire',         0x0020),     # Fire method for event
+]
+
+CLR_CORMETHODSEMANTICSATTR = two_way_dict(clr_CorMethodSemanticsAttr)
+
+clr_CorPinvokeMap = [
+    ('pmNoMangle',           0x0001),   # Pinvoke is to use the member name as specified.
+
+    # Use this mask to retrieve the CharSet information.
+    ('pmCharSetMask',        0x0006),
+    ('pmCharSetNotSpec',     0x0000),
+    ('pmCharSetAnsi',        0x0002),
+    ('pmCharSetUnicode',     0x0004),
+    ('pmCharSetAuto',        0x0006),
+
+
+    ('pmBestFitUseAssem',    0x0000),
+    ('pmBestFitEnabled',     0x0010),
+    ('pmBestFitDisabled',    0x0020),
+    ('pmBestFitMask',        0x0030),
+
+    ('pmThrowOnUnmappableCharUseAssem',    0x0000),
+    ('pmThrowOnUnmappableCharEnabled',     0x1000),
+    ('pmThrowOnUnmappableCharDisabled',    0x2000),
+    ('pmThrowOnUnmappableCharMask',        0x3000),
+
+    ('pmSupportsLastError',  0x0040),   # Information about target function. Not relevant for fields.
+
+    # None of the calling convention flags is relevant for fields.
+    ('pmCallConvMask',       0x0700),
+    ('pmCallConvWinapi',     0x0100),   # Pinvoke will use native callconv appropriate to target windows platform.
+    ('pmCallConvCdecl',      0x0200),
+    ('pmCallConvStdcall',    0x0300),
+    ('pmCallConvThiscall',   0x0400),   # In M9, pinvoke will raise exception.
+    ('pmCallConvFastcall',   0x0500),
+
+    ('pmMaxValue',           0xFFFF),
+]
+
+CLR_CORPINVOKEMAP = two_way_dict(clr_CorPinvokeMap)
+
+clr_CorAssemblyFlags = [
+    ('afPublicKey',                 0x0001),    # The assembly ref holds the full (unhashed) public key.
+
+    ('afPA_None',                   0x0000),    # Processor Architecture unspecified
+    ('afPA_MSIL',                   0x0010),    # Processor Architecture: neutral (PE32)
+    ('afPA_x86',                    0x0020),    # Processor Architecture: x86 (PE32)
+    ('afPA_IA64',                   0x0030),    # Processor Architecture: Itanium (PE32+)
+    ('afPA_AMD64',                  0x0040),    # Processor Architecture: AMD X64 (PE32+)
+    ('afPA_Specified',              0x0080),    # Propagate PA flags to AssemblyRef record
+    ('afPA_Mask',                   0x0070),    # Bits describing the processor architecture
+    ('afPA_FullMask',               0x00F0),    # Bits describing the PA incl. Specified
+    ('afPA_Shift',                  0x0004),    # NOT A FLAG, shift count in PA flags <--> index conversion
+
+    ('afEnableJITcompileTracking',  0x8000),    # From "DebuggableAttribute".
+    ('afDisableJITcompileOptimizer',0x4000),    # From "DebuggableAttribute".
+
+    ('afRetargetable',              0x0100),    # The assembly can be retargeted (at runtime) to an
+                                                # assembly from a different publisher.
+]
+
+CLR_CORASSEMBLYFLAGS = two_way_dict(clr_CorAssemblyFlags)
+
+clr_CorFileFlags = [
+    ('ffContainsMetaData',         0x0000),     # This is not a resource file
+    ('ffContainsNoMetaData',       0x0001),     # This is a resource file or other non-metadata-containing file
+]
+
+CLR_CORFILEFLAGS = two_way_dict(clr_CorFileFlags)
+
+clr_CorManifestResourceFlags = [
+    ('mrVisibilityMask',           0x0007),
+    ('mrPublic',                   0x0001),     # The Resource is exported from the Assembly.
+    ('mrPrivate',                  0x0002),     # The Resource is private to the Assembly.
+]
+
+CLR_CORMANIFESTRESOURCEFLAGS = two_way_dict(clr_CorManifestResourceFlags)
+
+clr_CorGenericParamAttr = [
+    # Variance of type parameters, only applicable to generic parameters
+    # for generic interfaces and delegates
+    ('gpVarianceMask',                  0x0003),
+    ('gpNonVariant',                    0x0000),
+    ('gpCovariant',                     0x0001),
+    ('gpContravariant',                 0x0002),
+
+    # Special constraints, applicable to any type parameters
+    ('gpSpecialConstraintMask',         0x001C),
+    ('gpNoSpecialConstraint',           0x0000),
+    ('gpReferenceTypeConstraint',       0x0004),    # type argument must be a reference type
+    ('gpNotNullableValueTypeConstraint',0x0008),    # type argument must be a value type but not Nullable
+    ('gpDefaultConstructorConstraint',  0x0010),    # type argument must have a public default constructor
+]
+
+CLR_CORGENERICPARAMATTR = two_way_dict(clr_CorGenericParamAttr)
+
 
 # Initialize the dictionary with all the name->value pairs
 SUBLANG = dict( sublang )
@@ -1484,6 +1826,1538 @@ class BoundImportRefData(DataContainer):
     """
 
 
+class CLRData(DataContainer):
+    """Holds CLR (.NET) header data.
+
+    struct:         IMAGE_CLR_STRUCTURE structure
+    strings:        CLRStringsHeap or None
+    guids:          CLRGuidHeap or None
+    blobs:          CLRBlobHeap or None
+    mdtables:       CLRMetaDataTables or None
+    """
+
+    # Structure description from:
+    # http://www.ntcore.com/files/dotnetformat.htm
+    _format = (
+        'IMAGE_NET_DIRECTORY',
+        (
+            'I,cb',
+            'H,MajorRuntimeVersion',
+            'H,MinorRuntimeVersion',
+            'I,MetaDataRva',
+            'I,MetaDataSize',
+            'I,Flags',
+            'I,EntryPointTokenOrRva',
+            'I,ResourcesRva',
+            'I,ResourcesSize',
+            'I,StrongNameSignatureRva',
+            'I,StrongNameSignatureSize',
+            'I,CodeManagerTableRva',
+            'I,CodeManagerTableSize',
+            'I,VTableFixupsRva',
+            'I,VTableFixupsSize',
+            'I,ExportAddressTableJumpsRva',
+            'I,ExportAddressTableJumpsSize',
+            'I,ManagedNativeHeaderRva',
+            'I,ManagedNativeHeaderSize',
+        )
+    )
+
+    def __init__(self, pe, rva: int, size: int):
+        """
+        Given PE object, .NET header RVA and header size.
+        Raises PEFormatError if problems parsing.
+        """
+        data = pe.get_data(rva, size)
+
+        try:
+            clr_struct = pe.__unpack_data__(
+                self._format,
+                data, 
+                pe.get_offset_from_rva(rva)
+            )
+        except PEFormatError:
+            clr_struct = None
+
+        if not clr_struct:
+            raise PEFormatError(
+                "Invalid CLR Structure information. Can\'t read "
+                "data at RVA: 0x%x" % rva
+            )
+
+        # set structure member
+        self.struct = clr_struct
+        # parse metadata
+        metadata_rva = clr_struct.MetaDataRva
+        metadata_size = clr_struct.MetaDataSize
+        self.metadata = CLRMetaData(pe, metadata_rva, metadata_size)
+        self.strings = None
+        self.guids = None
+        self.blobs = None
+        self.mdtables = None
+        if self.metadata:
+            # create shortcuts for streams
+            for s in self.metadata.streams_list:
+                if not self.strings and isinstance(s, CLRStringsHeap):
+                    self.strings = s
+                elif not self.guids and isinstance(s, CLRGuidHeap):
+                    self.guids = s
+                elif not self.blobs and isinstance(s, CLRBlobHeap):
+                    self.blobs = s
+                elif not self.mdtables and isinstance(s, CLRMetaDataTables):
+                    self.mdtables = s
+        # add flags
+        flags = retrieve_flags(CLR_FLAGS, 'CLR_')
+        # Set the flags according to the Flags member
+        set_flags(self, clr_struct.Flags, flags)
+
+
+class CLRMetaData(DataContainer):
+    """Holds CLR (.NET) MetaData.
+
+    struct:         IMAGE_CLR_METADATA structure
+    streams:        Dictionary to access streams by name (bytes)
+    streams_list:   List of streams in order of entry in header
+    """
+
+    rva:            int
+    struct:         Structure
+    streams:        dict
+    streams_list:   list
+
+    _format = (
+        'IMAGE_CLR_METADATA',
+        [
+            'I,Signature',
+            'H,MajorVersion',
+            'H,MinorVersion',
+            'I,Reserved',
+            'I,VersionLength',
+            # '?,Version',
+            # 'H,Flags',
+            # 'H,NumberOfStreams',
+        ]
+    )
+    #### MetaData section
+    #
+    # dd    Signature
+    # dw    MajorVersion
+    # dw    MinorVersion
+    # dd    Reserved
+    # dd    Length
+    # var   Version
+    # dw    Flags
+    # dw    NumberOfStreams
+    # var   StreamHeaders
+
+    def __init__(self, pe, rva: int, size: int):
+        """
+        Given a PE object, MetaData RVA and MetaData Size.
+        Raises PEFormatError if encounter problems parsing.
+        """
+        metadata_rva = rva
+
+        # The metadata RVA, used for stream offsets
+        self.rva = rva
+
+        # dynamically create metadata header structure
+        struct_format = copymod.deepcopy(self._format)
+        struct_data = pe.get_data(rva, size)
+        if len(struct_data) < size:
+            #pe.__warnings.append(
+            #    'Invalid CLR MetaData Structure size. Can\'t read %d '
+            #    'bytes at RVA: 0x%x' % (size, rva))
+            raise PEFormatError(
+                'Invalid CLR MetaData Structure size. Can\'t read %d '
+                'bytes at RVA: 0x%x' % (size, rva)
+            )
+        # check signature
+        sig = struct.unpack_from("<I", struct_data)[0]
+        if sig != CLR_METADATA_SIGNATURE:
+            raise PEFormatError(
+                'Invalid CLR MetaData Signature at 0x%x. Expected 0x%x but '
+                'got 0x%x' % (rva, CLR_METADATA_SIGNATURE, sig)
+            )
+        # parse struct so that we can get the version length
+        metadata_struct = pe.__unpack_data__(
+            struct_format,
+            struct_data,
+            pe.get_offset_from_rva(metadata_rva))
+        # add variable-length version field
+        if metadata_struct.VersionLength > 0:
+            struct_format[1].append(
+                '{0}s,Version'.format(metadata_struct.VersionLength))
+        # add Flags
+        struct_format[1].append('H,Flags')
+        # add NumberOfStreams
+        struct_format[1].append('H,NumberOfStreams')
+
+        # re-parse metadata header structure
+        struct_size = Structure(struct_format).sizeof()
+        struct_data = pe.get_data(metadata_rva, struct_size)
+        if len(struct_data) < struct_size:
+            raise PEFormatError(
+                "unable to read full CLR metadata structure, expected {} got {}".format(
+                    struct_size,
+                    len(struct_data) )
+            )
+        metadata_struct = pe.__unpack_data__(
+            struct_format,
+            struct_data,
+            pe.get_offset_from_rva(metadata_rva))
+
+        self.struct = metadata_struct
+
+        if metadata_struct.NumberOfStreams > 0:
+            # parse the streams table
+            streams_table_rva = metadata_rva + struct_size
+            self.parse_stream_table(pe, streams_table_rva)
+
+            # parse each stream
+            for s in self.streams_list:
+                s.parse(pe, self.streams_list)
+
+    def parse_stream_table(self, pe, streams_table_rva):
+        streams_list = list()
+        streams_dict = dict()
+        # pointer to current stream's table entry
+        stream_entry_rva = streams_table_rva
+        for i in range(self.struct.NumberOfStreams):
+            stream = CLRStreamFactory.createStream(pe, stream_entry_rva, self)
+            if not stream:
+                # TODO error
+                break
+            streams_list.append(stream)
+            # if a stream with this name already exists
+            if stream.struct.Name in streams_dict:
+                # TODO: warning
+                pass
+            else:
+                # otherwise add it to the associative array
+                streams_dict[stream.struct.Name] = stream 
+            # move to next entry in streams table
+            stream_entry_rva += stream.stream_table_entry_size()
+
+        self.streams = streams_dict
+        self.streams_list = streams_list
+
+
+class CLRStream(DataContainer):
+    struct: Structure
+    rva: int
+    __data__: bytes
+
+    def __init__(self, pe, clr_metadata: CLRMetaData, stream_struct: Structure, stream_data: bytes):
+        self.struct = stream_struct
+        self.rva = clr_metadata.rva + stream_struct.Offset
+        self._md = clr_metadata
+        self.__data__ = stream_data
+        self._stream_table_entry_size = stream_struct.sizeof()
+
+    def parse(self, pe, streams: list):
+        """
+        Parse the stream.
+
+        NOTE: do not call until all streams have been initialized,
+              since we may need info from other streams.
+        """
+        pass
+
+    def stream_table_entry_size(self):
+        """
+        Returns the number of bytes occupied by this entry in the Streams table list.
+        """
+        return self._stream_table_entry_size
+
+
+class CLRHeap(CLRStream):
+    def get(self):
+        raise NotImplementedError()
+
+
+class CLRMetaDataTables(CLRStream):
+    """Holds CLR (.NET) Metadata Tables.
+
+    struct:     the stream list entry
+    header:     IMAGE_CLR_METADATA_TABLES structure
+    tables:     dict of tables where table number is key and value is CLRMetaDataTable object
+    tables_list:            list of tables, in processing order
+    strings_offset_size:    number of bytes
+    guids_offset_size:      number of bytes
+    blobs_offset_size:      number of bytes
+    """
+    _format = (
+        'IMAGE_CLR_METADATA_TABLES',
+        (
+            'I,Reserved_1',
+            'B,MajorVersion',
+            'B,MinorVersion',
+            'B,HeapOffsetSizes',
+            'B,Reserved_2',
+            'Q,MaskValid',
+            'Q,MaskSorted',
+        )
+    )
+
+    header = None
+    tables: dict
+    tables_list: list
+    strings_offset_size: int
+    guids_offset_size: int
+    blobs_offset_size: int
+
+    # from https://www.ntcore.com/files/dotnetformat.htm
+    # and https://referencesource.microsoft.com/System.AddIn/System/Addin/MiniReflection/MetadataReader/Metadata.cs.html#123
+    Module = None
+    TypeRef = None
+    TypeDef = None
+    Field = None
+    MethodDef = None
+    Param = None
+    InterfaceImpl = None
+    MemberRef = None
+    Constant = None
+    CustomAttribute = None
+    FieldMarshal = None
+    DeclSecurity = None
+    ClassLayout = None
+    FieldLayout = None
+    StandAloneSig = None
+    EventMap = None
+    Event = None
+    PropertyMap = None
+    Property = None
+    MethodSemantics = None
+    MethodImpl = None
+    ModuleRef = None
+    TypeSpec = None
+    ImplMap = None
+    FieldRva = None
+    Assembly = None
+    AssemblyProcessor = None
+    AssemblyOS = None
+    AssemblyRef = None
+    AssemblyRefProcessor = None
+    AssemblyRefOS = None
+    File = None
+    ExportedType = None
+    ManifestResource = None
+    NestedClass = None
+    GenericParam = None
+    GenericParamConstraint = None
+
+    def parse(self, pe, streams: list):
+
+        STRINGS_MASK = 0x01
+        GUIDS_MASK   = 0x02
+        BLOBS_MASK   = 0x03
+        MAX_TABLES   = 64
+
+        self.tables = dict()
+        self.tables_list = list()
+        header_len = Structure(self._format).sizeof()
+        if not self.__data__ or len(self.__data__) < header_len:
+            # TODO: warning
+            return
+
+        #### parse header
+        header_struct = pe.__unpack_data__(
+            self._format,
+            self.__data__,
+            pe.get_offset_from_rva(self.rva))
+        self.header = header_struct
+
+        #### heaps offsets
+        if header_struct.HeapOffsetSizes & STRINGS_MASK:
+            strings_offset_size = 4
+        else:
+            strings_offset_size = 2
+        if header_struct.HeapOffsetSizes & GUIDS_MASK:
+            guids_offset_size = 4
+        else:
+            guids_offset_size = 2
+        if header_struct.HeapOffsetSizes & BLOBS_MASK:
+            blobs_offset_size = 4
+        else:
+            blobs_offset_size = 2
+        self.strings_offset_size = strings_offset_size
+        self.guids_offset_size = guids_offset_size
+        self.blobs_offset_size = blobs_offset_size
+
+        #### heaps
+        strings_heap: CLRStringsHeap = None
+        guid_heap: CLRGuidHeap = None
+        blob_heap: CLRBlobHeap = None
+        for s in streams:
+            # find the first instance of the strings, guid, and blob heaps
+            # TODO: if there are multiple instances of a type, does dotnet loader use first?
+            if not strings_heap and isinstance(s, CLRStringsHeap):
+                strings_heap = s
+            elif not guid_heap and isinstance(s, CLRGuidHeap):
+                guid_heap = s
+            elif not blob_heap and isinstance(s, CLRBlobHeap):
+                blob_heap = s
+
+
+        #### Parse tables rows list.
+        #  It is a variable length array of dwords.  Each dword is
+        #  the number of rows in a table.  They are ordered by table
+        #  number, smallest first.  Only the tables needed/defined
+        #  are listed, thus the variable length and need to parse
+        #  the header's MaskValid member.
+        cur_rva = self.rva + header_len
+        for i in range(MAX_TABLES):
+            # if table bit is set
+            if header_struct.MaskValid & 2**i:
+                table = CLRMetaDataTableFactory.createTable(i, pe, self)
+                if not table:
+                    # TODO: error/warning
+                    return
+                # table number
+                table.number = i
+                # number of rows in table
+                table.num_rows = pe.get_dword_at_rva(cur_rva)
+                # is table sorted?
+                if header_struct.MaskSorted & 2**i:
+                    table.is_sorted = True
+                # add to tables dict
+                self.tables[i] = table
+                # add to tables list
+                self.tables_list.append(table)
+                # set member, to allow reference by name
+                if table.name:
+                    setattr(self, table.name, table)
+                # increment to next dword
+                cur_rva += 4
+
+        #### parse each table
+        # here, cur_rva points to start of table rows
+        for table in self.tables_list:
+            table.parse_rows(
+                pe,
+                cur_rva,
+                strings_heap,
+                guid_heap,
+                blob_heap
+            )
+            # move to next set of rows
+            cur_rva += table.row_size * table.num_rows
+
+    def _clr_coded_index_struct_size(self, tag_bits, table_names, tables):
+        if not table_names or not tables:
+            raise Exception("Must provide table names and tables list")
+        max_index = 0
+        for t in tables:
+            if t.name in table_names:
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word (minus bits for reference id)
+        if max_index <= 2**(16 - tag_bits):
+            # size is a word
+            return 'H'
+        # otherwise, size is a dword
+        return 'I'
+
+
+class CLRStringsHeap(CLRHeap):
+    offset_size = 0
+
+    def get(self, index, max_length=MAX_STRING_LENGTH, as_bytes=False):
+        """
+        Given an index (offset), read a null-terminated UTF-8 string.
+        Returns None on error, or UTF-8 string, or bytes if as_bytes is True.
+        """
+
+        if not self.__data__ or index is None or not max_length:
+            return None
+
+        offset = index
+        end = self.__data__.find(b'\x00', offset)
+        if end - offset > max_length: return None
+        data = self.__data__[offset:end]
+        if as_bytes:
+            return data
+        s = data.decode('utf-8')
+        return s
+
+
+class CLRBlobHeap(CLRHeap):
+    def get_with_size(self, index):
+        offset = index
+        # read compressed int length
+        data_length, length_size = read_compressed_int(self.__data__[offset:offset+4])
+        # read data
+        offset = offset + length_size
+        data = self.__data__[offset:offset+data_length]
+        return data, length_size + data_length
+
+    def get(self, index):
+        data, _ = self.get_with_size(index, as_bytes)
+        return data
+
+class CLRGuidHeap(CLRHeap):
+    offset_size = 0
+
+    def get(self, index, as_bytes=False):
+        if index is None or index < 1:
+            return None
+
+        size = 128 / 8  # number of bytes in a guid
+        # offset into the GUID stream
+        offset = (index - 1) * size
+
+        data = self.__data__[offset:offset+size]
+        if as_bytes:
+            return data
+        # convert to string
+        parts = struct.unpack_from('<IHH', data)
+        part3 = hexlify(data[8:10])
+        part4 = hexlify(data[10:16])
+        if PY3:
+            part3 = part3.decode('ascii')
+            part4 = part4.decode('ascii')
+        return '{:08x}-{:04x}-{:04x}-{}-{}'.format(
+            parts[0],
+            parts[1],
+            parts[2],
+            part3,
+            part4
+        )
+
+
+class CLRStreamFactory(object):
+    _name_type_map = {
+        b"#~": CLRMetaDataTables,
+        b"#Strings": CLRStringsHeap,
+        b"#GUID": CLRGuidHeap,
+        b"#Blob": CLRBlobHeap,
+    }
+    _template_format = (
+        'IMAGE_CLR_STREAM',
+        [
+            'I,Offset',
+            'I,Size',
+            #'?,Name',
+        ]
+    )
+
+    @classmethod
+    def createStream(cls, pe, stream_entry_rva: int, metadata: CLRMetaData):
+        metadata_rva = metadata.rva
+        # start with structure template
+        struct_format = copymod.deepcopy(cls._template_format)
+        # read name
+        name = pe.get_string_at_rva(stream_entry_rva + 8)
+        # round field length up to next 4-byte boundary.  Remember the NULL byte at end.
+        name_len = len(name) + (4 - (len(name) % 4))
+        # add name field to structure
+        struct_format[1].append('{0}s,Name'.format(name_len))
+        # parse structure
+        struct_size = Structure(struct_format).sizeof()
+        struct_data = pe.get_data(stream_entry_rva, struct_size)
+        stream_struct = pe.__unpack_data__(struct_format, struct_data, pe.get_offset_from_rva(stream_entry_rva))
+        # remove trailing NULLs from name
+        stream_struct.Name = stream_struct.Name.rstrip(b"\x00")
+        stream_data = pe.get_data(metadata_rva + stream_struct.Offset, stream_struct.Size)
+        # if there is a subclass for this stream
+        if stream_struct.Name in cls._name_type_map:
+            # use that subclass
+            stream_class = cls._name_type_map[stream_struct.Name]
+        else:
+            # otherwise, use the base stream class
+            stream_class = CLRStream
+        # construct stream
+        stream = stream_class(pe, metadata, stream_struct, stream_data)
+        # return stream
+        return stream
+
+
+class MDTableRow(DataContainer):
+    struct: Structure
+
+
+class CLRMetaDataTable(DataContainer):
+    number: int
+    name: str
+    num_rows: int = 0
+    row_size: int = 0
+    rows: list
+    rows_rva: int
+    is_sorted = False
+
+    _format = None
+    _flags = None
+
+    def __init__(self, pe, mdtables: CLRMetaDataTables):
+        self._mdtables = mdtables
+
+    def prep_format(self):
+        pass
+
+    def parse_row_attrs(self, row: MDTableRow, strings: CLRStringsHeap, guids: CLRGuidHeap, blobs: CLRBlobHeap):
+        pass
+
+    def parse_rows(self, pe, rva: int, strings: CLRStringsHeap, guids: CLRGuidHeap, blobs: CLRBlobHeap):
+        """
+        Parse the table.  Populates the row_size, rows_rva, and rows members.
+
+        NOTE: do not call until all tables are initialized.
+        """
+        self.prep_format()
+        self.row_size = Structure(self._format).sizeof()
+        self.rows = list()
+        self.rows_rva = rva
+        # for each row in table
+        table_row_rva = rva
+        for i in range(self.num_rows):
+            data = pe.get_data(table_row_rva, self.row_size)
+            if not data or len(data) < self.row_size:
+                # TODO: warning
+                break
+            row_struct = pe.__unpack_data__(
+                self._format,
+                data,
+                pe.get_offset_from_rva(table_row_rva)
+            )
+            row = MDTableRow( struct=row_struct )
+            # process flags
+            if self._flags:
+                for field_name, lookup, lookup_filter in self._flags:
+                    # set flags
+                    flags = retrieve_flags(lookup, lookup_filter)
+                    # Set the flags according to the Flags member
+                    set_flags(row, getattr(row_struct, field_name), flags)
+            # add attrs
+            #self.parse_row_attrs(row, strings, guids, blobs)
+            # add to rows list
+            self.rows.append(row)
+            # next row
+            table_row_rva += self.row_size
+
+    def _clr_coded_index_struct_size(self, tag_bits, table_names):
+        if not table_names or not self._mdtables:
+            # TODO: custom exception
+            raise Exception("Must provide table names and tables list")
+        max_index = 0
+        for _, t in self._mdtables.tables.items():
+            if t.name in table_names:
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word (minus bits for reference id)
+        if max_index <= 2**(16 - tag_bits):
+            # size is a word
+            return 'H'
+        # otherwise, size is a dword
+        return 'I'
+
+
+class ClrMdtModule(CLRMetaDataTable):
+    name = 'Module'
+
+    def prep_format(self):
+        self._format = (
+            'CLR_METADATA_TABLE_MODULE',
+            (
+                'H,Generation',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+                ('H' if self._mdtables.guids_offset_size == 2 else 'I') + ',Mvid_GuidIndex',
+                ('H' if self._mdtables.guids_offset_size == 2 else 'I') + ',EncId_GuidIndex',
+                ('H' if self._mdtables.guids_offset_size == 2 else 'I') + ',EncBaseId_GuidIndex',
+            )
+        )
+
+    def parse_row_attrs(self, row: MDTableRow, strings: CLRStringsHeap, guids: CLRGuidHeap, blobs: CLRBlobHeap):
+        row.Generation = row.struct.Generation
+        row.Name = strings.get(row.struct.Name_StringIndex)
+        row.Mvid = guids.get(row.struct.Mvid_GuidIndex)
+        row.EncID = guids.get(row.struct.EncId_GuidIndex)
+        row.EncBaseId = guids.get(row.struct.EncBaseId_GuidIndex)
+
+class ClrMdtTypeRef(CLRMetaDataTable):
+    name = "TypeRef"
+
+    #### TypeRef Table
+    # ResolutionScope = low two bits
+
+    def prep_format(self):
+        resolutionscope_size = self._clr_coded_index_struct_size(
+            2,
+            ('Module', 'ModuleRef', 'AssemblyRef', 'TypeRef'),
+        )
+        self._format = (
+            'CLR_METADATA_TABLE_TYPEREF',
+            (
+                resolutionscope_size + ',ResolutionScope_CodedIndex',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',TypeName_StringIndex',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',TypeNamespace_StringIndex',
+            )
+        )
+
+class ClrMdtTypeDef(CLRMetaDataTable):
+    name = "TypeDef"
+
+    # TypeDefOrRef = low two bits
+
+    def prep_format(self):
+        extends_size = self._clr_coded_index_struct_size(2, ('TypeDef', 'TypeRef', 'TypeSpec'))
+        fieldlist_size = self._clr_coded_index_struct_size(0, ('Field',))
+        methodlist_size = self._clr_coded_index_struct_size(0, ('MethodDef',))
+        self._format = (
+            'CLR_METADATA_TABLE_TYPEDEF',
+            (
+                'I,Flags',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',TypeName_StringIndex',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',TypeNamespace_StringIndex',
+                extends_size + ',Extends_CodedIndex',
+                fieldlist_size + ',FieldList_Index',
+                methodlist_size + ',MethodList_Index',
+            )
+        )
+        self._flags = [ ('Flags', CLR_CORTYPEATTR, 'td') ]
+
+class ClrMdtFieldPtr(CLRMetaDataTable):
+    name = "FieldPtr"
+    # TODO
+
+class ClrMdtField(CLRMetaDataTable):
+    name = "Field"
+
+    def prep_format(self):
+        self._format = (
+            'CLR_METADATA_TABLE_FIELD',
+            (
+                'H,Flags',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',Signature_BlobIndex',
+            )
+        )
+        self._flags = [ ('Flags', CLR_CORFIELDATTR, 'fd') ]
+
+class ClrMdtMethodPtr(CLRMetaDataTable):
+    name = "MethodPtr"
+    # TODO
+
+class ClrMdtMethodDef(CLRMetaDataTable):
+    name = "MethodDef"
+
+    def prep_format(self):
+        paramlist_size = 'H'
+        for t in self._mdtables.tables_list:
+            if t.name == 'Param':
+                if t.num_rows > 2**16:
+                    paramlist_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_METHODDEF',
+            (
+                'I,Rva',
+                'H,ImplFlags',
+                'H,Flags',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',Signature_BlobIndex',
+                paramlist_size + ',ParamList_Index',
+            )
+        )
+        self._flags = [
+            ('Flags', CLR_CORMETHODATTR, 'md'),
+            ('ImplFlags', CLR_CORMETHODIMPL, 'mi'),
+        ]
+
+class ClrMdtParamPtr(CLRMetaDataTable):
+    name = "ParamPtr"
+    # TODO
+
+class ClrMdtParam(CLRMetaDataTable):
+    name = "Param"
+
+    def prep_format(self):
+        self._format = (
+            'CLR_METADATA_TABLE_PARAM',
+            (
+                'H,Flags',
+                'H,Sequence',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+            )
+        )
+        self._falgs = [ ('Flags', CLR_CORPARAMATTR, 'pd') ]
+
+class ClrMdtInterfaceImpl(CLRMetaDataTable):
+    name = "InterfaceImpl"
+
+    # TypeDefOrRef = low two bits
+
+    def prep_format(self):
+        interface_size = self._clr_coded_index_struct_size(2, ('TypeDef', 'TypeRef', 'TypeSpec'))
+        class_size = self._clr_coded_index_struct_size(0, ('TypeDef',))
+        self._format = (
+            'CLR_METADATA_TABLE_INTERFACEIMPL',
+            (
+                class_size + ',Class_Index',
+                interface_size + ',Interface_CodedIndex'
+            )
+        )
+
+class ClrMdtMemberRef(CLRMetaDataTable):
+    name = "MemberRef"
+
+    #### MemberRef (aka MethodRef) Table
+    # MemberRefParent = low three bits
+
+    def prep_format(self):
+        class_size = self._clr_coded_index_struct_size(3, ('TypeRef', 'ModuleRef', 'MethodDef', 'TypeSpec', 'TypeDef'))
+        self._format = (
+            'CLR_METADATA_TABLE_MEMBERREF',
+            (
+                class_size + ',Class_CodedIndex',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',Signature_BlobIndex',
+            )
+        )
+
+class ClrMdtConstant(CLRMetaDataTable):
+    name = "Constant"
+
+    #### Constant Table
+    # HasConstant = low two bits
+
+    def prep_format(self):
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name in ('Param', 'Field', 'Property'):
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word (minus bits for reference id)
+        if max_index <= 2**(16-2):
+            # size is a word
+            parent_size = 'H'
+        else:
+            # otherwise, size is a dword
+            parent_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_CONSTANT',
+            (
+                'B,Type',
+                'B,Padding',
+                parent_size + ',Parent_CodedIndex',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',Value_BlobIndex',
+            )
+        )
+
+class ClrMdtCustomAttribute(CLRMetaDataTable):
+    name = "CustomAttribute"
+
+    #### CustomAttribute
+    # HasCustomAttribute = low five bits
+
+    def prep_format(self):
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name == self.name:
+                continue
+            if t.num_rows > max_index:
+                max_index = t.num_rows
+        # if it can fit in a word (minus bits for reference id)
+        if max_index <= 2**(16-5):
+            # size is a word
+            parent_size = 'H'
+        else:
+            # otherwise, size is a dword
+            parent_size = 'I'
+        # CustomAttributeType = low three bits
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name in ('MethodDef', 'MethodRef'):
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word (minus bits for reference id)
+        if max_index <= 2**(16-3):
+            # size is a word
+            type_size = 'H'
+        else:
+            # otherwise, size is a dword
+            type_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_CUSTOMATTRIBUTE',
+            (
+                parent_size + ',Parent_CodedIndex',
+                type_size + ',Type_CodedIndex',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',Value_BlobIndex',
+            )
+        )
+
+class ClrMdtFieldMarshal(CLRMetaDataTable):
+    name = "FieldMarshal"
+
+    #### FieldMarshal Table
+    # HasFieldMarshal = low one bit
+
+    def prep_format(self):
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name in ('Field', 'Param'):
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word (minus bits for reference id)
+        if max_index <= 2**(16-1):
+            # size is a word
+            parent_size = 'H'
+        else:
+            # otherwise, size is a dword
+            parent_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_FIELDMARSHAL',
+            (
+                parent_size + ',Parent_CodedIndex',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',NativeType_BlobIndex',
+            )
+        )
+
+class ClrMdtDeclSecurity(CLRMetaDataTable):
+    name = "DeclSecurity"
+
+    #### DeclSecurity Table
+    ## coded index table selector is two bits
+
+    def prep_format(self):
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name in ('TypeDef', 'MethodDef', 'Assembly'):
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**(16-2):
+            # size is a word
+            parent_size = 'H'
+        else:
+            # otherwise, size is a dword
+            parent_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_DECLSECURITY',
+            (
+                'H,Action',
+                parent_size + ',Parent_CodedIndex',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',PermissionSet_BlobIndex',
+            )
+        )
+
+class ClrMdtClassLayout(CLRMetaDataTable):
+    name = "ClassLayout"
+
+    def prep_format(self):
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name == 'TypeDef':
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**16:
+            # size is a word
+            parent_size = 'H'
+        else:
+            # otherwise, size is a dword
+            parent_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_CLASSLAYOUT',
+            (
+                'H,PackingSize',
+                'I,ClassSize',
+                parent_size + ',Parent_Index',
+            )
+        )
+
+class ClrMdtFieldLayout(CLRMetaDataTable):
+    name = "FieldLayout"
+
+    def prep_format(self):
+        field_size = self._clr_coded_index_struct_size(0, ('Field',))
+        self._format = (
+            'CLR_METADATA_TABLE_FieldLayout',
+            (
+                'I,Offset',
+                field_size + ',Field_CodedIndex',
+            )
+        )
+
+class ClrMdtStandAloneSig(CLRMetaDataTable):
+    name = "StandAloneSig"
+
+    def prep_format(self):
+        self._format = (
+            'CLR_METADATA_TABLE_STANDALONESIG',
+            (
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',Signature_BlobIndex',
+            )
+        )
+
+class ClrMdtEventMap(CLRMetaDataTable):
+    name = "EventMap"
+
+    def prep_format(self):
+        parent_size = self._clr_coded_index_struct_size(0, ('TypeDef',))
+        eventlist_size = self._clr_coded_index_struct_size(0, ('Event',))
+        self._format = (
+            'CLR_METADATA_TABLE_EVENTMAP',
+            (
+                parent_size + ',Parent_Index',
+                eventlist_size + ',EventList_Index',
+            )
+        )
+
+class ClrMdtEventPtr(CLRMetaDataTable):
+    name = "EventPtr"
+    # TODO
+
+class ClrMdtEvent(CLRMetaDataTable):
+    name = "Event"
+
+    def prep_format(self):
+        eventtype_size = self._clr_coded_index_struct_size(2, ('TypeDef', 'TypeRef', 'TypeSpec'))
+        self._format = (
+            'CLR_METADATA_TABLE_EVENT',
+            (
+                'H,EventFlags',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+                eventtype_size + ',EventType_CodedIndex',
+            )
+        )
+        self._flags = [ ('EventFlags', CLR_COREVENTATTR, 'ev') ]
+
+class ClrMdtPropertyMap(CLRMetaDataTable):
+    name = "PropertyMap"
+
+    def prep_format(self):
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name == 'TypeDef':
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**16:
+            # size is a word
+            parent_size = 'H'
+        else:
+            # otherwise, size is a dword
+            parent_size = 'I'
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name == 'Property':
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**16:
+            # size is a word
+            propertylist_size = 'H'
+        else:
+            # otherwise, size is a dword
+            propertylist_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_PROPERTYMAP',
+            (
+                parent_size + ',Parent_Index',
+                propertylist_size + ',PropertyList_Index',
+            )
+        )
+
+class ClrMdtPropertyPtr(CLRMetaDataTable):
+    name = "PropertyPtr"
+    # TODO
+
+class ClrMdtProperty(CLRMetaDataTable):
+    name = "Property"
+
+    def prep_format(self):
+        self._format = (
+            'CLR_METADATA_TABLE_PROPERTY',
+            (
+                'H,Flags',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',Type_BlobIndex',
+            )
+        )
+        self._flags = [ ('Flags', CLR_CORPROPERTYATTR, 'pr') ]
+
+class ClrMdtMethodSemantics(CLRMetaDataTable):
+    name = "MethodSemantics"
+
+    def prep_format(self):
+        # coded index table selector is one bit
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name == 'MethodDef':
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**16:
+            # size is a word
+            method_size = 'H'
+        else:
+            # otherwise, size is a dword
+            method_size = 'I'
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name in ('Event', 'Property'):
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**(16-1):
+            # size is a word
+            association_size = 'H'
+        else:
+            # otherwise, size is a dword
+            association_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_METHODSEMANTICS',
+            (
+                'H,Semantics',
+                method_size + ',Method_Index',
+                association_size + ',Association_CodedIndex',
+            )
+        )
+        self._flags = [ ('Semantics', CLR_CORMETHODSEMANTICSATTR, 'ms') ]
+
+class ClrMdtMethodImpl(CLRMetaDataTable):
+    name = "MethodImpl"
+
+    def prep_format(self):
+        # coded index table selector is one bit
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name == 'TypeDef':
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**16:
+            # size is a word
+            class_size = 'H'
+        else:
+            # otherwise, size is a dword
+            class_size = 'I'
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name in ('MethodDef', 'MemberRef'):
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**(16-1):
+            # size is a word
+            method_size = 'H'
+        else:
+            # otherwise, size is a dword
+            method_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_METHODIMPL',
+            (
+                class_size + ',Class_Index',
+                method_size + ',MethodBody_CodedIndex',
+                method_size + ',MethodDeclaration_CodedIndex',
+            )
+        )
+
+class ClrMdtModuleRef(CLRMetaDataTable):
+    name = "ModuleRef"
+
+    def prep_format(self):
+        self._format = (
+            'CLR_METADATA_TABLE_MODULEREF',
+            (
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+            )
+        )
+
+class ClrMdtTypeSpec(CLRMetaDataTable):
+    name = "TypeSpec"
+
+    def prep_format(self):
+        self._format = (
+            'CLR_METADATA_TABLE_TYPESPEC',
+            (
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',Signature_BlobIndex',
+            )
+        )
+
+class ClrMdtImplMap(CLRMetaDataTable):
+    name = "ImplMap"
+
+    def prep_format(self):
+        # coded index table selector is one bit
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name in ('Field', 'MethodDef'):
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**(16-1):
+            # size is a word
+            member_size = 'H'
+        else:
+            # otherwise, size is a dword
+            member_size = 'I'
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name == 'ModuleRef':
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**16:
+            # size is a word
+            importscope_size = 'H'
+        else:
+            # otherwise, size is a dword
+            importscope_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_IMPLMAP',
+            (
+                'H,MappingFlags',
+                member_size + ',MemberForwarded_CodedIndex',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',ImportName_StringIndex',
+                importscope_size + ',ImportScope_Index',
+            )
+        )
+        self._flags = [ ('MappingFlags', CLR_CORPINVOKEMAP, 'pm') ]
+
+class ClrMdtFieldRva(CLRMetaDataTable):
+    name = "FieldRva"
+
+    #### FieldRVA
+
+    def prep_format(self):
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name == 'Field':
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**16:
+            # size is a word
+            field_size = 'H'
+        else:
+            # otherwise, size is a dword
+            field_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_FIELDRVA',
+            (
+                'I,Rva',
+                field_size + ',Field_Index',
+            )
+        )
+
+class ClrMdtAssembly(CLRMetaDataTable):
+    name = "Assembly"
+
+    def prep_format(self):
+        self._format = (
+            'CLR_METADATA_TABLE_ASSEMBLY',
+            (
+                'I,HashAlgId',
+                'H,MajorVersion',
+                'H,MinorVersion',
+                'H,BuildNumber',
+                'H,RevisionNumber',
+                'I,Flags',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',PublicKey_BlobIndex',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Culture_StringIndex',
+            )
+        )
+        self._flags = [ ('Flags', CLR_CORASSEMBLYFLAGS, 'af') ]
+
+class ClrMdtAssemblyProcessor(CLRMetaDataTable):
+    name = "AssemblyProcessor"
+
+    _format = (
+        'CLR_METADATA_TABLE_ASSEMBLYPROCESSOR',
+        (
+            'I,Processor',
+        )
+    )
+
+
+class ClrMdtAssemblyOS(CLRMetaDataTable):
+    name = "AssemblyOS"
+
+    _format = (
+        'CLR_METADATA_TABLE_ASSEMBLYPROCESSOR',
+        (
+            'I,OSPlatformID',
+            'I,OSMajorVersion',
+            'I,OSMinorVersion',
+        )
+    )
+
+class ClrMdtAssemblyRef(CLRMetaDataTable):
+    name = "AssemblyRef"
+
+    def prep_format(self):
+        self._format = (
+            'CLR_METADATA_TABLE_ASSEMBLYREF',
+            (
+                'H,MajorVersion',
+                'H,MinorVersion',
+                'H,BuildNumber',
+                'H,RevisionNumber',
+                'I,Flags',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',PublicKey_BlobIndex',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Culture_StringIndex',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',HashValue_BlobIndex',
+            )
+        )
+
+class ClrMdtAssemblyRefProcessor(CLRMetaDataTable):
+    name = "AssemblyRefProcessor"
+
+    def prep_format(self):
+        assemblyref_size = self._clr_coded_index_struct_size(0, ('AssemblyRef',))
+        self._format = (
+            'CLR_METADATA_TABLE_ASSEMBLYREFPROCESSOR',
+            (
+                'I,Processor',
+                assemblyref_size + ',AssemblyRef_Index',
+            )
+        )
+
+class ClrMdtAssemblyRefOS(CLRMetaDataTable):
+    name = "AssemblyRefOS"
+
+    def prep_format(self):
+        assemblyref_size = self._clr_coded_index_struct_size(0, ('AssemblyRef',))
+        self._format = (
+            'CLR_METADATA_TABLE_ASSEMBLYREFOS',
+            (
+                'I,OSPlatformId',
+                'I,OSMajorVersion',
+                'I,OSMinorVersion',
+                assemblyref_size + ',AssemblyRef_Index',
+            )
+        )
+
+class ClrMdtFile(CLRMetaDataTable):
+    name = "File"
+
+    def prep_format(self):
+        self._format = (
+            'CLR_METADATA_TABLE_FILE',
+            (
+                'I,Flags',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',HashValue_BlobIndex',
+            )
+        )
+        self._flags = [ ('Flags', CLR_CORFILEFLAGS, 'ff') ]
+
+class ClrMdtExportedType(CLRMetaDataTable):
+    name = "ExportedType"
+
+    # Implementation is two bits
+
+    def prep_format(self):
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name in ('File', 'ExportedType'):
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**(16-2):
+            # size is a word
+            implementation_size = 'H'
+        else:
+            # otherwise, size is a dword
+            implementation_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_EXPORTEDTYPE',
+            (
+                'I,Flags',
+                'I,TypeDefId_Index',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',TypeName_StringIndex',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',TypeNamespace_BlobIndex',
+                implementation_size + ',Implementation_CodedIndex',
+            )
+        )
+
+class ClrMdtManifestResource(CLRMetaDataTable):
+    name = "ManifestResource"
+
+    # Implementation is two bits
+
+    def prep_format(self):
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name in ('File', 'AssemblyRef'):
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**(16-2):
+            # size is a word
+            implementation_size = 'H'
+        else:
+            # otherwise, size is a dword
+            implementation_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_MANIFESTRESOURCE',
+            (
+                'I,Offset',
+                'I,Flags',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+                implementation_size + ',Implementation_CodedIndex',
+            )
+        )
+        self._flags = [ ('Flags', CLR_CORMANIFESTRESOURCEFLAGS, 'mr') ]
+
+class ClrMdtNestedClass(CLRMetaDataTable):
+    name = "NestedClass"
+
+    def prep_format(self):
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name == 'TypeDef':
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**16:
+            # size is a word
+            class_size = 'H'
+        else:
+            # otherwise, size is a dword
+            class_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_NESTEDCLASS',
+            (
+                class_size + ',NestedClass_Index',
+                class_size + ',EnclosingClass_Index',
+            )
+        )
+
+class ClrMdtGenericParam(CLRMetaDataTable):
+    name = "GenericParam"
+
+    def prep_format(self):
+        # coded index table selector is one bit
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name in ('TypeDef', 'MethodDef'):
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**(16-1):
+            # size is a word
+            owner_size = 'H'
+        else:
+            # otherwise, size is a dword
+            owner_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_GENERICPARAM',
+            (
+                'H,Number',
+                'H,Flags',
+                owner_size + ',Owner_Index',
+                ('H' if self._mdtables.strings_offset_size == 2 else 'I') + ',Name_StringIndex',
+            )
+        )
+        self._flags = [ ('Flags', CLR_CORGENERICPARAMATTR, 'gp') ]
+
+class ClrMdtGenericMethod(CLRMetaDataTable):
+    name = "GenericMethod"
+
+    def prep_format(self):
+        # coded index table selector is one bit
+        max_index = 0
+        for t in self._mdtables.tables_list:
+            if t.name in ('MethodDef', 'MemberRef'):
+                if t.num_rows > max_index:
+                    max_index = t.num_rows
+        # if it can fit in a word
+        if max_index <= 2**(16-1):
+            # size is a word
+            unknown1_size = 'H'
+        else:
+            # otherwise, size is a dword
+            unknown1_size = 'I'
+        self._format = (
+            'CLR_METADATA_TABLE_GENERICMETHOD',
+            (
+                unknown1_size + ',Unknown1_CodedIndex',
+                ('H' if self._mdtables.blobs_offset_size == 2 else 'I') + ',Unknown2_BlobIndex',
+            )
+        )
+
+class ClrMdtGenericParamConstraint(CLRMetaDataTable):
+    name = "GenericParamConstraint"
+
+    def prep_format(self):
+        owner_size = self._clr_coded_index_struct_size(0, ('GenericParam',))
+        constraint_size = self._clr_coded_index_struct_size(2, ('TypeDef', 'TypeRef', 'TypeSpec'))
+        self._format = (
+            'CLR_METADATA_TABLE_GENERICPARAMCONSTRAINT',
+            (
+                owner_size + ',Owner_Index',
+                constraint_size + ',Constraint_CodedIndex',
+            )
+        )
+
+class ClrMdtMaxTable(CLRMetaDataTable):
+    # TODO
+    pass
+
+
+class CLRMetaDataTableFactory(object):
+    _table_number_map = {
+         0: ClrMdtModule,
+         1: ClrMdtTypeRef,
+         2: ClrMdtTypeDef,
+         3: ClrMdtFieldPtr,     # Not public
+         4: ClrMdtField,
+         5: ClrMdtMethodPtr,    # Not public
+         6: ClrMdtMethodDef,
+         7: ClrMdtParamPtr,     # Not public
+         8: ClrMdtParam,
+         9: ClrMdtInterfaceImpl,
+        10: ClrMdtMemberRef,
+        11: ClrMdtConstant,
+        12: ClrMdtCustomAttribute,
+        13: ClrMdtFieldMarshal,
+        14: ClrMdtDeclSecurity,
+        15: ClrMdtClassLayout,
+        16: ClrMdtFieldLayout,
+        17: ClrMdtStandAloneSig,
+        18: ClrMdtEventMap,
+        19: ClrMdtEventPtr,     # Not public
+        20: ClrMdtEvent,
+        21: ClrMdtPropertyMap,
+        22: ClrMdtPropertyPtr,  # Not public
+        23: ClrMdtProperty,
+        24: ClrMdtMethodSemantics,
+        25: ClrMdtMethodImpl,
+        26: ClrMdtModuleRef,
+        27: ClrMdtTypeSpec,
+        28: ClrMdtImplMap,
+        29: ClrMdtFieldRva,
+        # 30: ClrMdtUnused,
+        # 31: ClrMdtUnused,
+        32: ClrMdtAssembly,
+        33: ClrMdtAssemblyProcessor,
+        34: ClrMdtAssemblyOS,
+        35: ClrMdtAssemblyRef,
+        36: ClrMdtAssemblyRefProcessor,
+        37: ClrMdtAssemblyRefOS,
+        38: ClrMdtFile,
+        39: ClrMdtExportedType,
+        40: ClrMdtManifestResource,
+        41: ClrMdtNestedClass,
+        42: ClrMdtGenericParam,
+        43: ClrMdtGenericMethod,
+        44: ClrMdtGenericParamConstraint,
+        # 45 through 63 are not used
+        63: ClrMdtMaxTable,
+    }
+
+    @classmethod
+    def createTable(cls, number: int, pe, mdtables: CLRMetaDataTables):
+        if number in cls._table_number_map:
+            table = cls._table_number_map[number](pe, mdtables)
+            return table
+        else:
+            return None
+
+
 # Valid FAT32 8.3 short filename characters according to:
 #  http://en.wikipedia.org/wiki/8.3_filename
 # This will help decide whether DLL ASCII names are likely
@@ -1792,6 +3666,28 @@ class PE(object):
 
     __IMAGE_BOUND_FORWARDER_REF_format__ = ('IMAGE_BOUND_FORWARDER_REF',
         ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,Reserved') )
+
+    __IMAGE_CLR_STRUCTURE_format__ = ('IMAGE_NET_DIRECTORY',
+        ('I,cb',
+         'H,MajorRuntimeVersion',
+         'H,MinorRuntimeVersion',
+         'I,MetaDataRva',
+         'I,MetaDataSize',
+         'I,Flags',
+         'I,EntryPointTokenOrRva',
+         'I,ResourcesRVA',
+         'I,ResourcesSize',
+         'I,StrongNameSignatureRva',
+         'I,StrongNameSignatureSize',
+         'I,CodeManagerTableRva',
+         'I,CodeManagerTableSize',
+         'I,VTableFixupsRva',
+         'I,VTableFixupsSize',
+         'I,ExportAddressTableJumpsRva',
+         'I,ExportAddressTableJumpsSize',
+         'I,ManagedNativeHeaderRva',
+         'I,ManagedNativeHeaderSize'
+        ) )
 
     def __init__(self, name=None, data=None, fast_load=None,
                  max_symbol_exports=MAX_SYMBOL_EXPORT_COUNT):
@@ -2127,6 +4023,9 @@ class PE(object):
 
                 break
 
+        # NOTE: .NET loaders ignores NumberOfRvaAndSizes
+        #   We check this elsewhere, but note it here.
+        #   example: 1d41308bf4148b4c138f9307abc696a6e4c05a5a89ddeb8926317685abb1c241
 
         offset = self.parse_sections(sections_offset)
 
@@ -2509,7 +4408,9 @@ class PE(object):
             ('IMAGE_DIRECTORY_ENTRY_TLS', self.parse_directory_tls),
             ('IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG', self.parse_directory_load_config),
             ('IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT', self.parse_delay_import_directory),
-            ('IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT', self.parse_directory_bound_imports) )
+            ('IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT', self.parse_directory_bound_imports),
+            ('IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR', self.parse_clr_structure),
+        )
 
         if directories is not None:
             if not isinstance(directories, (tuple, list)):
@@ -2539,10 +4440,39 @@ class PE(object):
                         value = entry[1](dir_entry.VirtualAddress, dir_entry.Size)
                     if value:
                         setattr(self, entry[0][6:], value)
+                        if entry[0] == 'IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR':
+                            # create shortcut for .NET/CLR data
+                            self.net = value
 
             if (directories is not None) and isinstance(directories, list) and (entry[0] in directories):
                 directories.remove(directory_index)
 
+        # NOTE: .NET loaders ignores NumberOfRvaAndSizes, so attempt to parse anyways
+        #   example: 1d41308bf4148b4c138f9307abc696a6e4c05a5a89ddeb8926317685abb1c241
+        attr_name = 'DIRECTORY_ENTRY_COM_DESCRIPTOR'
+        if not hasattr(self, attr_name):
+            dir_entry_size = Structure(self.__IMAGE_DATA_DIRECTORY_format__).sizeof()
+            dd_offset = (self.OPTIONAL_HEADER.get_file_offset() + self.OPTIONAL_HEADER.sizeof())
+            clr_entry_offset = dd_offset + (DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR'] * dir_entry_size)
+            data = self.__data__[clr_entry_offset:clr_entry_offset+dir_entry_size]
+            dir_entry = self.__unpack_data__(
+                self.__IMAGE_DATA_DIRECTORY_format__,
+                data,
+                file_offset = clr_entry_offset)
+            # if COM entry appears valid
+            if dir_entry.VirtualAddress:
+                # try to parse the .NET CLR directory
+                value = self.parse_clr_structure(dir_entry.VirtualAddress, dir_entry.Size)
+                # if parsing was successful
+                if value:
+                    # set attribute
+                    setattr(self, attr_name, value)
+                    # create shortcut for .NET/CLR data
+                    self.net = value
+
+
+    def parse_clr_structure(self, rva, size):
+        return CLRData(self, rva, size)
 
 
     def parse_directory_bound_imports(self, rva, size):
