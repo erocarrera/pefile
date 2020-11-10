@@ -2292,7 +2292,7 @@ class CLRBlobHeap(CLRHeap):
         return data, length_size + data_length
 
     def get(self, index):
-        data, _ = self.get_with_size(index, as_bytes)
+        data, _ = self.get_with_size(index)
         return data
 
 class CLRGuidHeap(CLRHeap):
@@ -2302,7 +2302,7 @@ class CLRGuidHeap(CLRHeap):
         if index is None or index < 1:
             return None
 
-        size = 128 / 8  # number of bytes in a guid
+        size = 128 // 8  # number of bytes in a guid
         # offset into the GUID stream
         offset = (index - 1) * size
 
