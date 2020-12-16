@@ -67,13 +67,12 @@ class TestCommand(Command):
         test_results = TextTestRunner(verbosity=2).run(test_suite)
 
 
-setup(name = 'pefile',
+setup(name = 'pefile-fork',
     version = _read_attr('__version__'),
     description = 'Python PE parsing module',
     author = _read_attr('__author__'),
     author_email = _read_attr('__contact__'),
-    url = 'https://github.com/erocarrera/pefile',
-    download_url='https://github.com/erocarrera/pefile/releases/download/v2019.4.18/pefile-2019.4.18.tar.gz',
+    url = 'https://github.com/mlodic/pefile',
     keywords = ['pe', 'exe', 'dll', 'pefile', 'pecoff'],
     classifiers = [
         'Development Status :: 5 - Production/Stable',
