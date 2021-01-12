@@ -1794,9 +1794,11 @@ class PE(object):
         ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,Reserved') )
 
     def __init__(self, name=None, data=None, fast_load=None,
-                 max_symbol_exports=MAX_SYMBOL_EXPORT_COUNT):
+                 max_symbol_exports=MAX_SYMBOL_EXPORT_COUNT,
+                 max_repeated_symbol=120):
 
         self.max_symbol_exports = max_symbol_exports
+        self.max_repeated_symbol = max_repeated_symbol
 
         self.sections = []
 
@@ -3807,12 +3809,12 @@ class PE(object):
                 # was being parsed as potentially containing millions of exports.
                 # Checking for duplicates addresses the issue.
                 symbol_counts[symbol_address] += 1
-                if symbol_counts[symbol_address] > 10:
+                if symbol_counts[symbol_address] > self.max_repeated_symbol:
                 # if most_common and most_common[0][1] > 10:
                     self.__warnings.append(
-                        'Export directory contains more than 10 repeated '
+                        'Export directory contains more than {} repeated '
                         'ordinal entries (0x{:x}). Assuming corrupt.'.format(
-                            symbol_address))
+                            self.max_repeated_symbol, symbol_address))
                     break
                 elif len(symbol_counts) > self.max_symbol_exports:
                     self.__warnings.append(
