@@ -3806,8 +3806,8 @@ class PE(object):
                 # File 0b1d3d3664915577ab9a32188d29bbf3542b86c7b9ce333e245496c3018819f1
                 # was being parsed as potentially containing millions of exports.
                 # Checking for duplicates addresses the issue.
-                symbol_counts[symbol_address] += 1
-                if symbol_counts[symbol_address] > 10:
+                symbol_counts[(idx+export_dir.Base, symbol_address)] += 1
+                if symbol_counts[(idx+export_dir.Base, symbol_address)] > 10:
                 # if most_common and most_common[0][1] > 10:
                     self.__warnings.append(
                         'Export directory contains more than 10 repeated '
