@@ -118,6 +118,9 @@ fast_load = False
 # files. Strings longer than 1MB should be rather rare.
 MAX_STRING_LENGTH = 0x100000 # 2^20
 
+# Maximum number of imports to parse.
+MAX_IMPORT_SYMBOLS = 0x2000
+
 # Limit maximum length for specific string types separately
 MAX_IMPORT_NAME_LENGTH = 0x200
 MAX_DLL_LENGTH = 0x200
@@ -125,6 +128,12 @@ MAX_SYMBOL_NAME_LENGTH = 0x200
 
 # Lmit maximum number of sections before processing of sections will stop
 MAX_SECTIONS = 0x800
+
+# The global maximum number of resource entries to parse per file
+MAX_RESOURCE_ENTRIES = 0x8000
+
+# The maximum depth of nested resource tables
+MAX_RESOURCE_DEPTH = 32
 
 # Limit number of exported symbols
 MAX_SYMBOL_EXPORT_COUNT = 0x2000
@@ -1817,6 +1826,14 @@ class PE(object):
         self.FileAlignment_Warning = False
         self.SectionAlignment_Warning = False
 
+        # Count of total resource entries across nested tables
+        self.__total_resource_entries_count = 0
+        # Sum of the size of all resource entries parsed, which should not
+        # exceed the file size.
+        self.__total_resource_bytes = 0
+        # The number of imports parsed in this file
+        self.__total_import_symbols = 0
+
         fast_load = fast_load or globals()['fast_load']
         try:
             self.__parse__(name, data, fast_load)
@@ -1886,6 +1903,11 @@ class PE(object):
         elif data is not None:
             self.__data__ = data
             self.__from_file = False
+
+        # Resources should not overlap each other, so they should not exceed the
+        # file size.
+        self.__resource_size_limit_upperbounds = len(self.__data__)
+        self.__resource_size_limit_reached = False
 
         if not fast_load:
             for byte, byte_count in Counter(bytearray(self.__data__)).items():
@@ -2978,6 +3000,13 @@ class PE(object):
         if base_rva is None:
             base_rva = rva
 
+        if level > MAX_RESOURCE_DEPTH:
+            self.__warnings.append(
+                'Error parsing the resources directory. '
+                'Excessively nested table depth %d (>%s)' %
+                (level, MAX_RESOURCE_DEPTH) )
+            return None
+
         resources_section = self.get_section_by_rva(rva)
 
         try:
@@ -3025,6 +3054,14 @@ class PE(object):
                 (number_of_entries, MAX_ALLOWED_ENTRIES) )
             return None
 
+        self.__total_resource_entries_count += number_of_entries
+        if self.__total_resource_entries_count > MAX_RESOURCE_ENTRIES:
+          self.__warnings.append(
+              'Error parsing the resources directory. '
+              'The file contains at least %d entries (>%d)' %
+              (self.__total_resource_entries_count, MAX_RESOURCE_ENTRIES) )
+          return None
+
         strings_to_postprocess = list()
 
         # Keep track of the last name's start and end offsets in order
@@ -3032,6 +3069,15 @@ class PE(object):
         # and invalid or corrupt directory.
         last_name_begin_end = None
         for idx in range(number_of_entries):
+            if (not self.__resource_size_limit_reached and
+                self.__total_resource_bytes > self.__resource_size_limit_upperbounds):
+
+                self.__resource_size_limit_reached = True
+                self.__warnings.append(
+                    'Resource size 0x%x exceeds file size 0x%x, overlapping '
+                    'resources found.' %
+                    (self.__total_resource_bytes,
+                     self.__resource_size_limit_upperbounds) )
 
             res = self.parse_resource_entry(rva)
             if res is None:
@@ -3051,6 +3097,7 @@ class PE(object):
                 ustr_offset = base_rva+res.NameOffset
                 try:
                     entry_name = UnicodeStringWrapperPostProcessor(self, ustr_offset)
+                    self.__total_resource_bytes += entry_name.get_pascal_16_length()
                     # If the last entry's offset points before the current's but its end
                     # is past the current's beginning, assume the overlap indicates a
                     # corrupt name.
@@ -3149,6 +3196,7 @@ class PE(object):
                     base_rva + res.OffsetToDirectory)
 
                 if struct:
+                    self.__total_resource_bytes += struct.Size
                     entry_data = ResourceDataEntryData(
                         struct = struct,
                         lang = res.Name & 0x3ff,
@@ -3900,6 +3948,12 @@ class PE(object):
                 error_count += 1
                 continue
 
+            if self.__total_import_symbols > MAX_IMPORT_SYMBOLS:
+                self.__warnings.append(
+                    'Error, too many imported symbols %d (>%s)' %
+                    (self.__total_import_symbols, MAX_IMPORT_SYMBOLS) )
+                break
+
             dll = self.get_string_at_rva(import_desc.szName, MAX_DLL_LENGTH)
             if not is_valid_dos_filename(dll):
                 dll = b('*invalid*')
@@ -4228,6 +4282,14 @@ class PE(object):
                 self.__warnings.append(
                     'Error parsing the import table. Entries go beyond bounds.')
                 break
+            # Enforce an upper bounds on import symbols.
+            if self.__total_import_symbols > MAX_IMPORT_SYMBOLS:
+                self.__warnings.append(
+                    'Excessive number of imports %d (>%s)' %
+                    (self.__total_import_symbols, MAX_IMPORT_SYMBOLS) )
+                break
+
+            self.__total_import_symbols += 1
 
             # if we see too many times the same entry we assume it could be
             # a table containing bogus data (with malicious intent or otherwise)
