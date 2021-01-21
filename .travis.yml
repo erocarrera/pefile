@@ -1,21 +1,18 @@
 language: python
 cache: pip
-sudo: false
 matrix:
   include:
     - python: 2.7
     - python: 3.8
     - python: 3.9
       dist: xenial
-      sudo: yes
     - python: nightly
       dist: xenial
-      sudo: yes
     - python: pypy
     - python: pypy3
 before_install:
 - if test -n "$encrypted_b0257fbf4222_key" && test -n "$encrypted_b0257fbf4222_iv"; then
-openssl aes-256-cbc -K $encrypted_b0257fbf4222_key -iv $encrypted_b0257fbf4222_iv -in tests/test_data.tar.bz2.enc -out tests/test_data.tar.bz2 -d;
+    openssl aes-256-cbc -K $encrypted_b0257fbf4222_key -iv $encrypted_b0257fbf4222_iv -in tests/test_data.tar.bz2.enc -out tests/test_data.tar.bz2 -d;
     tar jxf tests/test_data.tar.bz2 -C tests;
   fi
 install:
