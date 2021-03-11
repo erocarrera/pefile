@@ -2,7 +2,7 @@
 """peutils, Portable Executable utilities module
 
 
-Copyright (c) 2005-2013 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2020 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 """
@@ -21,8 +21,6 @@ import pefile
 __author__ = 'Ero Carrera'
 __version__ = pefile.__version__
 __contact__ = 'ero.carrera@gmail.com'
-
-
 
 
 class SignatureDatabase(object):
