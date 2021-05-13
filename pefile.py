@@ -5082,7 +5082,7 @@ class PE(object):
                 if hasattr(self, 'VS_FIXEDFILEINFO'):
                     version_info_list.append(self.VS_FIXEDFILEINFO[idx].dump_dict())
 
-                if hasattr(self, 'FileInfo'):
+                if hasattr(self, 'FileInfo') and len(self.FileInfo) > idx:
                     fileinfo_list = list()
                     for entry in self.FileInfo[idx]:
                         fileinfo_list.append(entry.dump_dict())
