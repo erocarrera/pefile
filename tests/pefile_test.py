@@ -299,6 +299,13 @@ class Test_pefile(unittest.TestCase):
         # Ensure the original image stayed the same
         self.assertEqual(original_image_1, original_image_2)
 
+        # This file used to crash pefile when attempting to relocate it:
+        # https://github.com/erocarrera/pefile/issues/314
+        control_file = os.path.join(
+            REGRESSION_TESTS_DIR,
+            'crash-8499a0bb33aeba8f59a172584abc7ca0ab82a78c')
+        pe = pefile.PE(control_file)
+
 
 
     def test_entry_point_retrieval_with_overlapping_sections(self):
