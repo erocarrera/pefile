@@ -2226,7 +2226,7 @@ class PE(object):
         try:
             # The end of the structure is 8 bytes after the start of the Rich
             # string.
-            rich_data = self.get_data(0x80, rich_index + 8)
+            rich_data = self.__data__[0x80:rich_index + 8]
             # Make the data have length a multiple of 4, otherwise the
             # subsequent parsing will fail. It's not impossible that we retrieve
             # truncated data that it's not a multiple.
