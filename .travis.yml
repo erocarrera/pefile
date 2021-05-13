@@ -1,5 +1,5 @@
-language: python
-cache: pip
+language: python3
+cache: pip3
 matrix:
   include:
     - python: 3.8
@@ -7,7 +7,6 @@ matrix:
       dist: xenial
     - python: nightly
       dist: xenial
-    - python: pypy
     - python: pypy3
 before_install:
 - if test -n "$encrypted_b0257fbf4222_key" && test -n "$encrypted_b0257fbf4222_iv"; then
