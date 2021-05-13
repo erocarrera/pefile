@@ -4604,6 +4604,9 @@ class PE(object):
     def get_string_u_at_rva(self, rva, max_length = 2**16, encoding=None):
         """Get an Unicode string located at the given address."""
 
+        if max_length == 0:
+            return b''
+
         # If the RVA is invalid let the exception reach the callers. All
         # call-sites of get_string_u_at_rva() will handle it.
         data = self.get_data(rva, 2)
