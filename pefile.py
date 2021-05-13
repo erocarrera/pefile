@@ -5517,7 +5517,8 @@ class PE(object):
 
         relocation_difference = new_ImageBase - self.OPTIONAL_HEADER.ImageBase
 
-        if self.OPTIONAL_HEADER.DATA_DIRECTORY[5].Size:
+        if (len(self.OPTIONAL_HEADER.DATA_DIRECTORY)>=6 and
+            self.OPTIONAL_HEADER.DATA_DIRECTORY[5].Size):
             if not hasattr(self, 'DIRECTORY_ENTRY_BASERELOC'):
                 self.parse_data_directories(
                     directories=[DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_BASERELOC']])
