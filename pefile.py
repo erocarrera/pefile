@@ -3891,6 +3891,18 @@ class PE(object):
     def dword_align(self, offset, base):
         return ((offset+base+3) & 0xfffffffc) - (base & 0xfffffffc)
 
+    def normalize_import_va(self, va):
+
+        # Setup image range
+        begin_of_image = self.OPTIONAL_HEADER.ImageBase
+        end_of_image = self.OPTIONAL_HEADER.ImageBase + self.OPTIONAL_HEADER.SizeOfImage
+
+        # Try to avoid bogus VAs, which are out of the image.
+        # This also filters out entries that are zero
+        if(begin_of_image <= va and va < end_of_image):
+            va -= begin_of_image
+        return va
+
 
     def parse_delay_import_directory(self, rva, size):
         """Walk and parse the delay import directory."""
@@ -3916,7 +3928,20 @@ class PE(object):
             # If the structure is all zeros, we reached the end of the list
             if not import_desc or import_desc.all_zeroes():
                 break
+            contains_addresses = False
 
+            # Handle old import descriptor that has Virtual Addresses instead of RVAs
+            # This version of import descriptor is created by old Visual Studio versions (pre 6.0)
+            # Can only be present in 32-bit binaries (no 64-bit compiler existed at the time)
+            # Sample: e8d3bff0c1a9a6955993f7a441121a2692261421e82fdfadaaded45d3bea9980
+            if import_desc.grAttrs == 0 and self.FILE_HEADER.Machine == MACHINE_TYPE['IMAGE_FILE_MACHINE_I386']:
+                import_desc.pBoundIAT = self.normalize_import_va(import_desc.pBoundIAT)
+                import_desc.pIAT = self.normalize_import_va(import_desc.pIAT)
+                import_desc.pINT = self.normalize_import_va(import_desc.pINT)
+                import_desc.pUnloadIAT = self.normalize_import_va(import_desc.pUnloadIAT)
+                import_desc.phmod = self.normalize_import_va(import_desc.pUnloadIAT)
+                import_desc.szName = self.normalize_import_va(import_desc.szName)
+                contains_addresses = True
 
             rva += import_desc.sizeof()
 
@@ -3933,7 +3958,8 @@ class PE(object):
                     import_desc.pINT,
                     import_desc.pIAT,
                     None,
-                    max_length = max_len)
+                    max_len,
+                    contains_addresses)
             except PEFormatError as e:
                 self.__warnings.append(
                     'Error parsing the Delay import directory. '
@@ -4110,7 +4136,7 @@ class PE(object):
 
     def parse_imports(
             self, original_first_thunk, first_thunk,
-            forwarder_chain, max_length=None):
+            forwarder_chain, max_length=None, contains_addresses=False):
         """Parse the imported symbols.
 
         It will fill a list, which will be available as the dictionary
@@ -4121,12 +4147,12 @@ class PE(object):
         imported_symbols = []
 
         # Import Lookup Table. Contains ordinals or pointers to strings.
-        ilt = self.get_import_table(original_first_thunk, max_length)
+        ilt = self.get_import_table(original_first_thunk, max_length, contains_addresses)
         # Import Address Table. May have identical content to ILT if
         # PE file is not bound. It will contain the address of the
         # imported symbols once the binary is loaded or if it is already
         # bound.
-        iat = self.get_import_table(first_thunk, max_length)
+        iat = self.get_import_table(first_thunk, max_length, contains_addresses)
 
         # OC Patch:
         # Would crash if IAT or ILT had None type
@@ -4252,7 +4278,7 @@ class PE(object):
 
 
 
-    def get_import_table(self, rva, max_length=None):
+    def get_import_table(self, rva, max_length=None, contains_addresses=False):
 
         table = []
 
@@ -4322,6 +4348,13 @@ class PE(object):
 
             thunk_data = self.__unpack_data__(
                 format, data, file_offset=self.get_offset_from_rva(rva) )
+
+            # If the thunk data contains VAs instead of RVAs, we need to normalize them
+            if contains_addresses:
+                thunk_data.AddressOfData = self.normalize_import_va(thunk_data.AddressOfData)
+                thunk_data.ForwarderString = self.normalize_import_va(thunk_data.ForwarderString)
+                thunk_data.Function = self.normalize_import_va(thunk_data.Function)
+                thunk_data.Ordinal = self.normalize_import_va(thunk_data.Ordinal)
 
             # Check if the AddressOfData lies within the range of RVAs that it's
             # being scanned, abort if that is the case, as it is very unlikely
