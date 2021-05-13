@@ -12,6 +12,12 @@ The structures defined in the Windows header files will be accessible as attribu
 
 _pefile_ requires some basic understanding of the layout of a PE file — with it, it's possible to explore nearly every single feature of the PE file format.
 
+### Installation
+
+To install pefile through pip:
+
+`pip3 install pefile`
+
 ## Features
 
 Some of the tasks that pefile makes possible are:
