@@ -5,34 +5,32 @@ Simple code snippets to get you started
 ## Loading a PE file ##
 
 Import the module and parse a file.
-```
+
+```python
 import pefile
 pe =  pefile.PE(‘/path/to/pefile.exe’)
 ```
 
 Optionally, setting the _fast\_load_ argument to _True_ will prevent parsing the directories. In large PE files this can make loading significantly faster and it might be a good idea to use it none of the information from the data directories is needed.
 
-```
+```python
 import pefile
-pe =  pefile.PE(‘/path/to/pefile.exe’, fast_load=True)
+pe = pefile.PE(‘/path/to/pefile.exe’, fast_load=True)
 ```
 
 A later call to the _full\_load()_ method would parse the missing information.
 
-
 It's also possible to just parse raw PE data:
 
-```
+```python
 pe = pefile.PE(data=str_object_with_pe_file_data)
 ```
-
-
 
 ## Reading and writing standard header members ##
 
 Once the PE file is successfully parsed, the data is readily available as attributes of the PE instance.
 
-```
+```python
 pe.OPTIONAL_HEADER.AddressOfEntryPoint
 pe.OPTIONAL_HEADER.ImageBase
 pe.FILE_HEADER.NumberOfSections
@@ -40,13 +38,13 @@ pe.FILE_HEADER.NumberOfSections
 
 All of these values support assignment
 
-```
+```python
 pe.OPTIONAL_HEADER.AddressOfEntryPoint = 0xdeadbeef
 ```
 
 and a subsequent call to
 
-```
+```python
 pe.write(filename='file_to_write.exe')
 ```
 
@@ -67,36 +65,33 @@ _One possible useful application of this could be to correct malformed headers u
 Sections are added to a list accesible as the attribute _sections_ in the PE instance.
 The common structure members of the section header are reachable as attributes.
 
-```
+```python
 for section in pe.sections:
-  print (section.Name, hex(section.VirtualAddress),
+  print(section.Name, hex(section.VirtualAddress),
     hex(section.Misc_VirtualSize), section.SizeOfRawData )
 ```
 
-
 #### Output ####
 
-```
+```python
 ('.text', '0x1000L', '0x6D72L', 28160L)
 ('.data', '0x8000L', '0x1BA8L', 1536L)
 ('.rsrc', '0xA000L', '0x8948L', 35328L)
 ```
 
-
 ## Listing the imported symbols ##
 
 Each directory, if it exists in the PE file being processed, has an entry as _DIRECTORY\_ENTRY\_directoryname_ in the PE instance. The imported symbols can be listed as follows:
 
-```
+```python
 # If the PE file was loaded using the fast_load=True argument, we will need to parse the data directories:
 pe.parse_data_directories()
 
 for entry in pe.DIRECTORY_ENTRY_IMPORT:
-  print entry.dll
+  print(entry.dll)
   for imp in entry.imports:
-    print '\t', hex(imp.address), imp.name
+    print('\t', hex(imp.address), imp.name)
 ```
-
 
 #### Output ####
 
@@ -116,9 +111,9 @@ SHELL32.dll
 
 Similarly, the exported symbols can be listed as follows:
 
-```
+```python
 for exp in pe.DIRECTORY_ENTRY_EXPORT.symbols:
-  print hex(pe.OPTIONAL_HEADER.ImageBase + exp.address), exp.name, exp.ordinal
+  print(hex(pe.OPTIONAL_HEADER.ImageBase + exp.address), exp.name, exp.ordinal)
 ```
 
 
@@ -137,8 +132,8 @@ for exp in pe.DIRECTORY_ENTRY_EXPORT.symbols:
 
 ## Dumping all the information ##
 
-```
-print pe.dump_info()
+```python
+print(pe.dump_info())
 ```
 
 Will produce a full textial dump of all the parsed information. Check FullDump0x90, [FullDumpTinyPE](FullDumpTinyPE.md) or FullDumpKernel32 for examples.
@@ -150,21 +145,20 @@ We can use _pefile_ together with tools like [pydasm](http://dkbza.org/pydasm.ht
 
 We first fetch the entry point address, the retrieve 100 bytes starting at the entry point and we loop through the data disassembling as we go:
 
-```
+```python
 ep = pe.OPTIONAL_HEADER.AddressOfEntryPoint
 ep_ava = ep+pe.OPTIONAL_HEADER.ImageBase
 data = pe.get_memory_mapped_image()[ep:ep+100]
 offset = 0
 while offset < len(data):
   i = pydasm.get_instruction(data[offset:], pydasm.MODE_32)
-  print pydasm.get_instruction_string(i, pydasm.FORMAT_INTEL, ep_ava+offset)
+  print(pydasm.get_instruction_string(i, pydasm.FORMAT_INTEL, ep_ava+offset))
   offset += i.length
 ```
 
-
 #### Output ####
 
-```
+```asm
 push byte 0x70
 push dword 0x1001888
 call 0x1006ca8
@@ -181,7 +175,6 @@ jnz 0x1006b1d
 movzx eax,[ecx+0x18
 ```
 
-
 ## Dumping all the information ##
 
 Sometimes we might not want to process an entire file if it's very large. Parsing can be time consuming in some cases an we might only be interested in a subset of the information provided by the headers and directories.
@@ -190,7 +183,7 @@ It is possible to indicate _pefile_ to only load a minimal set of the headers (u
 
 The following example loads the basic headers and then goes on to parse most of the directories avoiding the relocation information ( the line could have been left out altogether ).
 
-```
+```python
 pe = pefile.PE(os.sys.argv[1], fast_load=True)
 pe.parse_data_directories( directories=[ 
     pefile.DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'],
