@@ -477,6 +477,12 @@ class Test_pefile(unittest.TestCase):
         # Ensure the rebased image is the same as the pre-generated one.
         self.assertEqual(pe_fast.is_driver(), pe_full.is_driver())
 
+        control_file_pe = os.path.join(
+            REGRESSION_TESTS_DIR, 'issue_322_plaso_test_driver.sys')
+
+        pe = pefile.PE(control_file_pe, fast_load=False)
+        self.assertEqual(pe.is_driver(), True)
+
 
     def test_rebased_image(self):
         """Test correctness of rebased images"""

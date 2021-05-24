@@ -86,6 +86,7 @@ setup(name = 'pefile',
     long_description = "\n".join(_read_doc().split('\n')),
     cmdclass={"test": TestCommand},
     py_modules = ['pefile', 'peutils'],
+    python_requires=">=3.6.0",
     packages = ['ordlookup'],
     install_requires=[
           'future',

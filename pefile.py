@@ -3967,7 +3967,7 @@ class PE(object):
 
             if error_count > 5:
                 self.__warnings.append(
-                    'Too may errors parsing the Delay import directory. '
+                    'Too many errors parsing the Delay import directory. '
                     'Invalid import data at RVA: 0x{0:x}'.format(rva) )
                 break
 
@@ -4084,7 +4084,7 @@ class PE(object):
 
                 if error_count > 5:
                     self.__warnings.append(
-                        'Too may errors parsing the import directory. '
+                        'Too many errors parsing the import directory. '
                         'Invalid import data at RVA: 0x{0:x}'.format(rva) )
                     break
 
@@ -5743,11 +5743,11 @@ class PE(object):
         system_DLLs = set((b'ntoskrnl.exe', b'hal.dll', b'ndis.sys',
                            b'bootvid.dll', b'kdcom.dll'))
         if system_DLLs.intersection(
-                [imp.dll.decode('utf-8', 'ignore').lower() for imp in self.DIRECTORY_ENTRY_IMPORT]):
+                [imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT]):
             return True
 
         driver_like_section_names = set(
-            ('page', 'paged'))
+            (b'page', b'paged'))
         if driver_like_section_names.intersection(
                 [section.Name.lower().rstrip(b'\x00') for section in self.sections]) and (
             self.OPTIONAL_HEADER.Subsystem in (
