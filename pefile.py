@@ -25,7 +25,7 @@ from builtins import range
 from builtins import str
 
 __author__ = 'Ero Carrera'
-__version__ = '2021.5.13'
+__version__ = '2021.5.24'
 __contact__ = 'ero.carrera@gmail.com'
 
 import collections
