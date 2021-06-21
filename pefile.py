@@ -5807,7 +5807,7 @@ class PE(object):
 
 
     def trim(self):
-        """Return the just data defined by the PE headers, removing any overlayed data."""
+        """Return the just data defined by the PE headers, removing any overlaid data."""
 
         overlay_data_offset = self.get_overlay_data_start_offset()
 
