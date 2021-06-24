@@ -520,7 +520,7 @@ def is_suspicious( pe ):
 
 
     # If import tables or strings exist (are pointed to) to within the header or in the area
-    # between the PE header and the first section that's supicious
+    # between the PE header and the first section that's suspicious
     #
     # IMPLEMENT
 
@@ -554,7 +554,7 @@ def is_probably_packed( pe ):
     return True.
     """
 
-    # Calculate the lenth of the data up to the end of the last section in the
+    # Calculate the length of the data up to the end of the last section in the
     # file. Overlay data won't be taken into account
     #
     total_pe_data_length = len( pe.trim() )
@@ -570,7 +570,7 @@ def is_probably_packed( pe ):
     for section in pe.sections:
         s_entropy = section.get_entropy()
         s_length = len( section.get_data() )
-        # The value of 7.4 is empircal, based on looking at a few files packed
+        # The value of 7.4 is empirical, based on looking at a few files packed
         # by different packers
         if s_entropy > 7.4:
             total_compressed_data += s_length
