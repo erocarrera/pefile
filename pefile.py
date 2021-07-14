@@ -372,6 +372,49 @@ DLL_CHARACTERISTICS = two_way_dict(dll_characteristics)
 
 FILE_ALIGNMENT_HARDCODED_VALUE = 0x200
 
+
+# Unwind info-related enums
+
+unwind_info_flags = [
+    ('UNW_FLAG_EHANDLER',  0x01),
+    ('UNW_FLAG_UHANDLER',  0x02),
+    ('UNW_FLAG_CHAININFO', 0x04)]
+
+UNWIND_INFO_FLAGS = two_way_dict(unwind_info_flags)
+
+registers = [
+    ('RAX', 0),
+    ('RCX', 1),
+    ('RDX', 2),
+    ('RBX', 3),
+    ('RSP', 4),
+    ('RBP', 5),
+    ('RSI', 6),
+    ('RDI', 7),
+    ('R8',  8),
+    ('R9',  9),
+    ('R10', 10),
+    ('R11', 11),
+    ('R12', 12),
+    ('R13', 13),
+    ('R14', 14),
+    ('R15', 15)]
+
+REGISTERS = two_way_dict(registers)
+
+#enum _UNWIND_OP_CODES
+UWOP_PUSH_NONVOL =     0
+UWOP_ALLOC_LARGE =     1
+UWOP_ALLOC_SMALL =     2
+UWOP_SET_FPREG =       3
+UWOP_SAVE_NONVOL =     4
+UWOP_SAVE_NONVOL_FAR = 5
+UWOP_EPILOG =          6
+UWOP_SAVE_XMM128 =     8
+UWOP_SAVE_XMM128_FAR = 9
+UWOP_PUSH_MACHFRAME =  10
+
+
 # Resource types
 resource_type = [
     ('RT_CURSOR',          1),
@@ -1248,6 +1291,169 @@ class SectionStructure(Structure):
         return entropy
 
 
+@lru_cache(maxsize=2048, copy=False)
+def set_bitfields_format(format):
+
+    class Accumulator:
+        def __init__(self, fmt, comp_fields):
+            self._subfields = []
+            self._name = '~' #add a prefix to distinguish the artificially created compoud field from regular fields
+            self._type = None
+            self._bits_left = 0
+            self._comp_fields = comp_fields
+            self._format = fmt
+
+        def wrap_up(self):
+            if self._type == None:
+                return
+            self._format.append(self._type + ',' + self._name)
+            self._comp_fields[len(self._format) - 1] = (self._type, self._subfields)
+            self._name = '~'
+            self._type = None
+            self._subfields = []
+
+        def new_type(self, tp):
+            self._bits_left = STRUCT_SIZEOF_TYPES[tp] * 8
+            self._type = tp
+
+        def add_subfield(self, name, bitcnt):
+            self._name += name
+            self._bits_left -= bitcnt
+            self._subfields.append((name, bitcnt))
+
+        def get_type(self):
+            return self._type
+
+        def get_name(self):
+            return self._name
+
+        def get_bits_left(self):
+            return self._bits_left
+
+    old_fmt = []
+    comp_fields = {}
+    ac = Accumulator(old_fmt, comp_fields)
+
+    for elm in format[1]:
+        if not ':' in elm:
+            ac.wrap_up()
+            old_fmt.append(elm)
+            continue
+
+        elm_type, elm_name = elm.split(',', 1)
+
+        if ',' in elm_name:
+            raise NotImplementedError('Structures with bitfields do not support unions yet')
+
+        elm_type, elm_bits = elm_type.split(':', 1)
+        elm_bits = int(elm_bits)
+        if elm_type != ac.get_type() or elm_bits > ac.get_bits_left():
+            ac.wrap_up()
+            ac.new_type(elm_type)
+
+        ac.add_subfield(elm_name, elm_bits)
+    ac.wrap_up()
+
+    format_str, _ , field_offsets, keys, format_length = set_format(tuple(old_fmt))
+
+    extended_keys = []
+    for i in range(len(keys)):
+        if not i in comp_fields:
+            extended_keys.append(keys[i])
+            continue
+        _, sbf = comp_fields[i]
+        bf_names = [ [f[StructureWithBitfields.BTF_NAME_IDX]] for f in sbf ]
+        extended_keys.extend(bf_names)
+        for n in bf_names:
+            field_offsets[n[0]] = field_offsets[keys[i][0]]
+
+    return (format_str, format_length, field_offsets, keys, extended_keys, comp_fields)
+
+
+class StructureWithBitfields(Structure):
+    """
+    Extends Structure's functionality with support for bitfields such as: ('B:4,LowerHalf', 'B:4,UpperHalf')
+    To this end, two lists are maintained:
+        * self.__keys__ that contains compound fields, for example ('B,~LowerHalfUpperHalf'), and
+          is used during packing/unpaking
+        * self.__keys_ext__ containing a separate key for each field (ex., LowerHalf, UpperHalf) to
+          simplify implementation of dump()
+    This way the implementation of unpacking/packing and dump() from Structure can be reused.
+
+    In addition, we create a dictionary: <comound_field_index_in_keys> --> (data type, [ (subfield name, length in bits)+ ] )
+    that facilitates bitfield paking and unpacking.
+
+    With lru_cache() creating only once instance per format string, the memory overhead is negligible.
+    """
+
+    BTF_NAME_IDX = 0
+    BTF_BITCNT_IDX = 1
+    CF_TYPE_IDX = 0
+    CF_SUBFLD_IDX = 1
+
+    def __init__(self, format, name=None, file_offset=None):
+        self.__format__, self.__format_length__, self.__field_offsets__, self.__keys__, self.__keys_ext__, self.__compound_fields__ = set_bitfields_format(format)
+        #create our own unpacked_data_elms to ensure they are not shared among StructureWithBitfields instances with the same format string
+        self.__unpacked_data_elms__ = [ None for i in range(self.__format_length__) ]
+        self.__all_zeroes__ = False
+        self.__file_offset__ = file_offset
+        self.name = name if name != None else format[0]
+
+    def __unpack__(self, data):
+        super(StructureWithBitfields, self).__unpack__(data) #calling the original routine to deal with special cases/spurious data structures
+        self._unpack_bitfield_attributes()
+
+    def __pack__(self):
+        self._pack_bitfield_attributes()
+        try:
+            data = super(StructureWithBitfields, self).__pack__()
+        finally:
+            self._unpack_bitfield_attributes()
+        return data
+
+    def dump(self, indentation=0):
+        tk = self.__keys__
+        self.__keys__ = self.__keys_ext__
+        try:
+            ret = super(StructureWithBitfields, self).dump(indentation)
+        finally:
+            self.__keys__ = tk
+        return ret
+
+    def dump_dict(self):
+        tk = self.__keys__
+        self.__keys__ = self.__keys_ext__
+        try:
+            ret = super(StructureWithBitfields, self).dump_dict()
+        finally:
+            self.__keys__ = tk
+        return ret
+
+    def _unpack_bitfield_attributes(self):
+        """Replace compound attributes corresponding to bitfields with separate sub-fields"""
+        for i in self.__compound_fields__.keys():
+            cf_name = self.__keys__[i][0]
+            cval = getattr(self, cf_name)
+            delattr(self, cf_name)
+            offst = 0
+            for sf in self.__compound_fields__[i][StructureWithBitfields.CF_SUBFLD_IDX]:
+                mask = (1 << sf[StructureWithBitfields.BTF_BITCNT_IDX]) - 1
+                mask <<= offst
+                setattr(self, sf[StructureWithBitfields.BTF_NAME_IDX], (cval & mask) >> offst)
+                offst += sf[StructureWithBitfields.BTF_BITCNT_IDX]
+
+    def _pack_bitfield_attributes(self):
+        """Pack attributes into a compound bitfield"""
+        for i in self.__compound_fields__.keys():
+            cf_name = self.__keys__[i][0]
+            offst, acc_val = 0, 0
+            for sf in self.__compound_fields__[i][StructureWithBitfields.CF_SUBFLD_IDX]:
+                mask = (1 << sf[StructureWithBitfields.BTF_BITCNT_IDX]) - 1
+                field_val = getattr(self, sf[StructureWithBitfields.BTF_NAME_IDX]) & mask
+                acc_val |= field_val << offst
+                offst += sf[StructureWithBitfields.BTF_BITCNT_IDX]
+            setattr(self, cf_name, acc_val)
+
 
 class DataContainer(object):
     """Generic data container."""
@@ -1491,6 +1697,333 @@ class BoundImportRefData(DataContainer):
     struct:     IMAGE_BOUND_FORWARDER_REF structure
     name:       dll name
     """
+
+class ExceptionsDirEntryData(DataContainer):
+    """Holds the data related to SEH (and stack unwinding, in particular)
+
+    struct      an instance of RUNTIME_FUNTION
+    unwindinfo  an instance of UNWIND_INFO
+    """
+
+class UnwindInfo(StructureWithBitfields):
+    """ Handles the complexities of UNWIND_INFO structure:
+            * variable number of UWIND_CODEs
+            * optional ExceptionHandler and FunctionEntry fields
+    """
+    def __init__(self, file_offset = 0):
+        super(UnwindInfo, self).__init__(('UNWIND_INFO',
+            ('B:3,Version', 'B:5,Flags', 'B,SizeOfProlog', 'B,CountOfCodes', 'B:4,FrameRegister', 'B:4,FrameOffset') ),
+            file_offset = file_offset)
+        self._full_size = super(UnwindInfo, self).sizeof()
+        self._opt_field_name = None
+        self._code_info = StructureWithBitfields(('UNWIND_CODE',
+            ('B,CodeOffset', 'B:4,UnwindOp', 'B:4,OpInfo')), file_offset = 0)
+        self._chained_entry = None
+        self._finished_unpacking = False
+
+    def unpack_in_stages(self, data):
+        """Unpacks the UNWIND_INFO "in two calls", with the first call establishing a full size of the structure
+           and the second, performing the actual unpacking.
+        """
+        if self._finished_unpacking:
+            return None
+
+        super(UnwindInfo, self).__unpack__(data)
+        codes_cnt_max = (self.CountOfCodes + 1) & ~1
+        hdlr_offset = super(UnwindInfo, self).sizeof() + codes_cnt_max * self._code_info.sizeof()
+        self._full_size = hdlr_offset + (0 if self.Flags == 0 else STRUCT_SIZEOF_TYPES['I'])
+
+        if len(data) < self._full_size:
+            return None
+
+        if self.Version != 1 and self.Version != 2:
+            return 'Unsupported version of UNWIND_INFO at ' + hex(self.__file_offset__)
+
+        self.UnwindCodes = []
+        ro = super(UnwindInfo, self).sizeof()
+        codes_left = self.CountOfCodes
+        while codes_left > 0:
+            self._code_info.__unpack__(data[ro : ro + self._code_info.sizeof()])
+            ucode = PrologEpilogOpsFactory.create(self._code_info)
+            if ucode == None:
+                return 'Unknown UNWIND_CODE at ' + hex(self.__file_offset__ + ro)
+
+            len_in_codes = ucode.length_in_code_structures(self._code_info, self)
+            opc_size = self._code_info.sizeof() * len_in_codes
+            ucode.initialize(self._code_info,
+                             data[ro : ro + opc_size],
+                             self,
+                             self.__file_offset__ + ro)
+            ro += opc_size
+            codes_left -= len_in_codes
+            self.UnwindCodes.append(ucode)
+
+        if self.UNW_FLAG_EHANDLER or self.UNW_FLAG_UHANDLER:
+            self._opt_field_name = 'ExceptionHandler'
+
+        if self.UNW_FLAG_CHAININFO:
+            self._opt_field_name = 'FunctionEntry'
+
+        if self._opt_field_name != None:
+            setattr(self, self._opt_field_name,
+                struct.unpack('<I', data[hdlr_offset : hdlr_offset + STRUCT_SIZEOF_TYPES['I']])[0])
+
+        self._finished_unpacking = True
+
+        return None
+
+    def dump(self, indentation=0):
+        # Because __keys_ext__ are shared among all the instances with the same format string,
+        # we have to add and sunsequently remove the optional field each time.
+        # It saves space (as compared to keeping a copy self.__keys_ext__ per UnwindInfo instance),
+        # but makes our dump() implementation thread-unsafe.
+        if self._opt_field_name != None:
+            self.__field_offsets__[self._opt_field_name] = self._full_size - STRUCT_SIZEOF_TYPES['I']
+            self.__keys_ext__.append([ self._opt_field_name ])
+        try:
+            dump = super(UnwindInfo, self).dump(indentation)
+        finally:
+            if self._opt_field_name != None:
+                self.__keys_ext__.pop()
+
+        dump.append('Flags: ' + ', '.join([ s[0] for s in unwind_info_flags if getattr(self, s[0]) ]))
+        dump.append('Unwind codes: ' + '; '.join([ str(c) for c in self.UnwindCodes if c.is_valid() ]))
+        return dump
+
+    def dump_dict(self):
+        if self._opt_field_name != None:
+            self.__field_offsets__[self._opt_field_name] = self._full_size- STRUCT_SIZEOF_TYPES['I']
+            self.__keys_ext__.append([ self._opt_field_name ])
+        try:
+            ret = super(UnwindInfo, self).dump_dict()
+        finally:
+            if self._opt_field_name != None:
+                self.__keys_ext__.pop()
+        return ret
+
+    def __setattr__(self, name, val):
+        if name == 'Flags':
+            set_flags(self, val, unwind_info_flags)
+        elif 'UNW_FLAG_' in name and hasattr(self, name):
+            if val:
+                self.__dict__['Flags'] |= UNWIND_INFO_FLAGS[name]
+            else:
+                self.__dict__['Flags'] ^= UNWIND_INFO_FLAGS[name]
+        self.__dict__[name] = val
+
+    def sizeof(self):
+        return self._full_size
+
+    def __pack__(self):
+        data = bytearray(self._full_size)
+        data[ 0 : super(UnwindInfo, self).sizeof() ] = super(UnwindInfo, self).__pack__()
+        cur_offset = super(UnwindInfo, self).sizeof()
+
+        for uc in self.UnwindCodes:
+            if cur_offset + uc.struct.sizeof() > self._full_size:
+                break
+            data[ cur_offset : cur_offset + uc.struct.sizeof() ] = uc.struct.__pack__()
+            cur_offset += uc.struct.sizeof()
+
+        if self._opt_field_name != None:
+            data[ self._full_size - STRUCT_SIZEOF_TYPES['I'] : self._full_size ] = struct.pack('<I', getattr(self, self._opt_field_name))
+
+        return data
+
+    def get_chained_function_entry(self):
+        return self._chained_entry
+
+    def set_chained_function_entry(self, entry):
+        if self._chained_entry != None:
+            raise Exception('Chained function entry cannot be changed')
+        self._chained_entry = entry
+
+
+class PrologEpilogOp(object):
+    """Meant as an abstract class representing a generic unwind code.
+       There is a subclass of PrologEpilogOp for each member of UNWIND_OP_CODES enum.
+    """
+    def initialize(self, unw_code, data, unw_info, file_offset):
+        self.struct = StructureWithBitfields(self._get_format(unw_code), file_offset = file_offset)
+        self.struct.__unpack__(data)
+
+    def length_in_code_structures(self, unw_code, unw_info):
+        """Computes how many UNWIND_CODE structures UNWIND_CODE occupies.
+           May be called before initialize() and, for that reason, should not rely on the values of intance attributes
+        """
+        return 1
+
+    def is_valid(self):
+        return True
+
+    def _get_format(self, unw_code):
+        return ('UNWIND_CODE', ('B,CodeOffset', 'B:4,UnwindOp', 'B:4,OpInfo'))
+
+
+class PrologEpilogOpPushReg(PrologEpilogOp):
+    """UWOP_PUSH_NONVOL"""
+    def _get_format(self, unw_code):
+        return ('UNWIND_CODE_PUSH_NONVOL', ('B,CodeOffset', 'B:4,UnwindOp', 'B:4,Reg'))
+
+    def __str__(self):
+        return '.PUSHREG ' + REGISTERS[self.struct.Reg]
+
+
+class PrologEpilogOpAllocLarge(PrologEpilogOp):
+    """UWOP_ALLOC_LARGE"""
+    def _get_format(self, unw_code):
+        return ('UNWIND_CODE_ALLOC_LARGE', ('B,CodeOffset', 'B:4,UnwindOp', 'B:4,OpInfo',
+            'H,AllocSizeInQwords' if unw_code.OpInfo == 0 else 'I,AllocSize'))
+
+    def length_in_code_structures(self, unw_code, unw_info):
+        return 2 if unw_code.OpInfo == 0 else 3
+
+    def get_alloc_size(self):
+        return self.struct.AllocSizeInQwords * 8 if self.struct.OpInfo == 0 else self.struct.AllocSize
+
+    def __str__(self):
+        return '.ALLOCSTACK ' + hex(self.get_alloc_size())
+
+
+class PrologEpilogOpAllocSmall(PrologEpilogOp):
+    """UWOP_ALLOC_SMALL"""
+    def _get_format(self, unw_code):
+        return ('UNWIND_CODE_ALLOC_SMALL', ('B,CodeOffset', 'B:4,UnwindOp', 'B:4,AllocSizeInQwordsMinus8'))
+
+    def get_alloc_size(self):
+        return self.struct.AllocSizeInQwordsMinus8 * 8 + 8
+
+    def __str__(self):
+        return '.ALLOCSTACK ' + hex(self.get_alloc_size())
+
+
+class PrologEpilogOpSetFP(PrologEpilogOp):
+    """UWOP_SET_FPREG"""
+    def initialize(self, unw_code, data, unw_info, file_offset):
+        super(PrologEpilogOpSetFP, self).initialize(unw_code, data, unw_info, file_offset)
+        self._frame_register = unw_info.FrameRegister
+        self._frame_offset = unw_info.FrameOffset * 16
+
+    def __str__(self):
+        return '.SETFRAME ' + REGISTERS[self._frame_register] + ', ' + hex(self._frame_offset)
+
+
+class PrologEpilogOpSaveReg(PrologEpilogOp):
+    """UWOP_SAVE_NONVOL"""
+    def length_in_code_structures(self, unwcode, unw_info):
+        return 2
+
+    def get_offset(self):
+        return self.struct.OffsetInQwords * 8
+
+    def _get_format(self, unw_code):
+        return ('UNWIND_CODE_SAVE_NONVOL', ('B,CodeOffset', 'B:4,UnwindOp', 'B:4,Reg', 'H,OffsetInQwords'))
+
+    def __str__(self):
+        return '.SAVEREG ' + REGISTERS[self.struct.Reg] + ', ' + hex(self.get_offset())
+
+
+class PrologEpilogOpSaveRegFar(PrologEpilogOp):
+    """UWOP_SAVE_NONVOL_FAR"""
+    def length_in_code_structures(self, unw_code, unw_info):
+        return 3
+
+    def get_offset(self):
+        return self.struct.Offset
+
+    def _get_format(self, unw_code):
+        return ('UNWIND_CODE_SAVE_NONVOL_FAR', ('B,CodeOffset', 'B:4,UnwindOp', 'B:4,Reg', 'I,Offset'))
+
+    def __str__(self):
+        return '.SAVEREG ' + REGISTERS[self.struct.Reg] + ', ' + hex(self.struct.Offset)
+
+
+class PrologEpilogOpSaveXMM(PrologEpilogOp):
+    """UWOP_SAVE_XMM128"""
+    def _get_format(self, unw_code):
+        return ('UNWIND_CODE_SAVE_XMM128', ('B,CodeOffset', 'B:4,UnwindOp', 'B:4,Reg', 'H,OffsetIn2Qwords'))
+
+    def length_in_code_structures(self, unw_code, unw_info):
+        return 2
+
+    def get_offset(self):
+        return self.struct.OffsetIn2Qwords * 16
+
+    def __str__(self):
+        return '.SAVEXMM128 XMM' + str(self.struct.Reg) + ', ' + hex(self.get_offset())
+
+
+class PrologEpilogOpSaveXMMFar(PrologEpilogOp):
+    """UWOP_SAVE_XMM128_FAR"""
+    def _get_format(self, unw_code):
+        return ('UNWIND_CODE_SAVE_XMM128_FAR', ('B,CodeOffset', 'B:4,UnwindOp', 'B:4,Reg', 'I,Offset'))
+
+    def length_in_code_structures(self, unw_code, unw_info):
+        return 3
+
+    def get_offset(self):
+        return self.struct.Offset
+
+    def __str__(self):
+        return '.SAVEXMM128 XMM' + str(self.struct.Reg) + ', ' + hex(self.struct.Offset)
+
+
+class PrologEpilogOpPushFrame(PrologEpilogOp):
+    """UWOP_PUSH_MACHFRAME"""
+    def __str__(self):
+        return '.PUSHFRAME' + (' <code>' if self.struct.OpInfo else '')
+
+
+class PrologEpilogOpEpilogMarker(PrologEpilogOp):
+    """UWOP_EPILOG"""
+    def initialize(self, unw_code, data, unw_info, file_offset):
+        self._long_offst = True
+        self._first = not hasattr(unw_info, 'SizeOfEpilog')
+        super(PrologEpilogOpEpilogMarker, self).initialize(unw_code, data, unw_info, file_offset)
+        if self._first:
+            setattr(unw_info, 'SizeOfEpilog', self.struct.Size)
+            self._long_offst = unw_code.OpInfo & 1 == 0
+        self._epilog_size = unw_info.SizeOfEpilog
+
+    def _get_format(self, unw_code):
+        #check if it is the first epilog code among encountered; then its record will contain size of the epilog
+        if self._first:
+            return ('UNWIND_CODE_EPILOG',
+                ('B,OffsetLow,Size', 'B:4,UnwindOp', 'B:4,Flags') if unw_code.OpInfo & 1 == 1
+                else ('B,Size', 'B:4,UnwindOp', 'B:4,Flags', 'B,OffsetLow', 'B:4,Unused', 'B:4,OffsetHigh'))
+        else:
+            return ('UNWIND_CODE_EPILOG', ('B,OffsetLow', 'B:4,UnwindOp', 'B:4,OffsetHigh'))
+
+    def length_in_code_structures(self, unw_code, unw_info):
+        return 2 if not hasattr(unw_info, 'SizeOfEpilog') and (unw_code.OpInfo & 1) == 0 else 1
+
+    def get_offset(self):
+        return self.struct.OffsetLow | (self.struct.OffsetHigh << 8 if self._long_offst else 0)
+
+    def is_valid(self):
+        return self.get_offset() > 0
+
+    def __str__(self):
+        #the EPILOG sequence may have a terminating all-zeros entry
+        return 'EPILOG: size=' + hex(self._epilog_size) + ', offset from the end=-' + hex(self.get_offset()) if self.get_offset() > 0 else ''
+
+
+class PrologEpilogOpsFactory:
+    """A factory for creating unwind codes based on the value of UnwindOp"""
+    _class_dict = { UWOP_PUSH_NONVOL : PrologEpilogOpPushReg,
+                     UWOP_ALLOC_LARGE : PrologEpilogOpAllocLarge,
+                     UWOP_ALLOC_SMALL : PrologEpilogOpAllocSmall,
+                     UWOP_SET_FPREG : PrologEpilogOpSetFP,
+                     UWOP_SAVE_NONVOL : PrologEpilogOpSaveReg,
+                     UWOP_SAVE_NONVOL_FAR : PrologEpilogOpSaveRegFar,
+                     UWOP_SAVE_XMM128 : PrologEpilogOpSaveXMM,
+                     UWOP_SAVE_XMM128_FAR : PrologEpilogOpSaveXMMFar,
+                     UWOP_PUSH_MACHFRAME : PrologEpilogOpPushFrame,
+                     UWOP_EPILOG : PrologEpilogOpEpilogMarker }
+    @staticmethod
+    def create(unwcode):
+        code = unwcode.UnwindOp
+        return PrologEpilogOpsFactory._class_dict[code]() if code in PrologEpilogOpsFactory._class_dict else None
 
 
 # Valid FAT32 8.3 short filename characters according to:
@@ -1801,6 +2334,9 @@ class PE(object):
 
     __IMAGE_BOUND_FORWARDER_REF_format__ = ('IMAGE_BOUND_FORWARDER_REF',
         ('I,TimeDateStamp', 'H,OffsetModuleName', 'H,Reserved') )
+
+    __RUNTIME_FUNCTION_format__ = ('RUNTIME_FUNCTION',
+        ('I,BeginAddress', 'I,EndAddress', 'I,UnwindData') )
 
     def __init__(self, name=None, data=None, fast_load=None,
                  max_symbol_exports=MAX_SYMBOL_EXPORT_COUNT,
@@ -2533,7 +3069,8 @@ class PE(object):
             ('IMAGE_DIRECTORY_ENTRY_TLS', self.parse_directory_tls),
             ('IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG', self.parse_directory_load_config),
             ('IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT', self.parse_delay_import_directory),
-            ('IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT', self.parse_directory_bound_imports) )
+            ('IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT', self.parse_directory_bound_imports),
+            ('IMAGE_DIRECTORY_ENTRY_EXCEPTION', self.parse_exceptions_directory), )
 
         if directories is not None:
             if not isinstance(directories, (tuple, list)):
@@ -2568,6 +3105,75 @@ class PE(object):
                 directories.remove(directory_index)
 
 
+    def parse_exceptions_directory(self, rva, size):
+        """ Parses exception directory
+
+            All the code related to handling exception directories is documented in
+            https://auscitte.github.io/systems%20blog/Exception-Directory-pefile#implementation-details
+        """
+
+        #"For x64 and Itanium platforms; the format is different for other platforms"
+        if self.FILE_HEADER.Machine != MACHINE_TYPE['IMAGE_FILE_MACHINE_AMD64'] and self.FILE_HEADER.Machine != MACHINE_TYPE['IMAGE_FILE_MACHINE_IA64']:
+            return None
+
+        rf = Structure(self.__RUNTIME_FUNCTION_format__)
+        rf_size = rf.sizeof()
+        rva2rt = {}
+        rt_funcs = []
+        rva2infos = {}
+        for i in range(size // rf_size):
+            rf = self.__unpack_data__(
+                self.__RUNTIME_FUNCTION_format__,
+                self.get_data(rva, rf_size),
+                file_offset = self.get_offset_from_rva(rva) )
+
+            if rf is None:
+                break
+
+            ui = None
+
+            if (rf.UnwindData & 0x1) == 0:
+                #according to "Improving Automated Analysis of Windows x64 Binaries", if the lowest bit is
+                #set, (UnwindData & ~0x1) should point to the chained RUNTIME_FUNCTION instead of UNWIND_INFO
+
+                if rf.UnwindData in rva2infos: #unwind info data structures can be shared among functions
+                    ui = rva2infos[rf.UnwindData]
+                else:
+                    ui = UnwindInfo(file_offset = self.get_offset_from_rva(rf.UnwindData))
+                    rva2infos[rf.UnwindData] = ui
+
+                ws = ui.unpack_in_stages(self.get_data(rf.UnwindData, ui.sizeof()))
+                if ws != None:
+                    self.__warnings.append(ws)
+                    break
+                ws = ui.unpack_in_stages(self.get_data(rf.UnwindData, ui.sizeof()))
+                if ws != None:
+                    self.__warnings.append(ws)
+                    break
+
+                self.__structures__.append(ui)
+
+            entry = ExceptionsDirEntryData(struct = rf, unwindinfo = ui)
+            rt_funcs.append(entry)
+
+            rva2rt[rf.BeginAddress] = entry
+            rva += rf_size
+
+        #each chained function entry holds a reference to the function first in chain
+        for rf in rt_funcs:
+            if rf.unwindinfo == None:
+                #TODO: have not encountered such a binary yet;
+                #in theory, (UnwindData & ~0x1) should point to the chained RUNTIME_FUNCTION which could be used to
+                #locate the corresponding ExceptionsDirEntryData and set_chained_function_entry()
+                continue
+            if not hasattr(rf.unwindinfo, "FunctionEntry"):
+                continue
+            if not rf.unwindinfo.FunctionEntry in rva2rt:
+                self.__warnings.append('FunctionEntry of UNWIND_INFO at ' + hex(rf.struct.get_file_offset()) + ' points to an entry that does not exist')
+                continue
+            rf.unwindinfo.set_chained_function_entry(rva2rt[rf.unwindinfo.FunctionEntry])
+
+        return rt_funcs
 
     def parse_directory_bound_imports(self, rva, size):
         """"""
@@ -5006,6 +5612,13 @@ class PE(object):
                         dump.add_line('0x%08X 0x%x(Unknown)' % (
                             reloc.rva, reloc.type), 4)
                 dump.add_newline()
+
+        if hasattr(self, 'DIRECTORY_ENTRY_EXCEPTION') and len(self.DIRECTORY_ENTRY_EXCEPTION) > 0:
+            dump.add_header('Unwind data for exception handling')
+            for rf in self.DIRECTORY_ENTRY_EXCEPTION:
+                dump.add_lines(rf.struct.dump())
+                if rf.unwindinfo != None:
+                    dump.add_lines(rf.unwindinfo.dump(), 4)
 
         return dump.get_text()
 
