@@ -1097,13 +1097,21 @@ class SectionStructure(Structure):
                 self.VirtualAddress_adj = self.pe.adjust_SectionAlignment( self.VirtualAddress,  self.pe.OPTIONAL_HEADER.SectionAlignment, self.pe.OPTIONAL_HEADER.FileAlignment )
         return self.VirtualAddress_adj
 
-    def get_data(self, start=None, length=None):
+    def get_data(self, start=None, length=None, ignore_padding=False):
         """Get data chunk from a section.
 
         Allows to query data from the section by passing the
         addresses where the PE file would be loaded by default.
         It is then possible to retrieve code and data by their real
         addresses as they would be if loaded.
+
+        Note that sections on disk can include padding that would
+        not be loaded to memory. That is the case if `section.SizeOfRawData`
+        is greater than `section.Misc_VirtualSize`, and that means
+        that data past `section.Misc_VirtualSize` is padding.
+        In case you are not interested in this padding, passing
+        `ignore_padding=True` will truncate the result in order
+        not to return the padding (if any).
 
         Returns bytes() under Python 3.x and set() under Python 2.7
         """
@@ -1117,6 +1125,10 @@ class SectionStructure(Structure):
             end = offset + length
         else:
             end = offset + self.SizeOfRawData
+
+        if ignore_padding:
+            end = min(end, offset + self.Misc_VirtualSize)
+
         # PointerToRawData is not adjusted here as we might want to read any possible extra bytes
         # that might get cut off by aligning the start (and hence cutting something off the end)
         #
