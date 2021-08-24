@@ -91,4 +91,5 @@ setup(name = 'pefile',
     install_requires=[
           'future',
     ],
+    license="MIT",
 )
