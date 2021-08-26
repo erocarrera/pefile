@@ -5769,19 +5769,46 @@ class PE(object):
                 return offset_and_size
             return largest_offset_and_size
 
+        # Factor in the offset / size of the COFF Symbol Table if one exists
+        if (self.FILE_HEADER.PointerToSymbolTable != 0):
+
+            # The COFF Symbol Table size must be computed by multiplying
+            # the number of symbols by the size of the symbol table entry
+            # structure
+            coff_sym_table_size = self.FILE_HEADER.NumberOfSymbols * 18
+
+            # The COFF String Table follows the Symbol Table, and at a minimum
+            # contains a 4-byte size value (set to 4 if there are no strings in
+            # the table)
+            coff_str_table_size = self.get_dword_from_offset(
+                self.FILE_HEADER.PointerToSymbolTable + coff_sym_table_size)
+
+            if coff_str_table_size is not None:
+                largest_offset_and_size = update_if_sum_is_larger_and_within_file(
+                    (self.FILE_HEADER.PointerToSymbolTable, coff_sym_table_size + coff_str_table_size))
+
         if hasattr(self, 'OPTIONAL_HEADER'):
             largest_offset_and_size = update_if_sum_is_larger_and_within_file(
                 (self.OPTIONAL_HEADER.get_file_offset(), self.FILE_HEADER.SizeOfOptionalHeader))
+
+            # SizeOfHeaders stores the size of the MZ, PE, and section hdrs,
+            # rounded up to a multiple of the FileAlignment
+            largest_offset_and_size = update_if_sum_is_larger_and_within_file(
+                (0, self.OPTIONAL_HEADER.SizeOfHeaders))
 
         for section in self.sections:
             largest_offset_and_size = update_if_sum_is_larger_and_within_file(
                 (section.PointerToRawData, section.SizeOfRawData))
 
-        skip_directories = [DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']]
-
         for idx, directory in enumerate(self.OPTIONAL_HEADER.DATA_DIRECTORY):
-            if idx in skip_directories:
+
+            if idx == DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']:
+                # For the Security / Certificate Table, the VirtualAddress is
+                # a file offset instead of an RVA
+                largest_offset_and_size = update_if_sum_is_larger_and_within_file(
+                    (directory.VirtualAddress, directory.Size))
                 continue
+
             try:
                 largest_offset_and_size = update_if_sum_is_larger_and_within_file(
                     (self.get_offset_from_rva(directory.VirtualAddress), directory.Size))
