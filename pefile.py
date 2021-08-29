@@ -3999,6 +3999,10 @@ class PE(object):
 
         return import_descs
 
+    def get_rich_header_hash(self):
+        if not hasattr(self, "RICH_HEADER"):
+            return ""
+        return md5(self.RICH_HEADER.clear_data).hexdigest()
 
     def get_imphash(self):
         impstrs = []
