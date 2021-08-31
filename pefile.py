@@ -5699,6 +5699,7 @@ class PE(object):
 
                 if hasattr(self, 'FileInfo') and len(self.FileInfo) > idx:
                     fileinfo_list = list()
+                    version_info_list.append(fileinfo_list)
                     for entry in self.FileInfo[idx]:
                         fileinfo_list.append(entry.dump_dict())
 
