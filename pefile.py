@@ -49,34 +49,22 @@ import functools
 import copy as copymod
 
 
-PY3 = sys.version_info > (3,)
+long = int
+# lru_cache with a shallow copy of the objects returned (list, dicts, ..)
+# we don't use deepcopy as it's _really_ slow and the data we retrieved using this is enough with copy.copy
+# taken from https://stackoverflow.com/questions/54909357/how-to-get-functools-lru-cache-to-return-new-instances
+def lru_cache(maxsize=128, typed=False, copy=False):
+    if not copy:
+        return functools.lru_cache(maxsize, typed)
 
-if PY3:
-    long = int
-    # lru_cache with a shallow copy of the objects returned (list, dicts, ..)
-    # we don't use deepcopy as it's _really_ slow and the data we retrieved using this is enough with copy.copy
-    # taken from https://stackoverflow.com/questions/54909357/how-to-get-functools-lru-cache-to-return-new-instances
-    def lru_cache(maxsize=128, typed=False, copy=False):
-        if not copy:
-            return functools.lru_cache(maxsize, typed)
-
-        def decorator(f):
-            cached_func = functools.lru_cache(maxsize, typed)(f)
-            @functools.wraps(f)
-            def wrapper(*args, **kwargs):
-                # return copymod.deepcopy(cached_func(*args, **kwargs))
-                return copymod.copy(cached_func(*args, **kwargs))
-            return wrapper
-        return decorator
-else:
-    # lru_cache that does nothing on python2
-    def lru_cache(maxsize=128, typed=False, copy=False):
-        def decorator(f):
-            @functools.wraps(f)
-            def wrapper(*args, **kwargs):
-                return f(*args, **kwargs)
-            return wrapper
-        return decorator
+    def decorator(f):
+        cached_func = functools.lru_cache(maxsize, typed)(f)
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            # return copymod.deepcopy(cached_func(*args, **kwargs))
+            return copymod.copy(cached_func(*args, **kwargs))
+        return wrapper
+    return decorator
 
 
 @lru_cache(maxsize=2048)
@@ -727,30 +715,12 @@ def power_of_two(val):
     return val != 0 and (val & (val-1)) == 0
 
 
-# These come from the great article[1] which contains great insights on
-# working with unicode in both Python 2 and 3.
-# [1]: http://python3porting.com/problems.html
-if not PY3:
-    def handler(err):
-        start = err.start
-        end = err.end
-        values = [
-            ('\\u{0:04x}' if ord(err.object[i]) > 255 else '\\x{0:02x}',
-             ord(err.object[i])) for i in range(start,end)]
-        return (
-            u"".join([elm[0].format(elm[1]) for elm in values]),
-            end)
-    import codecs
-    codecs.register_error('backslashreplace_', handler)
-    def b(x):
-        return x
-else:
-    import codecs
-    codecs.register_error('backslashreplace_', codecs.lookup_error('backslashreplace'))
-    def b(x):
-        if isinstance(x, (bytes, bytearray)):
-            return bytes(x)
-        return codecs.encode(x, 'cp1252')
+import codecs
+codecs.register_error('backslashreplace_', codecs.lookup_error('backslashreplace'))
+def b(x):
+    if isinstance(x, (bytes, bytearray)):
+        return bytes(x)
+    return codecs.encode(x, 'cp1252')
 
 
 class UnicodeStringWrapperPostProcessor(object):
@@ -2034,14 +2004,9 @@ class PrologEpilogOpsFactory:
 # The filename length is not checked because the DLLs filename
 # can be longer that the 8.3
 
-if PY3:
-    allowed_filename = b(
-        string.ascii_lowercase + string.ascii_uppercase +
-        string.digits + "!#$%&'()-@^_`{}~+,.;=[]")
-else: # Python 2.x
-    allowed_filename = b(
-        string.lowercase + string.uppercase + string.digits +
-        b"!#$%&'()-@^_`{}~+,.;=[]")
+allowed_filename = b(
+    string.ascii_lowercase + string.ascii_uppercase +
+    string.digits + "!#$%&'()-@^_`{}~+,.;=[]")
 
 def is_valid_dos_filename(s):
     if s is None or not isinstance(s, (str, bytes, bytearray)):
@@ -2051,18 +2016,13 @@ def is_valid_dos_filename(s):
     return all(c in allowed for c in set(s))
 
 
-# Check if an imported name uses the valid accepted characters expected in mangled
-# function names. If the symbol's characters don't fall within this charset
-# we will assume the name is invalid
-#
-if PY3:
-    allowed_function_name = b(
-        string.ascii_lowercase + string.ascii_uppercase +
-        string.digits + '_?@$()<>')
-else:
-    allowed_function_name = b(
-        string.lowercase + string.uppercase +
-        string.digits + b'_?@$()<>')
+# Check if an imported name uses the valid accepted characters expected in
+# mangled function names. If the symbol's characters don't fall within this
+# charset we will assume the name is invalid.
+
+allowed_function_name = b(
+    string.ascii_lowercase + string.ascii_uppercase +
+    string.digits + '_?@$()<>')
 
 @lru_cache(maxsize=2048)
 def is_valid_function_name(s):
