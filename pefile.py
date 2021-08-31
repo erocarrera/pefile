@@ -3097,7 +3097,10 @@ class PE(object):
                         value = entry[1](dir_entry.VirtualAddress, dir_entry.Size, dllnames_only=True)
 
                     else:
-                        value = entry[1](dir_entry.VirtualAddress, dir_entry.Size)
+                        try:
+                            value = entry[1](dir_entry.VirtualAddress, dir_entry.Size)
+                        except PEFormatError as excp:
+                            self.__warnings.append(f'Failed to process directoty "{entry[0]}": {excp}')
                     if value:
                         setattr(self, entry[0][6:], value)
 
@@ -5173,7 +5176,7 @@ class PE(object):
             if rva < len(self.__data__):
                 return rva
 
-            raise PEFormatError('data at RVA can\'t be fetched. Corrupt header?')
+            raise PEFormatError(f'data at RVA 0x{rva:x} can\'t be fetched')
 
         return s.get_offset_from_rva(rva)
 
@@ -5617,7 +5620,7 @@ class PE(object):
             dump.add_header('Unwind data for exception handling')
             for rf in self.DIRECTORY_ENTRY_EXCEPTION:
                 dump.add_lines(rf.struct.dump())
-                if rf.unwindinfo != None:
+                if hasattr(rf, 'unwindinfo') and rf.unwindinfo != None:
                     dump.add_lines(rf.unwindinfo.dump(), 4)
 
         return dump.get_text()
