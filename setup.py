@@ -41,7 +41,7 @@ def _read_attr(attr_name):
 
     __version__, __author__, __contact__,
     """
-    regex = attr_name + r"\s+=\s+'(.+)'"
+    regex = attr_name + r"\s+=\s+['\"](.+)['\"]"
     if sys.version_info.major == 2:
         with open('pefile.py', 'r') as f:
             match = re.search(regex, f.read())
