@@ -73,7 +73,7 @@ setup(name = 'pefile',
     author = _read_attr('__author__'),
     author_email = _read_attr('__contact__'),
     url = 'https://github.com/erocarrera/pefile',
-    download_url='https://github.com/erocarrera/pefile/releases/download/v2021.5.24/pefile-2021.5.24.tar.gz',
+    download_url='https://github.com/erocarrera/pefile/releases/download/v2021.9.2/pefile-2021.9.2.tar.gz',
     keywords = ['pe', 'exe', 'dll', 'pefile', 'pecoff'],
     classifiers = [
         'Development Status :: 5 - Production/Stable',
