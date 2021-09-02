@@ -41,7 +41,7 @@ def _read_attr(attr_name):
 
     __version__, __author__, __contact__,
     """
-    regex = attr_name + r"\s+=\s+['\"](.+)['\"]"
+    regex = attr_name + r"\s+=\s+'(.+)'"
     if sys.version_info.major == 2:
         with open('pefile.py', 'r') as f:
             match = re.search(regex, f.read())
@@ -73,7 +73,7 @@ setup(name = 'pefile',
     author = _read_attr('__author__'),
     author_email = _read_attr('__contact__'),
     url = 'https://github.com/erocarrera/pefile',
-    download_url='https://github.com/erocarrera/pefile/releases/download/v2021.9.2/pefile-2021.9.2.tar.gz',
+    download_url='https://github.com/erocarrera/pefile/releases/download/v2021.5.24/pefile-2021.5.24.tar.gz',
     keywords = ['pe', 'exe', 'dll', 'pefile', 'pecoff'],
     classifiers = [
         'Development Status :: 5 - Production/Stable',
