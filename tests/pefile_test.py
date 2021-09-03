@@ -160,7 +160,7 @@ class Test_pefile(unittest.TestCase):
     def test_get_rich_header_hash(self):
         """Verify the RICH_HEADER hashes."""
 
-        control_file = os.path.join(REGRESSION_TESTS_DIR, "KERNEL32.DLL")
+        control_file = os.path.join(REGRESSION_TESTS_DIR, "kernel32.dll")
         pe = pefile.PE(control_file)
 
         self.assertEqual(pe.get_rich_header_hash(), "b855b76450d1cd0dc4716bb129962b6d")
