@@ -135,6 +135,28 @@ class Test_pefile(unittest.TestCase):
             raise AssertionError("One or more errors occured")
 
 
+    def test_get_rich_header_hash(self):
+        """Verify the RICH_HEADER hashes."""
+
+        control_file = os.path.join(REGRESSION_TESTS_DIR, 'KERNEL32.DLL')
+        pe = pefile.PE(control_file)
+
+        self.assertEqual(pe.get_rich_header_hash(), "b855b76450d1cd0dc4716bb129962b6d")
+        self.assertEqual(
+            pe.get_rich_header_hash('md5'), "b855b76450d1cd0dc4716bb129962b6d")
+        self.assertEqual(
+            pe.get_rich_header_hash(algorithm='sha1'),
+            "5113650e24988e658e40e6dfb4dcefbe62c1e1a5")
+        self.assertEqual(
+            pe.get_rich_header_hash(algorithm='sha256'),
+            "3a5f34064c2add746936f0a9cff5c02212e625e52c74dc7872409ae508cd6efb")
+        self.assertEqual(
+            pe.get_rich_header_hash(algorithm='sha512'),
+            "3efff532bf25870c4757c7fce6b1812b86e9518b885dc3860de4716cdd78d6ba"
+            "5147a6261442c61f13158d439681a9ff50767676b49b0a06a3f618e0526e084f")
+        self.assertRaises(Exception, pe.get_rich_header_hash, algorithm="badalgo")
+
+
     def test_selective_loading_integrity(self):
         """Verify integrity of loading the separate elements of the file as
         opposed to do a single pass.
