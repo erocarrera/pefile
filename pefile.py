@@ -5279,6 +5279,25 @@ class PE:
 
         return import_descs
 
+    def get_rich_header_hash(self,algorithm = "md5" ):
+        valid_algorithms = {"md5", "sha1", "sha256", "sha512"}
+        if not hasattr(self, "RICH_HEADER"):
+            return ""
+        if algorithm not in valid_algorithms:
+            raise Exception(
+                "Invalid hashing algorithm specified"
+                )
+        if algorithm == "md5":
+            return md5(self.RICH_HEADER.clear_data).hexdigest()
+        elif algorithm == "sha1":
+            return sha1(self.RICH_HEADER.clear_data).hexdigest()
+        elif algorithm == "sha256":
+            return sha256(self.RICH_HEADER.clear_data).hexdigest()
+        elif algorithm == "sha512":
+            return sha512(self.RICH_HEADER.clear_data).hexdigest()
+        else:
+            return ""
+
     def get_imphash(self):
         impstrs = []
         exts = ["ocx", "sys", "dll"]
