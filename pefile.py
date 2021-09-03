@@ -1570,8 +1570,9 @@ class ImportData(DataContainer):
                     # Complain if the length of the new name is longer than the
                     # existing one
                     if len(val) > len(self.name):
-                        # raise Exception('The export name provided is longer
-                        # than the existing one.')
+                        raise PEFormatError(
+                            "The export name provided is longer than the existing one."
+                        )
                         pass
                     self.pe.set_bytes_at_offset(self.name_offset, val)
 
@@ -1618,7 +1619,7 @@ class ExportData(DataContainer):
                 # Complain if the length of the new name is longer than the
                 # existing one
                 if len(val) > len(self.name):
-                    raise Exception(
+                    raise PEFormatError(
                         "The export name provided is longer than the existing one."
                     )
                 self.pe.set_bytes_at_offset(self.name_offset, val)
@@ -1626,7 +1627,7 @@ class ExportData(DataContainer):
                 # Complain if the length of the new name is longer than the
                 # existing one
                 if len(val) > len(self.forwarder):
-                    raise Exception(
+                    raise PEFormatError(
                         "The forwarder name provided is longer than the existing one."
                     )
                 self.pe.set_bytes_at_offset(self.forwarder_offset, val)
@@ -1942,7 +1943,7 @@ class UnwindInfo(StructureWithBitfields):
 
     def set_chained_function_entry(self, entry):
         if self._chained_entry != None:
-            raise Exception("Chained function entry cannot be changed")
+            raise PEFormatError("Chained function entry cannot be changed")
         self._chained_entry = entry
 
 
@@ -3638,14 +3639,20 @@ class PE:
                 continue
             if not rf.unwindinfo.FunctionEntry in rva2rt:
                 self.__warnings.append(
-                    "FunctionEntry of UNWIND_INFO at "
-                    + hex(rf.struct.get_file_offset())
-                    + " points to an entry that does not exist"
+                    f"FunctionEntry of UNWIND_INFO at {rf.struct.get_file_offset():x}"
+                    " points to an entry that does not exist"
                 )
                 continue
-            rf.unwindinfo.set_chained_function_entry(
-                rva2rt[rf.unwindinfo.FunctionEntry]
-            )
+            try:
+                rf.unwindinfo.set_chained_function_entry(
+                    rva2rt[rf.unwindinfo.FunctionEntry]
+                )
+            except PEFormatError as excp:
+                self.__warnings.append(
+                    "Failed parsing FunctionEntry of UNWIND_INFO at "
+                    f"{rf.struct.get_file_offset():x}: {excp}"
+                )
+                continue
 
         return rt_funcs
 
@@ -5294,9 +5301,8 @@ class PE:
                         entry.dll.lower(), imp.ordinal, make_name=True
                     )
                     if not funcname:
-                        raise Exception(
-                            "Unable to look up ordinal %s:%04x"
-                            % (entry.dll, imp.ordinal)
+                        raise PEFormatError(
+                            f"Unable to look up ordinal {entry.dll}:{imp.ordinal:04x}"
                         )
                 else:
                     funcname = imp.name
