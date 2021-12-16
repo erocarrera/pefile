@@ -1331,7 +1331,7 @@ def set_bitfields_format(format):
             self._format = fmt
 
         def wrap_up(self):
-            if self._type == None:
+            if self._type is None:
                 return
             self._format.append(self._type + "," + self._name)
             self._comp_fields[len(self._format) - 1] = (self._type, self._subfields)
@@ -3641,7 +3641,7 @@ class PE:
 
         # each chained function entry holds a reference to the function first in chain
         for rf in rt_funcs:
-            if rf.unwindinfo == None:
+            if rf.unwindinfo is None:
                 # TODO: have not encountered such a binary yet;
                 # in theory, (UnwindData & ~0x1) should point to the chained
                 # RUNTIME_FUNCTION which could be used to locate the corresponding
@@ -4541,7 +4541,7 @@ class PE:
                 "read unicode string at offset 0x%x" % (ustr_offset)
             )
 
-        if versioninfo_string == None:
+        if versioninfo_string is None:
             self.__warnings.append(
                 "Invalid VS_VERSION_INFO block: {0}".format(versioninfo_string)
             )
@@ -5572,7 +5572,7 @@ class PE:
             # To prevent similar cases, if invalid entries are found in the middle of a
             # table the parsing will be aborted
             #
-            if imp_ord == None and imp_name == None:
+            if imp_ord is None and imp_name is None:
                 raise PEFormatError("Invalid entries, aborting parsing.")
 
             # Some PEs appear to interleave valid and invalid imports. Instead of
