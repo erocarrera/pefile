@@ -2750,7 +2750,7 @@ class PE:
         # The number of imports parsed in this file
         self.__total_import_symbols = 0
 
-        fast_load = fast_load or globals()["fast_load"]
+        fast_load = fast_load if fast_load is not None else globals()["fast_load"]
         try:
             self.__parse__(name, data, fast_load)
         except:
