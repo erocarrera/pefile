@@ -3857,8 +3857,10 @@ class PE:
         """"""
 
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
+            load_config_dir_sz = self.get_dword_at_rva(rva)
             format = self.__IMAGE_LOAD_CONFIG_DIRECTORY_format__
         elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
+            load_config_dir_sz = self.get_dword_at_rva(rva)
             format = self.__IMAGE_LOAD_CONFIG_DIRECTORY64_format__
         else:
             self.__warnings.append(
@@ -3866,6 +3868,17 @@ class PE:
                 "PE32+ file"
             )
             return None
+
+        # load config directory size can be less than represented by 'format' variable,
+        # generate truncated format which correspond load config directory size
+        fields_counter = 0
+        cumulative_sz = 0
+        for field in format[1]:
+            fields_counter += 1
+            cumulative_sz += STRUCT_SIZEOF_TYPES[field.split(",")[0]]
+            if cumulative_sz == load_config_dir_sz:
+                break
+        format = (format[0], format[1][:fields_counter])
 
         load_config_struct = None
         try:
