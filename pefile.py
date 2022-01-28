@@ -2734,6 +2734,43 @@ class PE:
         ),
     )
 
+    __IMAGE_DYNAMIC_RELOCATION_TABLE_format__ = (
+        "IMAGE_DYNAMIC_RELOCATION_TABLE",
+        ("I,Version", "I,Size"),
+    )
+
+    __IMAGE_DYNAMIC_RELOCATION_format__ = (
+        "IMAGE_DYNAMIC_RELOCATION",
+        ("I,Symbol", "I,BaseRelocSize"),
+    )
+
+    __IMAGE_DYNAMIC_RELOCATION64_format__ = (
+        "IMAGE_DYNAMIC_RELOCATION64",
+        ("Q,Symbol", "I,BaseRelocSize"),
+    )
+
+    __IMAGE_DYNAMIC_RELOCATION_V2_format__ = (
+        "IMAGE_DYNAMIC_RELOCATION_V2",
+        (
+            "I,HeaderSize",
+            "I,FixupInfoSize",
+            "I,Symbol",
+            "I,SymbolGroup",
+            "I,Flags"
+         ),
+    )
+
+    __IMAGE_DYNAMIC_RELOCATION64_V2_format__ = (
+        "IMAGE_DYNAMIC_RELOCATION64_V2",
+        (
+            "I,HeaderSize",
+            "I,FixupInfoSize",
+            "Q,Symbol",
+            "I,SymbolGroup",
+            "I,Flags"
+        ),
+    )
+
     __IMAGE_BOUND_IMPORT_DESCRIPTOR_format__ = (
         "IMAGE_BOUND_IMPORT_DESCRIPTOR",
         ("I,TimeDateStamp", "H,OffsetModuleName", "H,NumberOfModuleForwarderRefs"),
