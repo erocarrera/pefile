@@ -3997,6 +3997,7 @@ class PE:
         if not load_config_struct:
             return None
 
+        dynamic_relocations = None
         if fields_counter > 35:
             dynamic_relocations = self.parse_dynamic_relocations(
                 load_config_struct.DynamicValueRelocTableOffset,
@@ -4006,11 +4007,10 @@ class PE:
         return LoadConfigData(struct=load_config_struct, dynamic_relocations=dynamic_relocations)
 
     def parse_dynamic_relocations(self, dynamic_value_reloc_table_offset, dynamic_value_reloc_table_section):
-        dynamic_relocations = []
         if not dynamic_value_reloc_table_offset:
-            return dynamic_relocations
+            return None
         if not dynamic_value_reloc_table_section:
-            return dynamic_relocations
+            return None
 
         if dynamic_value_reloc_table_section > len(self.sections):
             return None
@@ -4035,10 +4035,11 @@ class PE:
                 "No pasring available for IMAGE_DYNAMIC_RELOCATION_TABLE.Version = %d",
                 image_dynamic_reloc_table_struct.Version
             )
-            return dynamic_relocations
+            return None
 
         rva += reloc_table_size
         end = rva + image_dynamic_reloc_table_struct.Size
+        dynamic_relocations = []
 
         while rva < end:
             format = self.__IMAGE_DYNAMIC_RELOCATION_format__
@@ -6321,6 +6322,13 @@ class PE:
     def has_relocs(self):
         """Checks if the PE file has relocation directory"""
         return hasattr(self, "DIRECTORY_ENTRY_BASERELOC")
+
+    def has_dynamic_relocs(self):
+        if hasattr(self, "DIRECTORY_ENTRY_LOAD_CONFIG"):
+            if self.DIRECTORY_ENTRY_LOAD_CONFIG.dynamic_relocations:
+                return True
+
+        return False
 
     def print_info(self, encoding="utf-8"):
         """Print all the PE header information in a human readable from."""
