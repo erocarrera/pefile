@@ -2757,6 +2757,12 @@ class PE:
             self.close()
             raise
 
+    def __enter__(self):
+        return self
+    
+    def __exit__(self, type, value, traceback):
+        self.close()
+    
     def close(self):
         if (
             self.__from_file is True
