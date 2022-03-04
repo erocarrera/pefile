@@ -5544,6 +5544,7 @@ class PE:
             imp_name = None
             name_offset = None
             hint_name_table_rva = None
+            import_by_ordinal = False  # declare it here first
 
             if tbl_entry.AddressOfData:
                 # If imported by ordinal, we will append the ordinal number
