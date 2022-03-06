@@ -729,16 +729,17 @@ def b(x):
 class AddressSet(set):
     def __init__(self):
         super().__init__()
-        self.min = 0
-        self.max = 0
+        self.min = None
+        self.max = None
 
     def add(self, value):
         super().add(value)
-        self.min = min(self.min, value)
-        self.max = max(self.max, value)
+        self.min = value if self.min is None else min(self.min, value)
+        self.max = value if self.max is None else max(self.max, value)
 
     def diff(self):
-        return self.max - self.min
+        return 0 if self.min is None or self.max is None else self.max - self.min
+
 
 class UnicodeStringWrapperPostProcessor:
     """This class attempts to help the process of identifying strings
@@ -5658,7 +5659,7 @@ class PE:
             format = self.__IMAGE_THUNK_DATA_format__
 
         expected_size = Structure(format).sizeof()
-        MAX_ADDRESS_SPREAD = 128 * 2**20  # 64 MB
+        MAX_ADDRESS_SPREAD = 128 * 2**20  # 128 MB
         ADDR_4GB = 2 ** 32
         MAX_REPEATED_ADDRESSES = 15
         repeated_address = 0
