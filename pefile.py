@@ -88,13 +88,7 @@ def cache_adjust_SectionAlignment(val, section_alignment, file_alignment):
 
 
 def count_zeroes(data):
-    try:
-        # newbytes' count() takes a str in Python 2
-        count = data.count("\0")
-    except TypeError:
-        # bytes' count() takes an int in Python 3
-        count = data.count(0)
-    return count
+    return data.count(0)
 
 
 fast_load = False
@@ -724,10 +718,27 @@ def power_of_two(val):
 
 
 def b(x):
-    if isinstance(x, (bytes, bytearray)):
+    if isinstance(x, bytes):
+        return x
+    elif isinstance(x, bytearray):
         return bytes(x)
-    return codecs.encode(x, "cp1252")
+    else:
+        return codecs.encode(x, "cp1252")
 
+
+class AddressSet(set):
+    def __init__(self):
+        super().__init__()
+        self.min = 0
+        self.max = 0
+
+    def add(self, value):
+        super().add(value)
+        self.min = min(self.min, value)
+        self.max = max(self.max, value)
+
+    def diff(self):
+        return self.max - self.min
 
 class UnicodeStringWrapperPostProcessor:
     """This class attempts to help the process of identifying strings
@@ -946,8 +957,8 @@ class Structure:
 
         d = format[1]
         # need a tuple to be hashable in set_format using lru cache
-        if not isinstance(format[1], tuple):
-            d = tuple(format[1])
+        if not isinstance(d, tuple):
+            d = tuple(d)
 
         (
             self.__format__,
@@ -1143,6 +1154,8 @@ class SectionStructure(Structure):
         Structure.__init__(self, *argl, **argd)
         self.PointerToRawData_adj = None
         self.VirtualAddress_adj = None
+        self.section_min_addr = None
+        self.section_max_addr = None
 
     def get_PointerToRawData_adj(self):
         if self.PointerToRawData_adj is None:
@@ -1240,6 +1253,10 @@ class SectionStructure(Structure):
     def contains_rva(self, rva):
         """Check whether the section contains the address provided."""
 
+        # speedup
+        if self.section_min_addr is not None and self.section_max_addr is not None:
+            return self.section_min_addr <= rva < self.section_max_addr
+
         VirtualAddress_adj = self.get_VirtualAddress_adj()
         # Check if the SizeOfRawData is realistic. If it's bigger than the size of
         # the whole PE file minus the start address of the section it could be
@@ -1267,6 +1284,8 @@ class SectionStructure(Structure):
         ):
             size = self.next_section_virtual_address - VirtualAddress_adj
 
+        self.section_min_addr = VirtualAddress_adj
+        self.section_max_addr = VirtualAddress_adj + size
         return VirtualAddress_adj <= rva < VirtualAddress_adj + size
 
     def contains(self, rva):
@@ -1512,7 +1531,7 @@ class DataContainer:
 
     def __init__(self, **args):
         bare_setattr = super(DataContainer, self).__setattr__
-        for key, value in list(args.items()):
+        for key, value in args.items():
             bare_setattr(key, value)
 
 
@@ -2722,6 +2741,8 @@ class PE:
 
         self.max_symbol_exports = max_symbol_exports
         self.max_repeated_symbol = max_repeated_symbol
+
+        self._get_section_by_rva_last_used = None
 
         self.sections = []
 
@@ -5328,11 +5349,12 @@ class PE:
             if len(parts) > 1 and parts[1] in exts:
                 libname = parts[0]
 
+            entry_dll_lower = entry.dll.lower()
             for imp in entry.imports:
                 funcname = None
                 if not imp.name:
                     funcname = ordlookup.ordLookup(
-                        entry.dll.lower(), imp.ordinal, make_name=True
+                        entry_dll_lower, imp.ordinal, make_name=True
                     )
                     if not funcname:
                         raise PEFormatError(
@@ -5355,12 +5377,13 @@ class PE:
 
         import_descs = []
         error_count = 0
+        image_import_descriptor_size = Structure(self.__IMAGE_IMPORT_DESCRIPTOR_format__).sizeof()
         while True:
             try:
                 # If the RVA is invalid all would blow up. Some EXEs seem to be
                 # specially nasty and have an invalid RVA.
                 data = self.get_data(
-                    rva, Structure(self.__IMAGE_IMPORT_DESCRIPTOR_format__).sizeof()
+                    rva, image_import_descriptor_size
                 )
             except PEFormatError:
                 self.__warnings.append(
@@ -5522,6 +5545,7 @@ class PE:
             imp_name = None
             name_offset = None
             hint_name_table_rva = None
+            import_by_ordinal = False  # declare it here first
 
             if tbl_entry.AddressOfData:
                 # If imported by ordinal, we will append the ordinal number
@@ -5633,11 +5657,13 @@ class PE:
             ordinal_flag = IMAGE_ORDINAL_FLAG
             format = self.__IMAGE_THUNK_DATA_format__
 
+        expected_size = Structure(format).sizeof()
         MAX_ADDRESS_SPREAD = 128 * 2**20  # 64 MB
+        ADDR_4GB = 2 ** 32
         MAX_REPEATED_ADDRESSES = 15
         repeated_address = 0
-        addresses_of_data_set_64 = set()
-        addresses_of_data_set_32 = set()
+        addresses_of_data_set_64 = AddressSet()
+        addresses_of_data_set_32 = AddressSet()
         start_rva = rva
         while rva:
             if max_length is not None and rva >= start_rva + max_length:
@@ -5663,26 +5689,18 @@ class PE:
             # if the addresses point somewhere but the difference between the highest
             # and lowest address is larger than MAX_ADDRESS_SPREAD we assume a bogus
             # table as the addresses should be contained within a module
-            if (
-                addresses_of_data_set_32
-                and max(addresses_of_data_set_32) - min(addresses_of_data_set_32)
-                > MAX_ADDRESS_SPREAD
-            ):
+            if (addresses_of_data_set_32.diff() > MAX_ADDRESS_SPREAD):
                 return []
-            if (
-                addresses_of_data_set_64
-                and max(addresses_of_data_set_64) - min(addresses_of_data_set_64)
-                > MAX_ADDRESS_SPREAD
-            ):
+            if (addresses_of_data_set_64.diff() > MAX_ADDRESS_SPREAD):
                 return []
 
             failed = False
             try:
-                data = self.get_data(rva, Structure(format).sizeof())
+                data = self.get_data(rva, expected_size)
             except PEFormatError:
                 failed = True
 
-            if failed or len(data) != Structure(format).sizeof():
+            if failed or len(data) != expected_size:
                 self.__warnings.append(
                     "Error parsing the import table. " "Invalid data at RVA: 0x%x" % rva
                 )
@@ -5721,26 +5739,26 @@ class PE:
                 break
 
             if thunk_data and thunk_data.AddressOfData:
+                addr_of_data = thunk_data.AddressOfData
                 # If the entry looks like could be an ordinal...
-                if thunk_data.AddressOfData & ordinal_flag:
+                if addr_of_data & ordinal_flag:
                     # but its value is beyond 2^16, we will assume it's a
                     # corrupted and ignore it altogether
-                    if thunk_data.AddressOfData & 0x7FFFFFFF > 0xFFFF:
+                    if addr_of_data & 0x7FFFFFFF > 0xFFFF:
                         return []
                 # and if it looks like it should be an RVA
                 else:
                     # keep track of the RVAs seen and store them to study their
                     # properties. When certain non-standard features are detected
                     # the parsing will be aborted
-                    if (
-                        thunk_data.AddressOfData in addresses_of_data_set_32
-                        or thunk_data.AddressOfData in addresses_of_data_set_64
-                    ):
-                        repeated_address += 1
-                    if thunk_data.AddressOfData >= 2**32:
-                        addresses_of_data_set_64.add(thunk_data.AddressOfData)
+                    if addr_of_data >= ADDR_4GB:
+                        the_set = addresses_of_data_set_64
                     else:
-                        addresses_of_data_set_32.add(thunk_data.AddressOfData)
+                        the_set = addresses_of_data_set_32
+
+                    if addr_of_data in the_set:
+                        repeated_address += 1
+                    the_set.add(addr_of_data)
 
             if not thunk_data or thunk_data.all_zeroes():
                 break
@@ -6021,8 +6039,15 @@ class PE:
     def get_section_by_rva(self, rva):
         """Get the section containing the given address."""
 
+        # if we look a lot of times at RVA in the same section, "cache" the last used section
+        # to speedup lookups (very useful when parsing import table)
+        if self._get_section_by_rva_last_used is not None:
+            if self._get_section_by_rva_last_used.contains_rva(rva):
+                return self._get_section_by_rva_last_used
+
         for section in self.sections:
             if section.contains_rva(rva):
+                self._get_section_by_rva_last_used = section
                 return section
 
         return None
