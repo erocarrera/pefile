@@ -2759,10 +2759,10 @@ class PE:
 
     def __enter__(self):
         return self
-    
+
     def __exit__(self, type, value, traceback):
         self.close()
-    
+
     def close(self):
         if (
             self.__from_file is True
@@ -3549,6 +3549,7 @@ class PE:
             #
             if directories is None or directory_index in directories:
 
+                value = None
                 if dir_entry.VirtualAddress:
                     if (
                         forwarded_exports_only
