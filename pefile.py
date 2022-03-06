@@ -5378,14 +5378,14 @@ class PE:
 
         import_descs = []
         error_count = 0
-        image_import_descriptor_size = Structure(self.__IMAGE_IMPORT_DESCRIPTOR_format__).sizeof()
+        image_import_descriptor_size = Structure(
+            self.__IMAGE_IMPORT_DESCRIPTOR_format__
+        ).sizeof()
         while True:
             try:
                 # If the RVA is invalid all would blow up. Some EXEs seem to be
                 # specially nasty and have an invalid RVA.
-                data = self.get_data(
-                    rva, image_import_descriptor_size
-                )
+                data = self.get_data(rva, image_import_descriptor_size)
             except PEFormatError:
                 self.__warnings.append(
                     f"Error parsing the import directory at RVA: 0x{rva:x}"
@@ -5660,7 +5660,7 @@ class PE:
 
         expected_size = Structure(format).sizeof()
         MAX_ADDRESS_SPREAD = 128 * 2**20  # 128 MB
-        ADDR_4GB = 2 ** 32
+        ADDR_4GB = 2**32
         MAX_REPEATED_ADDRESSES = 15
         repeated_address = 0
         addresses_of_data_set_64 = AddressSet()
@@ -5690,9 +5690,9 @@ class PE:
             # if the addresses point somewhere but the difference between the highest
             # and lowest address is larger than MAX_ADDRESS_SPREAD we assume a bogus
             # table as the addresses should be contained within a module
-            if (addresses_of_data_set_32.diff() > MAX_ADDRESS_SPREAD):
+            if addresses_of_data_set_32.diff() > MAX_ADDRESS_SPREAD:
                 return []
-            if (addresses_of_data_set_64.diff() > MAX_ADDRESS_SPREAD):
+            if addresses_of_data_set_64.diff() > MAX_ADDRESS_SPREAD:
                 return []
 
             failed = False
