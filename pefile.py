@@ -5633,7 +5633,7 @@ class PE:
             ordinal_flag = IMAGE_ORDINAL_FLAG
             format = self.__IMAGE_THUNK_DATA_format__
 
-        MAX_ADDRESS_SPREAD = 128 * 2 ** 20  # 64 MB
+        MAX_ADDRESS_SPREAD = 128 * 2**20  # 64 MB
         MAX_REPEATED_ADDRESSES = 15
         repeated_address = 0
         addresses_of_data_set_64 = set()
@@ -5737,7 +5737,7 @@ class PE:
                         or thunk_data.AddressOfData in addresses_of_data_set_64
                     ):
                         repeated_address += 1
-                    if thunk_data.AddressOfData >= 2 ** 32:
+                    if thunk_data.AddressOfData >= 2**32:
                         addresses_of_data_set_64.add(thunk_data.AddressOfData)
                     else:
                         addresses_of_data_set_32.add(thunk_data.AddressOfData)
@@ -5966,7 +5966,7 @@ class PE:
             s = s[:end]
         return s
 
-    def get_string_u_at_rva(self, rva, max_length=2 ** 16, encoding=None):
+    def get_string_u_at_rva(self, rva, max_length=2**16, encoding=None):
         """Get an Unicode string located at the given address."""
 
         if max_length == 0:
@@ -7172,7 +7172,7 @@ class PE:
                 dword = struct.unpack("I", self.__data__[i * 4 : i * 4 + 4])[0]
             # Optimized the calculation (thanks to Emmanuel Bourg for pointing it out!)
             checksum += dword
-            if checksum >= 2 ** 32:
+            if checksum >= 2**32:
                 checksum = (checksum & 0xFFFFFFFF) + (checksum >> 32)
 
         checksum = (checksum & 0xFFFF) + (checksum >> 16)
