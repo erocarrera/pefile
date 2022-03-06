@@ -70,8 +70,8 @@ Prompted by the move to GitHub, the need to support Python 3 in addition to reso
 
 PDFs of posters depicting the PE file format:
 
-  * [Portable Executable Format Layout](https://docs.google.com/open?id=0B3_wGJkuWLytbnIxY1J5WUs4MEk) shows the full view of the headers and structures defined by the PE format.
-  * [Portable Executable Header Walkthrough](https://docs.google.com/open?id=0B3_wGJkuWLytQmc2di0wajB1Xzg) shows the raw view of an executable file with the PE format fields laid out over the corresponding areas.
+  * [Portable Executable Format Layout](https://drive.google.com/file/d/0B3_wGJkuWLytbnIxY1J5WUs4MEk/view?usp=sharing&resourcekey=0-n5zZ2UW39xVTH8ZSu6C2aQ) shows the full view of the headers and structures defined by the PE format.
+  * [Portable Executable Header Walkthrough](https://drive.google.com/file/d/0B3_wGJkuWLytQmc2di0wajB1Xzg/view?resourcekey=0-coPypA_IwxaOCPwl1_4u2g) shows the raw view of an executable file with the PE format fields laid out over the corresponding areas.
 
 The following links provide detailed information about the PE format and its structures.
 

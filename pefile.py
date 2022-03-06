@@ -2771,7 +2771,7 @@ class PE:
         # The number of imports parsed in this file
         self.__total_import_symbols = 0
 
-        fast_load = fast_load or globals()["fast_load"]
+        fast_load = fast_load if fast_load is not None else globals()["fast_load"]
         try:
             self.__parse__(name, data, fast_load)
         except:
@@ -2780,10 +2780,10 @@ class PE:
 
     def __enter__(self):
         return self
-    
+
     def __exit__(self, type, value, traceback):
         self.close()
-    
+
     def close(self):
         if (
             self.__from_file is True
@@ -3570,6 +3570,7 @@ class PE:
             #
             if directories is None or directory_index in directories:
 
+                value = None
                 if dir_entry.VirtualAddress:
                     if (
                         forwarded_exports_only
@@ -5657,7 +5658,7 @@ class PE:
             format = self.__IMAGE_THUNK_DATA_format__
 
         expected_size = Structure(format).sizeof()
-        MAX_ADDRESS_SPREAD = 128 * 2 ** 20  # 64 MB
+        MAX_ADDRESS_SPREAD = 128 * 2**20  # 64 MB
         ADDR_4GB = 2 ** 32
         MAX_REPEATED_ADDRESSES = 15
         repeated_address = 0
@@ -5983,7 +5984,7 @@ class PE:
             s = s[:end]
         return s
 
-    def get_string_u_at_rva(self, rva, max_length=2 ** 16, encoding=None):
+    def get_string_u_at_rva(self, rva, max_length=2**16, encoding=None):
         """Get an Unicode string located at the given address."""
 
         if max_length == 0:
@@ -7196,7 +7197,7 @@ class PE:
                 dword = struct.unpack("I", self.__data__[i * 4 : i * 4 + 4])[0]
             # Optimized the calculation (thanks to Emmanuel Bourg for pointing it out!)
             checksum += dword
-            if checksum >= 2 ** 32:
+            if checksum >= 2**32:
                 checksum = (checksum & 0xFFFFFFFF) + (checksum >> 32)
 
         checksum = (checksum & 0xFFFF) + (checksum >> 16)
