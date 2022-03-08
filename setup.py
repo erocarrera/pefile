@@ -41,7 +41,7 @@ def _read_attr(attr_name):
 
     __version__, __author__, __contact__,
     """
-    regex = attr_name + r"\s+=\s+'(.+)'"
+    regex = attr_name + r"\s+=\s+['\"](.+)['\"]"
     if sys.version_info.major == 2:
         with open('pefile.py', 'r') as f:
             match = re.search(regex, f.read())
@@ -53,28 +53,18 @@ def _read_attr(attr_name):
 
 
 class TestCommand(Command):
-  """Run tests."""
-  user_options = []
+    """Run tests."""
+    user_options = []
 
-  def initialize_options(self):
-    pass
+    def initialize_options(self):
+        pass
 
-  def finalize_options(self):
-    pass
+    def finalize_options(self):
+        pass
 
-class TestCommand(Command):
-  """Run tests."""
-  user_options = []
-
-  def initialize_options(self):
-    pass
-
-  def finalize_options(self):
-    pass
-
-  def run(self):
-    test_suite = TestLoader().discover('./tests', pattern='*_test.py')
-    test_results = TextTestRunner(verbosity=2).run(test_suite)
+    def run(self):
+        test_suite = TestLoader().discover('./tests', pattern='*_test.py')
+        test_results = TextTestRunner(verbosity=2).run(test_suite)
 
 
 setup(name = 'pefile',
@@ -83,7 +73,7 @@ setup(name = 'pefile',
     author = _read_attr('__author__'),
     author_email = _read_attr('__contact__'),
     url = 'https://github.com/erocarrera/pefile',
-    download_url='https://github.com/erocarrera/pefile/releases/download/v2017.11.5/pefile-2017.11.5.tar.gz',
+    download_url='https://github.com/erocarrera/pefile/releases/download/v2021.9.3/pefile-2021.9.3.tar.gz',
     keywords = ['pe', 'exe', 'dll', 'pefile', 'pecoff'],
     classifiers = [
         'Development Status :: 5 - Production/Stable',
@@ -96,8 +86,10 @@ setup(name = 'pefile',
     long_description = "\n".join(_read_doc().split('\n')),
     cmdclass={"test": TestCommand},
     py_modules = ['pefile', 'peutils'],
+    python_requires=">=3.6.0",
     packages = ['ordlookup'],
     install_requires=[
           'future',
     ],
+    license="MIT",
 )

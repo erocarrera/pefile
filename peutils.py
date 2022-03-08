@@ -2,12 +2,13 @@
 """peutils, Portable Executable utilities module
 
 
-Copyright (c) 2005-2013 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2021 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 """
 from __future__ import division
 from future import standard_library
+
 standard_library.install_aliases()
 from builtins import range
 from builtins import object
@@ -18,11 +19,9 @@ import string
 import urllib.request, urllib.parse, urllib.error
 import pefile
 
-__author__ = 'Ero Carrera'
+__author__ = "Ero Carrera"
 __version__ = pefile.__version__
-__contact__ = 'ero.carrera@gmail.com'
-
-
+__contact__ = "ero.carrera@gmail.com"
 
 
 class SignatureDatabase(object):
@@ -48,7 +47,9 @@ class SignatureDatabase(object):
         # RegExp to match a signature block
         #
         self.parse_sig = re.compile(
-            '\[(.*?)\]\s+?signature\s*=\s*(.*?)(\s+\?\?)*\s*ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)', re.S)
+            "\[(.*?)\]\s+?signature\s*=\s*(.*?)(\s+\?\?)*\s*ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)",
+            re.S,
+        )
 
         # Signature information
         #
@@ -62,11 +63,11 @@ class SignatureDatabase(object):
         # - A dictionary with a string as a key (packer name)
         #   and None as value to indicate a full signature
         #
-        self.signature_tree_eponly_true = dict ()
+        self.signature_tree_eponly_true = dict()
         self.signature_count_eponly_true = 0
-        self.signature_tree_eponly_false = dict ()
+        self.signature_tree_eponly_false = dict()
         self.signature_count_eponly_false = 0
-        self.signature_tree_section_start = dict ()
+        self.signature_tree_section_start = dict()
         self.signature_count_section_start = 0
 
         # The depth (length) of the longest signature
@@ -90,22 +91,28 @@ class SignatureDatabase(object):
             if section.SizeOfRawData < sig_length:
                 continue
 
-            #offset = pe.get_offset_from_rva(section.VirtualAddress)
+            # offset = pe.get_offset_from_rva(section.VirtualAddress)
             offset = section.PointerToRawData
 
-            sig_name = '%s Section(%d/%d,%s)' % (
-                name, idx + 1, len(pe.sections),
-                ''.join([c for c in section.Name if c in string.printable]))
+            sig_name = "%s Section(%d/%d,%s)" % (
+                name,
+                idx + 1,
+                len(pe.sections),
+                "".join([c for c in section.Name if c in string.printable]),
+            )
 
             section_signatures.append(
                 self.__generate_signature(
-                    pe, offset, sig_name, ep_only=False,
+                    pe,
+                    offset,
+                    sig_name,
+                    ep_only=False,
                     section_start_only=True,
-                    sig_length=sig_length) )
+                    sig_length=sig_length,
+                )
+            )
 
-        return '\n'.join(section_signatures)+'\n'
-
-
+        return "\n".join(section_signatures) + "\n"
 
     def generate_ep_signature(self, pe, name, sig_length=512):
         """Generate signatures for the entry point of a PE file.
@@ -117,29 +124,33 @@ class SignatureDatabase(object):
         offset = pe.get_offset_from_rva(pe.OPTIONAL_HEADER.AddressOfEntryPoint)
 
         return self.__generate_signature(
-            pe, offset, name, ep_only=True, sig_length=sig_length)
+            pe, offset, name, ep_only=True, sig_length=sig_length
+        )
 
+    def __generate_signature(
+        self, pe, offset, name, ep_only=False, section_start_only=False, sig_length=512
+    ):
 
+        data = pe.__data__[offset : offset + sig_length]
 
-    def __generate_signature(self, pe, offset, name, ep_only=False,
-            section_start_only=False, sig_length=512):
-
-        data = pe.__data__[offset:offset+sig_length]
-
-        signature_bytes = ' '.join(['%02x' % ord(c) for c in data])
+        signature_bytes = " ".join(["%02x" % ord(c) for c in data])
 
         if ep_only == True:
-            ep_only = 'true'
+            ep_only = "true"
         else:
-            ep_only = 'false'
+            ep_only = "false"
 
         if section_start_only == True:
-            section_start_only = 'true'
+            section_start_only = "true"
         else:
-            section_start_only = 'false'
+            section_start_only = "false"
 
-        signature = '[%s]\nsignature = %s\nep_only = %s\nsection_start_only = %s\n' % (
-            name, signature_bytes, ep_only, section_start_only)
+        signature = "[%s]\nsignature = %s\nep_only = %s\nsection_start_only = %s\n" % (
+            name,
+            signature_bytes,
+            ep_only,
+            section_start_only,
+        )
 
         return signature
 
@@ -148,7 +159,7 @@ class SignatureDatabase(object):
 
         If ep_only is True the result will be a string with
         the packer name. Otherwise it will be a list of the
-        form (file_ofsset, packer_name). Specifying where
+        form (file_offset, packer_name) specifying where
         in the file the signature was found.
         """
 
@@ -195,9 +206,9 @@ class SignatureDatabase(object):
             # Fetch the data of the executable as it'd
             # look once loaded in memory
             #
-            try :
+            try:
                 data = pe.__data__
-            except Exception as excp :
+            except Exception as excp:
                 raise
 
             # Load the corresponding tree of signatures
@@ -213,9 +224,9 @@ class SignatureDatabase(object):
             # Fetch the data of the executable as it'd
             # look once loaded in memory
             #
-            try :
+            try:
                 data = pe.get_memory_mapped_image()
-            except Exception as excp :
+            except Exception as excp:
                 raise
 
             # Load the corresponding tree of signatures
@@ -237,17 +248,17 @@ class SignatureDatabase(object):
 
             signatures = self.signature_tree_eponly_false
 
-            scan_addresses = range( len(data) )
+            scan_addresses = range(len(data))
 
         # For each start address, check if any signature matches
         #
         matches = []
         for idx in scan_addresses:
             result = self.__match_signature_tree(
-                signatures,
-                data[idx:idx+self.max_depth])
+                signatures, data[idx : idx + self.max_depth]
+            )
             if result:
-                matches.append( (idx, result) )
+                matches.append((idx, result))
 
         # Return only the matched items found at the entry point if
         # ep_only is True (matches will have only one element in that
@@ -259,11 +270,10 @@ class SignatureDatabase(object):
 
         return matches
 
-
     def match_data(self, code_data, ep_only=True, section_start_only=False):
 
         data = code_data
-        scan_addresses = [ 0 ]
+        scan_addresses = [0]
 
         # Load the corresponding set of signatures
         # Either the one for ep_only equal to True or
@@ -284,16 +294,15 @@ class SignatureDatabase(object):
             #
             signatures = self.signature_tree_eponly_true
 
-
         # For each start address, check if any signature matches
         #
         matches = []
         for idx in scan_addresses:
             result = self.__match_signature_tree(
-                signatures,
-                data[idx:idx+self.max_depth])
+                signatures, data[idx : idx + self.max_depth]
+            )
             if result:
-                matches.append( (idx, result) )
+                matches.append((idx, result))
 
         # Return only the matched items found at the entry point if
         # ep_only is True (matches will have only one element in that
@@ -305,8 +314,7 @@ class SignatureDatabase(object):
 
         return matches
 
-
-    def __match_signature_tree(self, signature_tree, data, depth = 0):
+    def __match_signature_tree(self, signature_tree, data, depth=0):
         """Recursive function to find matches along the signature tree.
 
         signature_tree  is the part of the tree left to walk
@@ -314,24 +322,22 @@ class SignatureDatabase(object):
         depth   keeps track of how far we have gone down the tree
         """
 
-
-        matched_names = list ()
+        matched_names = list()
         match = signature_tree
 
         # Walk the bytes in the data and match them
         # against the signature
         #
-        for idx, byte in enumerate ( [b if isinstance(b, int) else ord(b) for b in data] ):
+        for idx, byte in enumerate([b if isinstance(b, int) else ord(b) for b in data]):
 
             # If the tree is exhausted...
             #
-            if match is None :
+            if match is None:
                 break
 
             # Get the next byte in the tree
             #
             match_next = match.get(byte, None)
-
 
             # If None is among the values for the key
             # it means that a signature in the database
@@ -340,7 +346,7 @@ class SignatureDatabase(object):
             if None in list(match.values()):
                 # idx represent how deep we are in the tree
                 #
-                #names = [idx+depth]
+                # names = [idx+depth]
                 names = list()
 
                 # For each of the item pairs we check
@@ -348,20 +354,22 @@ class SignatureDatabase(object):
                 # if not then we have an exact signature
                 #
                 for item in list(match.items()):
-                    if item[1] is None :
-                        names.append (item[0])
+                    if item[1] is None:
+                        names.append(item[0])
                 matched_names.append(names)
 
             # If a wildcard is found keep scanning the signature
             # ignoring the byte.
             #
-            if '??' in match :
-                match_tree_alternate = match.get ('??', None)
+            if "??" in match:
+                match_tree_alternate = match.get("??", None)
                 data_remaining = data[idx + 1 :]
                 if data_remaining:
                     matched_names.extend(
                         self.__match_signature_tree(
-                            match_tree_alternate, data_remaining, idx+depth+1))
+                            match_tree_alternate, data_remaining, idx + depth + 1
+                        )
+                    )
 
             match = match_next
 
@@ -369,16 +377,16 @@ class SignatureDatabase(object):
         # add them to the matches
         #
         if match is not None and None in list(match.values()):
-            #names = [idx + depth + 1]
+            # names = [idx + depth + 1]
             names = list()
-            for item in list(match.items()) :
+            for item in list(match.items()):
                 if item[1] is None:
                     names.append(item[0])
             matched_names.append(names)
 
         return matched_names
 
-    def load(self , filename=None, data=None):
+    def load(self, filename=None, data=None):
         """Load a PEiD signature file.
 
         Invoking this method on different files combines the signatures.
@@ -387,7 +395,6 @@ class SignatureDatabase(object):
         self.__load(filename=filename, data=data)
 
     def __load(self, filename=None, data=None):
-
 
         if filename is not None:
             # If the path does not exist, attempt to open a URL
@@ -404,7 +411,7 @@ class SignatureDatabase(object):
                 # Get the data for a file
                 #
                 try:
-                    sig_f = open( filename, 'rt' )
+                    sig_f = open(filename, "rt")
                     sig_data = sig_f.read()
                     sig_f.close()
                 except IOError:
@@ -422,10 +429,9 @@ class SignatureDatabase(object):
         # Helper function to parse the signature bytes
         #
         def to_byte(value):
-            if '?' in value:
+            if "?" in value:
                 return value
             return int(value, 16)
-
 
         # Parse all the signatures in the file
         #
@@ -434,24 +440,29 @@ class SignatureDatabase(object):
         # For each signature, get the details and load it into the
         # signature tree
         #
-        for packer_name, signature, superfluous_wildcards, ep_only, section_start_only in matches:
+        for (
+            packer_name,
+            signature,
+            superfluous_wildcards,
+            ep_only,
+            section_start_only,
+        ) in matches:
 
             ep_only = ep_only.strip().lower()
 
-            signature = signature.replace('\\n', '').strip()
+            signature = signature.replace("\\n", "").strip()
 
             signature_bytes = [to_byte(b) for b in signature.split()]
 
-            if ep_only == 'true':
+            if ep_only == "true":
                 ep_only = True
             else:
                 ep_only = False
 
-            if section_start_only == 'true':
+            if section_start_only == "true":
                 section_start_only = True
             else:
                 section_start_only = False
-
 
             depth = 0
 
@@ -461,23 +472,23 @@ class SignatureDatabase(object):
                 self.signature_count_section_start += 1
 
             else:
-                if ep_only is True :
+                if ep_only is True:
                     tree = self.signature_tree_eponly_true
                     self.signature_count_eponly_true += 1
-                else :
+                else:
                     tree = self.signature_tree_eponly_false
                     self.signature_count_eponly_false += 1
 
-            for idx, byte in enumerate (signature_bytes) :
+            for idx, byte in enumerate(signature_bytes):
 
-                if idx+1 == len(signature_bytes):
+                if idx + 1 == len(signature_bytes):
 
-                    tree[byte] = tree.get( byte, dict() )
+                    tree[byte] = tree.get(byte, dict())
                     tree[byte][packer_name] = None
 
-                else :
+                else:
 
-                    tree[byte] = tree.get ( byte, dict() )
+                    tree[byte] = tree.get(byte, dict())
 
                 tree = tree[byte]
                 depth += 1
@@ -486,14 +497,12 @@ class SignatureDatabase(object):
                 self.max_depth = depth
 
 
-
-
-def is_valid( pe ):
+def is_valid(pe):
     """"""
     pass
 
 
-def is_suspicious( pe ):
+def is_suspicious(pe):
     """
     unusual locations of import tables
     non recognized section names
@@ -507,25 +516,25 @@ def is_suspicious( pe ):
     # continuous or point outside section's boundaries => it might imply that an obfuscation
     # trick is being used or the relocations are corrupt (maybe intentionally)
     #
-    if hasattr(pe, 'DIRECTORY_ENTRY_BASERELOC'):
+    if hasattr(pe, "DIRECTORY_ENTRY_BASERELOC"):
         for base_reloc in pe.DIRECTORY_ENTRY_BASERELOC:
             last_reloc_rva = None
             for reloc in base_reloc.entries:
                 if reloc.rva <= pe.OPTIONAL_HEADER.AddressOfEntryPoint <= reloc.rva + 4:
                     relocations_overlap_entry_point = True
 
-                if last_reloc_rva is not None and last_reloc_rva <= reloc.rva <= last_reloc_rva + 4:
+                if (
+                    last_reloc_rva is not None
+                    and last_reloc_rva <= reloc.rva <= last_reloc_rva + 4
+                ):
                     sequential_relocs += 1
 
                 last_reloc_rva = reloc.rva
 
-
-
     # If import tables or strings exist (are pointed to) to within the header or in the area
-    # between the PE header and the first section that's supicious
+    # between the PE header and the first section that's suspicious
     #
     # IMPLEMENT
-
 
     warnings_while_parsing = False
     # If we have warnings, that's suspicious, some of those will be because of out-of-ordinary
@@ -547,19 +556,19 @@ def is_suspicious( pe ):
     pass
 
 
-def is_probably_packed( pe ):
+def is_probably_packed(pe):
     """Returns True is there is a high likelihood that a file is packed or contains compressed data.
 
     The sections of the PE file will be analyzed, if enough sections
-    look like containing containing compressed data and the data makes
-    up for more than 20% of the total file size. The function will
+    look like containing compressed data and the data makes
+    up for more than 20% of the total file size, the function will
     return True.
     """
 
-    # Calculate the lenth of the data up to the end of the last section in the
+    # Calculate the length of the data up to the end of the last section in the
     # file. Overlay data won't be taken into account
     #
-    total_pe_data_length = len( pe.trim() )
+    total_pe_data_length = len(pe.trim())
     # Assume that the file is packed when no data is available
     if not total_pe_data_length:
         return True
@@ -571,13 +580,13 @@ def is_probably_packed( pe ):
     total_compressed_data = 0
     for section in pe.sections:
         s_entropy = section.get_entropy()
-        s_length = len( section.get_data() )
-        # The value of 7.4 is empircal, based of looking at a few files packed
+        s_length = len(section.get_data())
+        # The value of 7.4 is empirical, based on looking at a few files packed
         # by different packers
         if s_entropy > 7.4:
             total_compressed_data += s_length
 
-    if ((1.0 * total_compressed_data)/total_pe_data_length) > .2:
+    if ((1.0 * total_compressed_data) / total_pe_data_length) > 0.2:
         has_significant_amount_of_compressed_data = True
 
     return has_significant_amount_of_compressed_data

@@ -20,3 +20,4 @@ venv*
 /build
 /dist
 /pefile.egg-info
+.DS_Store
