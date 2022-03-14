@@ -6962,13 +6962,17 @@ class PE:
             raise TypeError("data should be of type: bytes")
 
         if 0 <= offset < len(self.__data__):
-            self.__data__ = (
-                self.__data__[:offset] + data + self.__data__[offset + len(data) :]
-            )
+            self.set_data_bytes(offset, data)
         else:
             return False
 
         return True
+
+    def set_data_bytes(self, offset: int, data: bytes):
+        if not isinstance(self.__data__, bytearray):
+            self.__data__ = bytearray(self.__data__)
+
+        self.__data__[offset:offset + len(data)] = data
 
     def merge_modified_section_data(self):
         """Update the PE image content with any individual section data that has been
@@ -6983,11 +6987,7 @@ class PE:
             if section_data_start < len(self.__data__) and section_data_end < len(
                 self.__data__
             ):
-                self.__data__ = (
-                    self.__data__[:section_data_start]
-                    + section.get_data()
-                    + self.__data__[section_data_end:]
-                )
+                self.set_data_bytes(section_data_start, section.get_data())
 
     def relocate_image(self, new_ImageBase):
         """Apply the relocation information to the image using the provided image base.
