@@ -4354,7 +4354,7 @@ class PE:
                                     string_entry_data = self.get_data(
                                         string_entry_rva, string_entry_size
                                     )
-                                except:
+                                except PEFormatError:
                                     self.__warnings.append(
                                         f"Error parsing resource of type RT_STRING at "
                                         f"RVA 0x{string_entry_rva:x} with "
