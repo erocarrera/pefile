@@ -62,7 +62,6 @@ Prompted by the move to GitHub, the need to support Python 3 in addition to reso
   * [bbfreeze](http://pypi.python.org/pypi/bbfreeze)
   * **pyemu**: [download](http://www.openrce.org/repositories/browse/codypierce), [whitepaper](https://www.blackhat.com/presentations/bh-usa-07/Pierce/Whitepaper/bh-usa-07-pierce-WP.pdf)
   * [Immunity Debugger 1.1](http://www.openrce.org/blog/view/882/Immunity_Debugger_v1.1_Release)
-  * [PyInstaller](http://www.pyinstaller.org)
   * [Cuckoo](http://docs.cuckoosandbox.org/en/latest)
   * [MultiScanner](https://github.com/MITRECND/multiscanner)
 
@@ -75,11 +74,10 @@ PDFs of posters depicting the PE file format:
 
 The following links provide detailed information about the PE format and its structures.
 
-  * [corkami's wiki page about the PE format](https://code.google.com/p/corkami/wiki/PE) has grown to be one of the most in-depth repositories of information about the PE format.
+  * [corkami's wiki page about the PE format](https://web.archive.org/web/20150821170441/https://code.google.com/p/corkami/wiki/PE) has grown to be one of the most in-depth repositories of information about the PE format.
   * [corkami's treasure trove of PE weirdness](https://github.com/corkami/pocs/tree/master/PE)
-  * corkami's copy of Solar Eclipse's [Tiny PE](https://code.google.com/p/corkami/source/browse/trunk/misc/MakePE/examples/PE/tinype.asm?r=179)
   * [An In-Depth Look into the Win32 Portable Executable File Format](https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/february/inside-windows-win32-portable-executable-file-format-in-detail)
   * [An In-Depth Look into the Win32 Portable Executable File Format, Part 2](https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/march/inside-windows-an-in-depth-look-into-the-win32-portable-executable-file-format-part-2)
   * [The Portable Executable File Format](http://www.csn.ul.ie/~caolan/publink/winresdump/winresdump/doc/pefile.html)
   * [Get icons from Exe or DLL the PE way](https://www.codeproject.com/Articles/9303/Get-icons-from-Exe-or-DLL-the-PE-way)
-  * Solar Eclipse's Tiny PE page at "http://www.phreedom.org/solar/code/tinype/" is no longer available ([html-only archive](http://web.archive.org/web/20111001045025/http://www.phreedom.org/solar/code/tinype/)), a copy of corkami's TinyPE is available [here](https://github.com/sgothel/gluegen/blob/master/src/native/tinype-corkami/tiny.asm) (Code only)
+  * Solar Eclipse's Tiny PE page at "http://www.phreedom.org/solar/code/tinype/" is no longer available ([html-only archive](http://web.archive.org/web/20111001045025/http://www.phreedom.org/solar/code/tinype/)), corkami's TinyPE is available [here](https://github.com/corkami/pocs/blob/master/PE/tiny.asm) (Code only)
