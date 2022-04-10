@@ -6972,7 +6972,7 @@ class PE:
         if not isinstance(self.__data__, bytearray):
             self.__data__ = bytearray(self.__data__)
 
-        self.__data__[offset:offset + len(data)] = data
+        self.__data__[offset : offset + len(data)] = data
 
     def merge_modified_section_data(self):
         """Update the PE image content with any individual section data that has been
