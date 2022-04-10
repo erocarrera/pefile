@@ -71,6 +71,7 @@ The following links provide detailed information about the PE format and its str
   * [corkami's treasure trove of PE weirdness](https://github.com/corkami/pocs/tree/master/PE)
   * corkami's copy of Solar Eclipse's [Tiny PE](https://code.google.com/p/corkami/source/browse/trunk/misc/MakePE/examples/PE/tinype.asm?r=179)
   * [An In-Depth Look into the Win32 Portable Executable File Format](https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/february/inside-windows-win32-portable-executable-file-format-in-detail)
-  * [An In-Depth Look into the Win32 Portable Executable File Format, Part 2](https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/march/inside-windows-an-in-depth-look-into-the-win32-portable-executable-file-format-part-2%20)
+  * [An In-Depth Look into the Win32 Portable Executable File Format, Part 2](https://docs.microsoft.com/en-us/archive/msdn-magazine/2002/march/inside-windows-an-in-depth-look-into-the-win32-portable-executable-file-format-part-2)
   * [The Portable Executable File Format](http://www.csn.ul.ie/~caolan/publink/winresdump/winresdump/doc/pefile.html)
   * [Get icons from Exe or DLL the PE way](https://www.codeproject.com/Articles/9303/Get-icons-from-Exe-or-DLL-the-PE-way)
+  * Solar Eclipse's Tiny PE page at "http://www.phreedom.org/solar/code/tinype/" is no longer available ([html-only archive](http://web.archive.org/web/20111001045025/http://www.phreedom.org/solar/code/tinype/)), a copy of corkami's TinyPE is available [here](https://github.com/sgothel/gluegen/blob/master/src/native/tinype-corkami/tiny.asm) (Code only)
