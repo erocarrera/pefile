@@ -2,7 +2,7 @@
 """peutils, Portable Executable utilities module
 
 
-Copyright (c) 2005-2021 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2022 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 """

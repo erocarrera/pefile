@@ -13,11 +13,11 @@ PEs as well as malware, which often attempts to abuse the format way beyond its
 standard use. To the best of my knowledge most of the abuse is handled
 gracefully.
 
-Copyright (c) 2005-2021 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2022 Ero Carrera <ero.carrera@gmail.com>
 """
 
 __author__ = "Ero Carrera"
-__version__ = "2021.9.3"
+__version__ = "2022.5.30"
 __contact__ = "ero.carrera@gmail.com"
 
 import collections
