@@ -2277,7 +2277,7 @@ def is_valid_dos_filename(s):
 # Check if an imported name uses the valid accepted characters expected in
 # mangled function names. If the symbol's characters don't fall within this
 # charset we will assume the name is invalid.
-
+# The dot "." character comes from: https://github.com/erocarrera/pefile/pull/346
 allowed_function_name = b(
     string.ascii_lowercase + string.ascii_uppercase + string.digits + "._?@$()<>"
 )
