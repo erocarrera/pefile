@@ -2279,7 +2279,7 @@ def is_valid_dos_filename(s):
 # charset we will assume the name is invalid.
 
 allowed_function_name = b(
-    string.ascii_lowercase + string.ascii_uppercase + string.digits + "_?@$()<>"
+    string.ascii_lowercase + string.ascii_uppercase + string.digits + "._?@$()<>"
 )
 
 
