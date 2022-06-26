@@ -1,7 +1,4 @@
 # -*- coding: utf-8 -*-
-from __future__ import print_function
-from builtins import range
-
 import os
 import difflib
 from hashlib import sha256

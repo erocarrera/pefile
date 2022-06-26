@@ -1,5 +1,3 @@
-from __future__ import absolute_import
-import sys
 from . import ws2_32
 from . import oleaut32
 
@@ -15,18 +13,9 @@ ords = {
     b"oleaut32.dll": oleaut32.ord_names,
 }
 
-PY3 = sys.version_info > (3,)
 
-if PY3:
-
-    def formatOrdString(ord_val):
-        return "ord{}".format(ord_val).encode()
-
-
-else:
-
-    def formatOrdString(ord_val):
-        return b"ord%d" % ord_val
+def formatOrdString(ord_val):
+    return "ord{}".format(ord_val).encode()
 
 
 def ordLookup(libname, ord_val, make_name=False):
