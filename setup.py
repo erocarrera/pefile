@@ -5,8 +5,6 @@ import os
 import re
 import sys
 
-if sys.version_info.major == 3:
-    from io import open
 
 try:
     from setuptools import setup, Command
@@ -25,12 +23,8 @@ def _read_doc():
     Parse docstring from file 'pefile.py' and avoid importing
     this module directly.
     """
-    if sys.version_info.major == 2:
-        with open('pefile.py', 'r') as f:
-            tree = ast.parse(f.read())
-    else:
-        with open('pefile.py', 'r', encoding='utf-8') as f:
-            tree = ast.parse(f.read())
+    with open('pefile.py', 'r', encoding='utf-8') as f:
+        tree = ast.parse(f.read())
     return ast.get_docstring(tree)
 
 
@@ -42,12 +36,8 @@ def _read_attr(attr_name):
     __version__, __author__, __contact__,
     """
     regex = attr_name + r"\s+=\s+['\"](.+)['\"]"
-    if sys.version_info.major == 2:
-        with open('pefile.py', 'r') as f:
-            match = re.search(regex, f.read())
-    else:
-        with open('pefile.py', 'r', encoding='utf-8') as f:
-            match = re.search(regex, f.read())
+    with open('pefile.py', 'r', encoding='utf-8') as f:
+        match = re.search(regex, f.read())
     # Second item in the group is the value of attribute.
     return match.group(1)
 
@@ -73,7 +63,7 @@ setup(name = 'pefile',
     author = _read_attr('__author__'),
     author_email = _read_attr('__contact__'),
     url = 'https://github.com/erocarrera/pefile',
-    download_url='https://github.com/erocarrera/pefile/releases/download/v2021.9.3/pefile-2021.9.3.tar.gz',
+    download_url='https://github.com/erocarrera/pefile/releases/download/v2022.5.30/pefile-2022.5.30.tar.gz',
     keywords = ['pe', 'exe', 'dll', 'pefile', 'pecoff'],
     classifiers = [
         'Development Status :: 5 - Production/Stable',
@@ -89,7 +79,6 @@ setup(name = 'pefile',
     python_requires=">=3.6.0",
     packages = ['ordlookup'],
     install_requires=[
-          'future',
     ],
     license="MIT",
 )

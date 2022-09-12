@@ -13,11 +13,11 @@ PEs as well as malware, which often attempts to abuse the format way beyond its
 standard use. To the best of my knowledge most of the abuse is handled
 gracefully.
 
-Copyright (c) 2005-2021 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2022 Ero Carrera <ero.carrera@gmail.com>
 """
 
 __author__ = "Ero Carrera"
-__version__ = "2021.9.3"
+__version__ = "2022.5.30"
 __contact__ = "ero.carrera@gmail.com"
 
 import collections
@@ -88,13 +88,7 @@ def cache_adjust_SectionAlignment(val, section_alignment, file_alignment):
 
 
 def count_zeroes(data):
-    try:
-        # newbytes' count() takes a str in Python 2
-        count = data.count("\0")
-    except TypeError:
-        # bytes' count() takes an int in Python 3
-        count = data.count(0)
-    return count
+    return data.count(0)
 
 
 fast_load = False
@@ -724,9 +718,27 @@ def power_of_two(val):
 
 
 def b(x):
-    if isinstance(x, (bytes, bytearray)):
+    if isinstance(x, bytes):
+        return x
+    elif isinstance(x, bytearray):
         return bytes(x)
-    return codecs.encode(x, "cp1252")
+    else:
+        return codecs.encode(x, "cp1252")
+
+
+class AddressSet(set):
+    def __init__(self):
+        super().__init__()
+        self.min = None
+        self.max = None
+
+    def add(self, value):
+        super().add(value)
+        self.min = value if self.min is None else min(self.min, value)
+        self.max = value if self.max is None else max(self.max, value)
+
+    def diff(self):
+        return 0 if self.min is None or self.max is None else self.max - self.min
 
 
 class UnicodeStringWrapperPostProcessor:
@@ -946,8 +958,8 @@ class Structure:
 
         d = format[1]
         # need a tuple to be hashable in set_format using lru cache
-        if not isinstance(format[1], tuple):
-            d = tuple(format[1])
+        if not isinstance(d, tuple):
+            d = tuple(d)
 
         (
             self.__format__,
@@ -1143,6 +1155,8 @@ class SectionStructure(Structure):
         Structure.__init__(self, *argl, **argd)
         self.PointerToRawData_adj = None
         self.VirtualAddress_adj = None
+        self.section_min_addr = None
+        self.section_max_addr = None
 
     def get_PointerToRawData_adj(self):
         if self.PointerToRawData_adj is None:
@@ -1240,6 +1254,10 @@ class SectionStructure(Structure):
     def contains_rva(self, rva):
         """Check whether the section contains the address provided."""
 
+        # speedup
+        if self.section_min_addr is not None and self.section_max_addr is not None:
+            return self.section_min_addr <= rva < self.section_max_addr
+
         VirtualAddress_adj = self.get_VirtualAddress_adj()
         # Check if the SizeOfRawData is realistic. If it's bigger than the size of
         # the whole PE file minus the start address of the section it could be
@@ -1267,6 +1285,8 @@ class SectionStructure(Structure):
         ):
             size = self.next_section_virtual_address - VirtualAddress_adj
 
+        self.section_min_addr = VirtualAddress_adj
+        self.section_max_addr = VirtualAddress_adj + size
         return VirtualAddress_adj <= rva < VirtualAddress_adj + size
 
     def contains(self, rva):
@@ -1512,7 +1532,7 @@ class DataContainer:
 
     def __init__(self, **args):
         bare_setattr = super(DataContainer, self).__setattr__
-        for key, value in list(args.items()):
+        for key, value in args.items():
             bare_setattr(key, value)
 
 
@@ -2266,9 +2286,9 @@ def is_valid_dos_filename(s):
 # Check if an imported name uses the valid accepted characters expected in
 # mangled function names. If the symbol's characters don't fall within this
 # charset we will assume the name is invalid.
-
+# The dot "." character comes from: https://github.com/erocarrera/pefile/pull/346
 allowed_function_name = b(
-    string.ascii_lowercase + string.ascii_uppercase + string.digits + "_?@$()<>"
+    string.ascii_lowercase + string.ascii_uppercase + string.digits + "._?@$()<>"
 )
 
 
@@ -2835,6 +2855,8 @@ class PE:
         self.max_symbol_exports = max_symbol_exports
         self.max_repeated_symbol = max_repeated_symbol
 
+        self._get_section_by_rva_last_used = None
+
         self.sections = []
 
         self.__warnings = []
@@ -2868,12 +2890,18 @@ class PE:
             5: PE.__IMAGE_SWITCHTABLE_BRANCH_DYNAMIC_RELOCATION_format__
         }
 
-        fast_load = fast_load or globals()["fast_load"]
+        fast_load = fast_load if fast_load is not None else globals()["fast_load"]
         try:
             self.__parse__(name, data, fast_load)
         except:
             self.close()
             raise
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.close()
 
     def close(self):
         if (
@@ -3683,6 +3711,7 @@ class PE:
             #
             if directories is None or directory_index in directories:
 
+                value = None
                 if dir_entry.VirtualAddress:
                     if (
                         forwarded_exports_only
@@ -4621,7 +4650,7 @@ class PE:
                                     string_entry_data = self.get_data(
                                         string_entry_rva, string_entry_size
                                     )
-                                except:
+                                except PEFormatError:
                                     self.__warnings.append(
                                         f"Error parsing resource of type RT_STRING at "
                                         f"RVA 0x{string_entry_rva:x} with "
@@ -5617,11 +5646,12 @@ class PE:
             if len(parts) > 1 and parts[1] in exts:
                 libname = parts[0]
 
+            entry_dll_lower = entry.dll.lower()
             for imp in entry.imports:
                 funcname = None
                 if not imp.name:
                     funcname = ordlookup.ordLookup(
-                        entry.dll.lower(), imp.ordinal, make_name=True
+                        entry_dll_lower, imp.ordinal, make_name=True
                     )
                     if not funcname:
                         raise PEFormatError(
@@ -5644,13 +5674,14 @@ class PE:
 
         import_descs = []
         error_count = 0
+        image_import_descriptor_size = Structure(
+            self.__IMAGE_IMPORT_DESCRIPTOR_format__
+        ).sizeof()
         while True:
             try:
                 # If the RVA is invalid all would blow up. Some EXEs seem to be
                 # specially nasty and have an invalid RVA.
-                data = self.get_data(
-                    rva, Structure(self.__IMAGE_IMPORT_DESCRIPTOR_format__).sizeof()
-                )
+                data = self.get_data(rva, image_import_descriptor_size)
             except PEFormatError:
                 self.__warnings.append(
                     f"Error parsing the import directory at RVA: 0x{rva:x}"
@@ -5811,6 +5842,7 @@ class PE:
             imp_name = None
             name_offset = None
             hint_name_table_rva = None
+            import_by_ordinal = False  # declare it here first
 
             if tbl_entry.AddressOfData:
                 # If imported by ordinal, we will append the ordinal number
@@ -5922,11 +5954,13 @@ class PE:
             ordinal_flag = IMAGE_ORDINAL_FLAG
             format = self.__IMAGE_THUNK_DATA_format__
 
-        MAX_ADDRESS_SPREAD = 128 * 2 ** 20  # 64 MB
+        expected_size = Structure(format).sizeof()
+        MAX_ADDRESS_SPREAD = 128 * 2**20  # 128 MB
+        ADDR_4GB = 2**32
         MAX_REPEATED_ADDRESSES = 15
         repeated_address = 0
-        addresses_of_data_set_64 = set()
-        addresses_of_data_set_32 = set()
+        addresses_of_data_set_64 = AddressSet()
+        addresses_of_data_set_32 = AddressSet()
         start_rva = rva
         while rva:
             if max_length is not None and rva >= start_rva + max_length:
@@ -5952,26 +5986,18 @@ class PE:
             # if the addresses point somewhere but the difference between the highest
             # and lowest address is larger than MAX_ADDRESS_SPREAD we assume a bogus
             # table as the addresses should be contained within a module
-            if (
-                addresses_of_data_set_32
-                and max(addresses_of_data_set_32) - min(addresses_of_data_set_32)
-                > MAX_ADDRESS_SPREAD
-            ):
+            if addresses_of_data_set_32.diff() > MAX_ADDRESS_SPREAD:
                 return []
-            if (
-                addresses_of_data_set_64
-                and max(addresses_of_data_set_64) - min(addresses_of_data_set_64)
-                > MAX_ADDRESS_SPREAD
-            ):
+            if addresses_of_data_set_64.diff() > MAX_ADDRESS_SPREAD:
                 return []
 
             failed = False
             try:
-                data = self.get_data(rva, Structure(format).sizeof())
+                data = self.get_data(rva, expected_size)
             except PEFormatError:
                 failed = True
 
-            if failed or len(data) != Structure(format).sizeof():
+            if failed or len(data) != expected_size:
                 self.__warnings.append(
                     "Error parsing the import table. " "Invalid data at RVA: 0x%x" % rva
                 )
@@ -6010,26 +6036,26 @@ class PE:
                 break
 
             if thunk_data and thunk_data.AddressOfData:
+                addr_of_data = thunk_data.AddressOfData
                 # If the entry looks like could be an ordinal...
-                if thunk_data.AddressOfData & ordinal_flag:
+                if addr_of_data & ordinal_flag:
                     # but its value is beyond 2^16, we will assume it's a
                     # corrupted and ignore it altogether
-                    if thunk_data.AddressOfData & 0x7FFFFFFF > 0xFFFF:
+                    if addr_of_data & 0x7FFFFFFF > 0xFFFF:
                         return []
                 # and if it looks like it should be an RVA
                 else:
                     # keep track of the RVAs seen and store them to study their
                     # properties. When certain non-standard features are detected
                     # the parsing will be aborted
-                    if (
-                        thunk_data.AddressOfData in addresses_of_data_set_32
-                        or thunk_data.AddressOfData in addresses_of_data_set_64
-                    ):
-                        repeated_address += 1
-                    if thunk_data.AddressOfData >= 2 ** 32:
-                        addresses_of_data_set_64.add(thunk_data.AddressOfData)
+                    if addr_of_data >= ADDR_4GB:
+                        the_set = addresses_of_data_set_64
                     else:
-                        addresses_of_data_set_32.add(thunk_data.AddressOfData)
+                        the_set = addresses_of_data_set_32
+
+                    if addr_of_data in the_set:
+                        repeated_address += 1
+                    the_set.add(addr_of_data)
 
             if not thunk_data or thunk_data.all_zeroes():
                 break
@@ -6255,7 +6281,7 @@ class PE:
             s = s[:end]
         return s
 
-    def get_string_u_at_rva(self, rva, max_length=2 ** 16, encoding=None):
+    def get_string_u_at_rva(self, rva, max_length=2**16, encoding=None):
         """Get an Unicode string located at the given address."""
 
         if max_length == 0:
@@ -6310,8 +6336,15 @@ class PE:
     def get_section_by_rva(self, rva):
         """Get the section containing the given address."""
 
+        # if we look a lot of times at RVA in the same section, "cache" the last used section
+        # to speedup lookups (very useful when parsing import table)
+        if self._get_section_by_rva_last_used is not None:
+            if self._get_section_by_rva_last_used.contains_rva(rva):
+                return self._get_section_by_rva_last_used
+
         for section in self.sections:
             if section.contains_rva(rva):
+                self._get_section_by_rva_last_used = section
                 return section
 
         return None
@@ -7232,13 +7265,17 @@ class PE:
             raise TypeError("data should be of type: bytes")
 
         if 0 <= offset < len(self.__data__):
-            self.__data__ = (
-                self.__data__[:offset] + data + self.__data__[offset + len(data) :]
-            )
+            self.set_data_bytes(offset, data)
         else:
             return False
 
         return True
+
+    def set_data_bytes(self, offset: int, data: bytes):
+        if not isinstance(self.__data__, bytearray):
+            self.__data__ = bytearray(self.__data__)
+
+        self.__data__[offset : offset + len(data)] = data
 
     def merge_modified_section_data(self):
         """Update the PE image content with any individual section data that has been
@@ -7253,11 +7290,7 @@ class PE:
             if section_data_start < len(self.__data__) and section_data_end < len(
                 self.__data__
             ):
-                self.__data__ = (
-                    self.__data__[:section_data_start]
-                    + section.get_data()
-                    + self.__data__[section_data_end:]
-                )
+                self.set_data_bytes(section_data_start, section.get_data())
 
     def relocate_image(self, new_ImageBase):
         """Apply the relocation information to the image using the provided image base.
@@ -7475,7 +7508,7 @@ class PE:
                 dword = struct.unpack("I", self.__data__[i * 4 : i * 4 + 4])[0]
             # Optimized the calculation (thanks to Emmanuel Bourg for pointing it out!)
             checksum += dword
-            if checksum >= 2 ** 32:
+            if checksum >= 2**32:
                 checksum = (checksum & 0xFFFFFFFF) + (checksum >> 32)
 
         checksum = (checksum & 0xFFFF) + (checksum >> 16)
