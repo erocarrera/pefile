@@ -3848,6 +3848,7 @@ class PE:
 
     def parse_directory_load_config(self, rva, size):
         """"""
+
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
             format = self.__IMAGE_LOAD_CONFIG_DIRECTORY_format__
         elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
@@ -3875,7 +3876,7 @@ class PE:
             return None
 
         drt = None
-        if format == self.__IMAGE_LOAD_CONFIG_DIRECTORY64_format__:
+        if format == self.__IMAGE_LOAD_CONFIG_DIRECTORY64_format__ and DYNAMIC_RELOC_TABLE_OFFSET_FIELD_OFFSET + 6 <= size:
             drt_offset = self.get_dword_from_offset(self.get_offset_from_rva(rva) + DYNAMIC_RELOC_TABLE_OFFSET_FIELD_OFFSET)
             # the drt_section is the section that contains the DRT and all the offsets are relative to its base
             drt_section = self.get_word_from_offset(self.get_offset_from_rva(rva) + DYNAMIC_RELOC_TABLE_OFFSET_FIELD_OFFSET + 4)
