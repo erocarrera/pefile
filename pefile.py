@@ -2278,8 +2278,10 @@ def is_valid_dos_filename(s):
 # mangled function names. If the symbol's characters don't fall within this
 # charset we will assume the name is invalid.
 # The dot "." character comes from: https://github.com/erocarrera/pefile/pull/346
+# All other symbols can be inserted by adding a name with that symbol to a .def file,
+# and passing it to link.exe (See export_test.py)
 allowed_function_name = b(
-    string.ascii_lowercase + string.ascii_uppercase + string.digits + "._?@$()<>"
+    string.ascii_lowercase + string.ascii_uppercase + string.digits + "!\"#$%&'()*+,-./:<>?[\\]^_`{|}~"
 )
 
 
@@ -5021,7 +5023,7 @@ class PE:
                 # Corrupt? a bad pointer... we assume it's all
                 # useless, no exports
                 return None
-            if symbol_address is None or symbol_address == 0:
+            if symbol_address is None:
                 continue
 
             # If the function's RVA points within the export directory
