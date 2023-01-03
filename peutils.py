@@ -1,4 +1,4 @@
-# -*- coding: Latin-1 -*-
+
 """peutils, Portable Executable utilities module
 
 
@@ -579,7 +579,7 @@ def is_probably_packed(pe):
         if s_entropy > 7.4:
             total_compressed_data += s_length
 
-    if ((1.0 * total_compressed_data) / total_pe_data_length) > 0.2:
+    if (total_compressed_data / total_pe_data_length) > 0.2:
         has_significant_amount_of_compressed_data = True
 
     return has_significant_amount_of_compressed_data

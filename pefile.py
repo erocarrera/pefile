@@ -1,5 +1,5 @@
 #!/usr/bin/python
-# -*- coding: utf-8 -*-
+
 """pefile, Portable Executable reader module
 
 All the PE file basic structures are available with their default names as
@@ -106,7 +106,7 @@ MAX_IMPORT_NAME_LENGTH = 0x200
 MAX_DLL_LENGTH = 0x200
 MAX_SYMBOL_NAME_LENGTH = 0x200
 
-# Lmit maximum number of sections before processing of sections will stop
+# Limit maximum number of sections before processing of sections will stop
 MAX_SECTIONS = 0x800
 
 # The global maximum number of resource entries to parse per file
@@ -2865,8 +2865,8 @@ class PE:
                 # zero) or 15% (if non-zero) of the file's contents. There are
                 # legitimate PEs where 0x00 bytes are close to 50% of the whole
                 # file's contents.
-                if (byte == 0 and 1.0 * byte_count / len(self.__data__) > 0.5) or (
-                    byte != 0 and 1.0 * byte_count / len(self.__data__) > 0.15
+                if (byte == 0 and byte_count / len(self.__data__) > 0.5) or (
+                    byte != 0 and byte_count / len(self.__data__) > 0.15
                 ):
                     self.__warnings.append(
                         (

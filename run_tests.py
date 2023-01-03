@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 """Script to run the tests."""
 
 import sys
