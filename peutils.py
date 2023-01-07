@@ -6,13 +6,6 @@ Copyright (c) 2005-2023 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 """
-from __future__ import division
-from future import standard_library
-
-standard_library.install_aliases()
-from builtins import range
-from builtins import object
-
 import os
 import re
 import string
