@@ -28,6 +28,7 @@ import time
 import math
 import string
 import mmap
+import uuid
 
 from collections import Counter
 from hashlib import sha1
@@ -4024,14 +4025,14 @@ class PE:
                     __CV_INFO_PDB70_format__ = [
                         "CV_INFO_PDB70",
                         [
-                            "I,CvSignature",
+                            "4s,CvSignature",
                             "I,Signature_Data1",  # Signature is of GUID type
                             "H,Signature_Data2",
                             "H,Signature_Data3",
-                            "8s,Signature_Data4",
-                            # 'H,Signature_Data5',
-                            # 'I,Signature_Data6',
-                            "I,Age",
+                            "B,Signature_Data4",
+                            "B,Signature_Data5",
+                            "6s,Signature_Data6",
+                            "I,Age"
                         ],
                     ]
                     pdbFileName_size = (
@@ -4051,6 +4052,8 @@ class PE:
                     dbg_type = self.__unpack_data__(
                         __CV_INFO_PDB70_format__, dbg_type_data, dbg_type_offset
                     )
+                    dbg_type.Signature_Data6 = struct.unpack('>Q', b'\0\0' + dbg_type.Signature_Data6)[0]
+                    dbg_type.Signature_String = str(uuid.UUID(fields=(dbg_type.Signature_Data1, dbg_type.Signature_Data2, dbg_type.Signature_Data3, dbg_type.Signature_Data4, dbg_type.Signature_Data5, dbg_type.Signature_Data6))).replace('-','').upper() + hex(dbg_type.Age)[2:] #PY3.6+: f'{dbg_type.Age:X}'
 
                 elif dbg_type_data[:4] == b"NB10":
                     # pdb2.0
