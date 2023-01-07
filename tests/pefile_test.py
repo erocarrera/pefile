@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+
 import os
 import difflib
 from hashlib import sha256
