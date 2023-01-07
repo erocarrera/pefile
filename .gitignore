@@ -23,3 +23,5 @@ venv*
 .DS_Store
 pefile.code-workspace
 .vscode/*
+pefile.ipynb
+.ipynb_checkpoints/*
