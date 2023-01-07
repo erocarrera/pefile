@@ -21,3 +21,5 @@ venv*
 /dist
 /pefile.egg-info
 .DS_Store
+pefile.code-workspace
+.vscode/*
