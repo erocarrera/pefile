@@ -40,6 +40,8 @@ import copy as copymod
 
 import ordlookup
 
+from drt import IMAGE_DYNAMIC_RELOCATION_TABLE, DYNAMIC_RELOC_TABLE_OFFSET_FIELD_OFFSET
+
 codecs.register_error("backslashreplace_", codecs.lookup_error("backslashreplace"))
 
 long = int
@@ -3878,7 +3880,16 @@ class PE:
         if not load_config_struct:
             return None
 
-        return LoadConfigData(struct=load_config_struct)
+        drt = None
+        if format == self.__IMAGE_LOAD_CONFIG_DIRECTORY64_format__ and DYNAMIC_RELOC_TABLE_OFFSET_FIELD_OFFSET + 6 <= size:
+            drt_offset = self.get_dword_from_offset(self.get_offset_from_rva(rva) + DYNAMIC_RELOC_TABLE_OFFSET_FIELD_OFFSET)
+            # the drt_section is the section that contains the DRT and all the offsets are relative to its base
+            drt_section = self.get_word_from_offset(self.get_offset_from_rva(rva) + DYNAMIC_RELOC_TABLE_OFFSET_FIELD_OFFSET + 4)
+            if drt_offset and drt_section and drt_section <= len(self.sections):
+                drt_section_data = self.sections[drt_section - 1].get_data()
+                drt = IMAGE_DYNAMIC_RELOCATION_TABLE.from_pe(drt_section_data, drt_offset)
+
+        return LoadConfigData(struct=load_config_struct, drt=drt)
 
     def parse_relocations_directory(self, rva, size):
         """"""
