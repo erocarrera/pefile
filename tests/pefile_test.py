@@ -1,5 +1,5 @@
-
 import os
+import sys
 import difflib
 from hashlib import sha256
 import unittest
@@ -149,8 +149,8 @@ class Test_pefile(unittest.TestCase):
                     print("Diff saved to: error_diff.txt")
                     failed = True
 
-            os.sys.stdout.write("[%d]" % (len(self.test_files) - idx))
-            os.sys.stdout.flush()
+            sys.stdout.write("[%d]" % (len(self.test_files) - idx))
+            sys.stdout.flush()
         if failed:
             raise AssertionError("One or more errors occured")
 
@@ -252,7 +252,7 @@ class Test_pefile(unittest.TestCase):
 
         diff, differences = 0, list()
         for idx in range(len(original_data)):
-            if original_data[idx] != new_data[idx]:
+            if original_data and new_data and original_data[idx] != new_data[idx]:
 
                 diff += 1
                 # Skip the zeroes that pefile automatically adds to pad a new,
@@ -277,9 +277,11 @@ class Test_pefile(unittest.TestCase):
 
         # Truncate it at the PE header and add invalid data.
         pe_header_offest = pe.DOS_HEADER.e_lfanew
-        corrupted_data = pe.__data__[:pe_header_offest] + b"\0" * (1024 * 10)
+        self.assertIsNotNone(pe.__data__)
+        if pe.__data__:
+            corrupted_data = pe.__data__[:pe_header_offest] + b"\0" * (1024 * 10)
 
-        self.assertRaises(pefile.PEFormatError, pefile.PE, data=corrupted_data)
+            self.assertRaises(pefile.PEFormatError, pefile.PE, data=corrupted_data)
 
     def test_dos_header_exception_large_data(self):
         """pefile should fail parsing 10KiB of invalid data

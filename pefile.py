@@ -905,7 +905,7 @@ def sizeof_type(t):
 @lru_cache(maxsize=2048, copy=True)
 def set_format(format):
 
-    __format__ = "<"
+    __format_str__ = "<"
     __unpacked_data_elms__ = []
     __field_offsets__ = {}
     __keys__ = []
@@ -915,7 +915,7 @@ def set_format(format):
     for elm in format:
         if "," in elm:
             elm_type, elm_name = elm.split(",", 1)
-            __format__ += elm_type
+            __format_str__ += elm_type
             __unpacked_data_elms__.append(None)
 
             elm_names = elm_name.split(",")
@@ -935,10 +935,10 @@ def set_format(format):
             # all the possible members referring to the data.
             __keys__.append(names)
 
-    __format_length__ = struct.calcsize(__format__)
+    __format_length__ = struct.calcsize(__format_str__)
 
     return (
-        __format__,
+        __format_str__,
         __unpacked_data_elms__,
         __field_offsets__,
         __keys__,
@@ -955,7 +955,7 @@ class Structure:
 
     def __init__(self, format, name=None, file_offset=None):
         # Format is forced little endian, for big endian non Intel platforms
-        self.__format__ = "<"
+        self.__format_str__ = "<"
         self.__keys__ = []
         self.__format_length__ = 0
         self.__field_offsets__ = {}
@@ -967,7 +967,7 @@ class Structure:
             d = tuple(d)
 
         (
-            self.__format__,
+            self.__format_str__,
             self.__unpacked_data_elms__,
             self.__field_offsets__,
             self.__keys__,
@@ -981,8 +981,8 @@ class Structure:
         else:
             self.name = format[0]
 
-    def __get_format__(self):
-        return self.__format__
+    def __get_format__(self) -> str:
+        return self.__format_str__
 
     def get_field_absolute_offset(self, field_name):
         """Return the offset within the field for the requested field in the structure."""
@@ -1026,7 +1026,7 @@ class Structure:
         if count_zeroes(data) == len(data):
             self.__all_zeroes__ = True
 
-        self.__unpacked_data_elms__ = struct.unpack(self.__format__, data)
+        self.__unpacked_data_elms__ = struct.unpack(self.__format_str__, data)
         for idx, val in enumerate(self.__unpacked_data_elms__):
             for key in self.__keys__[idx]:
                 setattr(self, key, val)
@@ -1045,9 +1045,9 @@ class Structure:
                 if new_val != val:
                     break
 
-            new_values.append(new_val)
+                new_values.append(new_val)
 
-        return struct.pack(self.__format__, *new_values)
+        return struct.pack(self.__format_str__, *new_values)
 
     def __str__(self):
         return "\n".join(self.dump())
@@ -1157,6 +1157,10 @@ class SectionStructure(Structure):
             self.pe = argd["pe"]
             del argd["pe"]
 
+        self.PointerToRawData = None
+        self.VirtualAddress = None
+        self.SizeOfRawData = None
+        self.Misc_VirtualSize = None
         Structure.__init__(self, *argl, **argd)
         self.PointerToRawData_adj = None
         self.VirtualAddress_adj = None
@@ -1209,17 +1213,20 @@ class SectionStructure(Structure):
 
         if length is not None:
             end = offset + length
-        else:
+        elif self.SizeOfRawData is not None:
             end = offset + self.SizeOfRawData
+        else:
+            end = offset
 
-        if ignore_padding:
+        if ignore_padding and end is not None and offset is not None:
             end = min(end, offset + self.Misc_VirtualSize)
 
         # PointerToRawData is not adjusted here as we might want to read any possible
         # extra bytes that might get cut off by aligning the start (and hence cutting
         # something off the end)
-        if end > self.PointerToRawData + self.SizeOfRawData:
-            end = self.PointerToRawData + self.SizeOfRawData
+        if self.PointerToRawData is not None and self.SizeOfRawData is not None:
+            if end > self.PointerToRawData + self.SizeOfRawData:
+                end = self.PointerToRawData + self.SizeOfRawData
         return self.pe.__data__[offset:end]
 
     def __setattr__(self, name, val):
@@ -1452,7 +1459,7 @@ class StructureWithBitfields(Structure):
 
     def __init__(self, format, name=None, file_offset=None):
         (
-            self.__format__,
+            self.__format_str__,
             self.__format_length__,
             self.__field_offsets__,
             self.__keys__,
