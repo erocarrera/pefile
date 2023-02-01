@@ -31,6 +31,7 @@ import mmap
 import uuid
 
 from collections import Counter
+from typing import Union
 from hashlib import sha1
 from hashlib import sha256
 from hashlib import sha512
@@ -2302,16 +2303,21 @@ def is_valid_dos_filename(s):
 # All other symbols can be inserted by adding a name with that symbol to a .def file,
 # and passing it to link.exe (See export_test.py)
 allowed_function_name = b(
-    string.ascii_lowercase + string.ascii_uppercase + string.digits + "!\"#$%&'()*+,-./:<>?[\\]^_`{|}~"
+    string.ascii_lowercase + string.ascii_uppercase + string.digits
 )
 
 
 @lru_cache(maxsize=2048)
-def is_valid_function_name(s):
+def is_valid_function_name(
+    s: Union[str, bytes, bytearray], relax_allowed_characters: bool = False
+) -> bool:
+    allowed_extra = b"._?@$()<>"
+    if relax_allowed_characters:
+        allowed_extra = b"!\"#$%&'()*+,-./:<>?[\\]^_`{|}~@"
     return (
         s is not None
         and isinstance(s, (str, bytes, bytearray))
-        and all(c in allowed_function_name for c in set(s))
+        and all((c in allowed_function_name or c in allowed_extra) for c in set(s))
     )
 
 
@@ -5363,7 +5369,7 @@ class PE:
             symbol_name = self.get_string_at_rva(
                 symbol_name_address, MAX_SYMBOL_NAME_LENGTH
             )
-            if not is_valid_function_name(symbol_name):
+            if not is_valid_function_name(symbol_name, relax_allowed_characters=True):
                 export_parsing_loop_completed_normally = False
                 break
             try:
