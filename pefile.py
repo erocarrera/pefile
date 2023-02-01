@@ -1037,16 +1037,14 @@ class Structure:
         new_values = []
 
         for idx, val in enumerate(self.__unpacked_data_elms__):
-
+            new_val = None
             for key in self.__keys__[idx]:
                 new_val = getattr(self, key)
-
                 # In the case of unions, when the first changed value
                 # is picked the loop is exited
                 if new_val != val:
                     break
-
-                new_values.append(new_val)
+            new_values.append(new_val)
 
         return struct.pack(self.__format_str__, *new_values)
 
@@ -4044,7 +4042,7 @@ class PE:
                             "B,Signature_Data4",
                             "B,Signature_Data5",
                             "6s,Signature_Data6",
-                            "I,Age"
+                            "I,Age",
                         ],
                     ]
                     pdbFileName_size = (
@@ -4064,8 +4062,27 @@ class PE:
                     dbg_type = self.__unpack_data__(
                         __CV_INFO_PDB70_format__, dbg_type_data, dbg_type_offset
                     )
-                    dbg_type.Signature_Data6 = struct.unpack('>Q', b'\0\0' + dbg_type.Signature_Data6)[0]
-                    dbg_type.Signature_String = str(uuid.UUID(fields=(dbg_type.Signature_Data1, dbg_type.Signature_Data2, dbg_type.Signature_Data3, dbg_type.Signature_Data4, dbg_type.Signature_Data5, dbg_type.Signature_Data6))).replace('-','').upper() + hex(dbg_type.Age)[2:] #PY3.6+: f'{dbg_type.Age:X}'
+                    if dbg_type is not None:
+                        dbg_type.Signature_Data6_value = struct.unpack(
+                            ">Q", b"\0\0" + dbg_type.Signature_Data6
+                        )[0]
+                        dbg_type.Signature_String = (
+                            str(
+                                uuid.UUID(
+                                    fields=(
+                                        dbg_type.Signature_Data1,
+                                        dbg_type.Signature_Data2,
+                                        dbg_type.Signature_Data3,
+                                        dbg_type.Signature_Data4,
+                                        dbg_type.Signature_Data5,
+                                        dbg_type.Signature_Data6_value,
+                                    )
+                                )
+                            )
+                            .replace("-", "")
+                            .upper()
+                            + f"{dbg_type.Age:X}"
+                        )
 
                 elif dbg_type_data[:4] == b"NB10":
                     # pdb2.0
