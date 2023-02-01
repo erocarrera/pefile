@@ -5701,7 +5701,9 @@ class PE:
             return ""
 
         export_list = [
-            e.name.decode().lower() for e in self.DIRECTORY_ENTRY_EXPORT.symbols if e
+            e.name.decode().lower()
+            for e in self.DIRECTORY_ENTRY_EXPORT.symbols
+            if e and e.name is not None
         ]
         if len(export_list) == 0:
             return ""
