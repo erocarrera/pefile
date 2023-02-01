@@ -5686,13 +5686,15 @@ class PE:
         return md5(",".join(impstrs).encode()).hexdigest()
 
     def get_exphash(self):
-        if not hasattr(self, 'DIRECTORY_ENTRY_EXPORT'):
+        if not hasattr(self, "DIRECTORY_ENTRY_EXPORT"):
             return ""
 
-        if not hasattr(self.DIRECTORY_ENTRY_EXPORT, 'symbols'):
+        if not hasattr(self.DIRECTORY_ENTRY_EXPORT, "symbols"):
             return ""
 
-        export_list = [e.name.decode().lower() for e in self.DIRECTORY_ENTRY_EXPORT.symbols if e]
+        export_list = [
+            e.name.decode().lower() for e in self.DIRECTORY_ENTRY_EXPORT.symbols if e
+        ]
         if len(export_list) == 0:
             return ""
 
