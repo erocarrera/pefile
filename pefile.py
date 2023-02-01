@@ -5656,6 +5656,16 @@ class PE:
         raise Exception("Invalid hashing algorithm specified")
 
     def get_imphash(self):
+        """Return the imphash of the PE file.
+
+        Creates a hash based on imported symbol names and their specific order within
+        the executable:
+        https://www.mandiant.com/resources/blog/tracking-malware-import-hashing
+
+        Returns:
+            the hexdigest of the MD5 hash of the exported symbols.
+        """
+
         impstrs = []
         exts = ["ocx", "sys", "dll"]
         if not hasattr(self, "DIRECTORY_ENTRY_IMPORT"):
@@ -5694,6 +5704,14 @@ class PE:
         return md5(",".join(impstrs).encode()).hexdigest()
 
     def get_exphash(self):
+        """Return the exphash of the PE file.
+
+        Similar to imphash, but based on exported symbol names and their specific order.
+
+        Returns:
+            the hexdigest of the SHA256 hash of the exported symbols.
+        """
+        
         if not hasattr(self, "DIRECTORY_ENTRY_EXPORT"):
             return ""
 
