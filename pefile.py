@@ -1723,6 +1723,7 @@ class DebugData(DataContainer):
     entries:    list of entries (IMAGE_DEBUG_TYPE instances)
     """
 
+
 class DynamicRelocationData(DataContainer):
     """Holds dynamic relocation information.
 
@@ -2652,11 +2653,7 @@ class PE:
 
     __IMAGE_IMPORT_CONTROL_TRANSFER_DYNAMIC_RELOCATION_format__ = (
         "IMAGE_IMPORT_CONTROL_TRANSFER_DYNAMIC_RELOCATION",
-        (
-            "I:12,PageRelativeOffset",
-            "I:1,IndirectCall",
-            "I:19,IATIndex"
-         ),
+        ("I:12,PageRelativeOffset", "I:1,IndirectCall", "I:19,IATIndex"),
     )
 
     __IMAGE_INDIR_CONTROL_TRANSFER_DYNAMIC_RELOCATION_format__ = (
@@ -2666,16 +2663,13 @@ class PE:
             "I:1,IndirectCall",
             "I:1,RexWPrefix",
             "I:1,CfgCheck",
-            "I:1,Reserved"
+            "I:1,Reserved",
         ),
     )
 
     __IMAGE_SWITCHTABLE_BRANCH_DYNAMIC_RELOCATION_format__ = (
         "IMAGE_SWITCHTABLE_BRANCH_DYNAMIC_RELOCATION",
-        (
-            "I:12,PageRelativeOffset",
-            "I:4,RegisterNumber"
-        ),
+        ("I:12,PageRelativeOffset", "I:4,RegisterNumber"),
     )
 
     __IMAGE_TLS_DIRECTORY_format__ = (
@@ -2745,8 +2739,7 @@ class PE:
             "I,DynamicValueRelocTableOffset",
             "H,DynamicValueRelocTableSection",
             "H,Reserved2",
-            "I,GuardRFVerifyStackPointerFunctionPointer"
-            "I,HotPatchTableOffset",
+            "I,GuardRFVerifyStackPointerFunctionPointer" "I,HotPatchTableOffset",
             "I,Reserved3",
             "I,EnclaveConfigurationPointer",
         ),
@@ -2798,7 +2791,7 @@ class PE:
             "Q,GuardRFVerifyStackPointerFunctionPointer",
             "I,HotPatchTableOffset",
             "I,Reserved3",
-            "Q,EnclaveConfigurationPointer"
+            "Q,EnclaveConfigurationPointer",
         ),
     )
 
@@ -2819,24 +2812,12 @@ class PE:
 
     __IMAGE_DYNAMIC_RELOCATION_V2_format__ = (
         "IMAGE_DYNAMIC_RELOCATION_V2",
-        (
-            "I,HeaderSize",
-            "I,FixupInfoSize",
-            "I,Symbol",
-            "I,SymbolGroup",
-            "I,Flags"
-         ),
+        ("I,HeaderSize", "I,FixupInfoSize", "I,Symbol", "I,SymbolGroup", "I,Flags"),
     )
 
     __IMAGE_DYNAMIC_RELOCATION64_V2_format__ = (
         "IMAGE_DYNAMIC_RELOCATION64_V2",
-        (
-            "I,HeaderSize",
-            "I,FixupInfoSize",
-            "Q,Symbol",
-            "I,SymbolGroup",
-            "I,Flags"
-        ),
+        ("I,HeaderSize", "I,FixupInfoSize", "Q,Symbol", "I,SymbolGroup", "I,Flags"),
     )
 
     __IMAGE_BOUND_IMPORT_DESCRIPTOR_format__ = (
@@ -2898,7 +2879,7 @@ class PE:
         self.dynamic_relocation_format_by_symbol = {
             3: PE.__IMAGE_IMPORT_CONTROL_TRANSFER_DYNAMIC_RELOCATION_format__,
             4: PE.__IMAGE_INDIR_CONTROL_TRANSFER_DYNAMIC_RELOCATION_format__,
-            5: PE.__IMAGE_SWITCHTABLE_BRANCH_DYNAMIC_RELOCATION_format__
+            5: PE.__IMAGE_SWITCHTABLE_BRANCH_DYNAMIC_RELOCATION_format__,
         }
 
         fast_load = fast_load if fast_load is not None else globals()["fast_load"]
@@ -4041,12 +4022,16 @@ class PE:
         if fields_counter > 35:
             dynamic_relocations = self.parse_dynamic_relocations(
                 load_config_struct.DynamicValueRelocTableOffset,
-                load_config_struct.DynamicValueRelocTableSection
+                load_config_struct.DynamicValueRelocTableSection,
             )
 
-        return LoadConfigData(struct=load_config_struct, dynamic_relocations=dynamic_relocations)
+        return LoadConfigData(
+            struct=load_config_struct, dynamic_relocations=dynamic_relocations
+        )
 
-    def parse_dynamic_relocations(self, dynamic_value_reloc_table_offset, dynamic_value_reloc_table_section):
+    def parse_dynamic_relocations(
+        self, dynamic_value_reloc_table_offset, dynamic_value_reloc_table_section
+    ):
         if not dynamic_value_reloc_table_offset:
             return None
         if not dynamic_value_reloc_table_section:
@@ -4058,7 +4043,9 @@ class PE:
         section = self.sections[dynamic_value_reloc_table_section - 1]
         rva = section.VirtualAddress + dynamic_value_reloc_table_offset
         image_dynamic_reloc_table_struct = None
-        reloc_table_size = Structure(self.__IMAGE_DYNAMIC_RELOCATION_TABLE_format__).sizeof()
+        reloc_table_size = Structure(
+            self.__IMAGE_DYNAMIC_RELOCATION_TABLE_format__
+        ).sizeof()
         try:
             image_dynamic_reloc_table_struct = self.__unpack_data__(
                 self.__IMAGE_DYNAMIC_RELOCATION_TABLE_format__,
@@ -4067,13 +4054,14 @@ class PE:
             )
         except PEFormatError:
             self.__warnings.append(
-                "Invalid IMAGE_DYNAMIC_RELOCATION_TABLE information. Can't read " "data at RVA: 0x%x" % rva
+                "Invalid IMAGE_DYNAMIC_RELOCATION_TABLE information. Can't read "
+                "data at RVA: 0x%x" % rva
             )
 
         if image_dynamic_reloc_table_struct.Version != 1:
             self.__warnings.append(
                 "No pasring available for IMAGE_DYNAMIC_RELOCATION_TABLE.Version = %d",
-                image_dynamic_reloc_table_struct.Version
+                image_dynamic_reloc_table_struct.Version,
             )
             return None
 
@@ -4093,7 +4081,7 @@ class PE:
                 dynamic_rlc = self.__unpack_data__(
                     format,
                     self.get_data(rva, rlc_size),
-                    file_offset=self.get_offset_from_rva(rva)
+                    file_offset=self.get_offset_from_rva(rva),
                 )
             except PEFormatError:
                 self.__warnings.append(
@@ -4115,18 +4103,16 @@ class PE:
                 )
                 dynamic_relocations.append(
                     DynamicRelocationData(
-                        struct=dynamic_rlc,
-                        symbol=symbol,
-                        relocations=relocations)
+                        struct=dynamic_rlc, symbol=symbol, relocations=relocations
+                    )
                 )
 
             if symbol > 5:
                 relocations = self.parse_image_base_relocation_list(rva, size)
                 dynamic_relocations.append(
                     DynamicRelocationData(
-                        struct = dynamic_rlc,
-                        symbol = symbol,
-                        relocations=relocations)
+                        struct=dynamic_rlc, symbol=symbol, relocations=relocations
+                    )
                 )
 
             rva += size
@@ -4277,9 +4263,7 @@ class PE:
             offsets.add(reloc_offset)
 
             entries.append(
-                RelocationData(
-                    struct=entry, base_rva=rva, rva=reloc_offset + rva
-                )
+                RelocationData(struct=entry, base_rva=rva, rva=reloc_offset + rva)
             )
             file_offset += entry_size
 
@@ -7468,35 +7452,82 @@ class PE:
                 )
             if hasattr(self, "DIRECTORY_ENTRY_LOAD_CONFIG"):
                 load_config = self.DIRECTORY_ENTRY_LOAD_CONFIG.struct
-                if hasattr(load_config,"LockPrefixTable") and load_config.LockPrefixTable:
+                if (
+                    hasattr(load_config, "LockPrefixTable")
+                    and load_config.LockPrefixTable
+                ):
                     load_config.LockPrefixTable += relocation_difference
-                if hasattr(load_config,"EditList") and load_config.EditList:
+                if hasattr(load_config, "EditList") and load_config.EditList:
                     load_config.EditList += relocation_difference
-                if hasattr(load_config,"SecurityCookie") and load_config.SecurityCookie:
+                if (
+                    hasattr(load_config, "SecurityCookie")
+                    and load_config.SecurityCookie
+                ):
                     load_config.SecurityCookie += relocation_difference
-                if hasattr(load_config,"SEHandlerTable") and load_config.SEHandlerTable:
+                if (
+                    hasattr(load_config, "SEHandlerTable")
+                    and load_config.SEHandlerTable
+                ):
                     load_config.SEHandlerTable += relocation_difference
-                if hasattr(load_config,"GuardCFCheckFunctionPointer") and load_config.GuardCFCheckFunctionPointer:
+                if (
+                    hasattr(load_config, "GuardCFCheckFunctionPointer")
+                    and load_config.GuardCFCheckFunctionPointer
+                ):
                     load_config.GuardCFCheckFunctionPointer += relocation_difference
-                if hasattr(load_config,"GuardCFDispatchFunctionPointer") and load_config.GuardCFDispatchFunctionPointer:
+                if (
+                    hasattr(load_config, "GuardCFDispatchFunctionPointer")
+                    and load_config.GuardCFDispatchFunctionPointer
+                ):
                     load_config.GuardCFDispatchFunctionPointer += relocation_difference
-                if hasattr(load_config,"GuardCFFunctionTable") and load_config.GuardCFFunctionTable:
+                if (
+                    hasattr(load_config, "GuardCFFunctionTable")
+                    and load_config.GuardCFFunctionTable
+                ):
                     load_config.GuardCFFunctionTable += relocation_difference
-                if hasattr(load_config,"GuardAddressTakenIatEntryTable") and load_config.GuardAddressTakenIatEntryTable:
+                if (
+                    hasattr(load_config, "GuardAddressTakenIatEntryTable")
+                    and load_config.GuardAddressTakenIatEntryTable
+                ):
                     load_config.GuardAddressTakenIatEntryTable += relocation_difference
-                if hasattr(load_config,"GuardLongJumpTargetTable") and load_config.GuardLongJumpTargetTable:
+                if (
+                    hasattr(load_config, "GuardLongJumpTargetTable")
+                    and load_config.GuardLongJumpTargetTable
+                ):
                     load_config.GuardLongJumpTargetTable += relocation_difference
-                if hasattr(load_config,"DynamicValueRelocTable") and load_config.DynamicValueRelocTable:
+                if (
+                    hasattr(load_config, "DynamicValueRelocTable")
+                    and load_config.DynamicValueRelocTable
+                ):
                     load_config.DynamicValueRelocTable += relocation_difference
-                if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS and hasattr(load_config,"CHPEMetadataPointer") and load_config.CHPEMetadataPointer:
+                if (
+                    self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS
+                    and hasattr(load_config, "CHPEMetadataPointer")
+                    and load_config.CHPEMetadataPointer
+                ):
                     load_config.CHPEMetadataPointer += relocation_difference
-                if hasattr(load_config,"GuardRFFailureRoutine") and load_config.GuardRFFailureRoutine:
+                if (
+                    hasattr(load_config, "GuardRFFailureRoutine")
+                    and load_config.GuardRFFailureRoutine
+                ):
                     load_config.GuardRFFailureRoutine += relocation_difference
-                if hasattr(load_config,"GuardRFFailureRoutineFunctionPointer") and load_config.GuardRFFailureRoutineFunctionPointer:
-                    load_config.GuardRFVerifyStackPointerFunctionPointer += relocation_difference
-                if hasattr(load_config,"GuardRFVerifyStackPointerFunctionPointer") and load_config.GuardRFVerifyStackPointerFunctionPointer:
-                    load_config.GuardRFVerifyStackPointerFunctionPointer += relocation_difference
-                if hasattr(load_config,"EnclaveConfigurationPointer") and load_config.EnclaveConfigurationPointer:
+                if (
+                    hasattr(load_config, "GuardRFFailureRoutineFunctionPointer")
+                    and load_config.GuardRFFailureRoutineFunctionPointer
+                ):
+                    load_config.GuardRFVerifyStackPointerFunctionPointer += (
+                        relocation_difference
+                    )
+                if (
+                    hasattr(load_config, "GuardRFVerifyStackPointerFunctionPointer")
+                    and load_config.GuardRFVerifyStackPointerFunctionPointer
+                ):
+                    load_config.GuardRFVerifyStackPointerFunctionPointer += (
+                        relocation_difference
+                    )
+                if (
+                    hasattr(load_config, "EnclaveConfigurationPointer")
+                    and load_config.EnclaveConfigurationPointer
+                ):
                     load_config.EnclaveConfigurationPointer += relocation_difference
 
     def verify_checksum(self):
