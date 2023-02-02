@@ -39,7 +39,6 @@ jobs:
 
       - name: "Run tox for ${{ matrix.python-version }}"
         run: |
-          export PYTHONPATH=$PYTHONPATH:$GITHUB_WORKSPACE
           python -m tox
 
       - name: "Upload coverage data"
