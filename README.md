@@ -1,7 +1,7 @@
 # pefile
 
 [![PyPI version](https://badge.fury.io/py/pefile.svg)](https://badge.fury.io/py/pefile)
-![pefile test](https://github.com/erocarrera/pefile/actions/workflows/tests.yml/badge.svg)
+![pefile test](https://github.com/erocarrera/pefile/actions/workflows/tests.yaml/badge.svg)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 
 _pefile_ is a multi-platform Python module to parse and work with [Portable Executable (PE) files](http://en.wikipedia.org/wiki/Portable_Executable). Most of the information contained in the PE file headers is accessible, as well as all the sections' details and data.
