@@ -12,7 +12,7 @@ jobs:
       matrix:
         os:
           - ubuntu-latest
-          # - macos-latest
+          - macos-latest
           - windows-latest
         python-version:
           - "3.7"
@@ -51,11 +51,6 @@ jobs:
         with:
           name: covdata
           path: .coverage.*
-          
-      # - name: Test with pytest
-      #   run: |
-      #     export PYTHONPATH=$PYTHONPATH:$GITHUB_WORKSPACE
-      #     pytest -k test_exports
 
   coverage:
     name: Coverage
