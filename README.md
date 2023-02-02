@@ -1,10 +1,8 @@
 # pefile
 
-|Master|Develop|
-|------|-------|
-|[![Build Status](https://travis-ci.org/erocarrera/pefile.svg?branch=master)](https://travis-ci.org/erocarrera/pefile)|[![Build Status](https://travis-ci.org/erocarrera/pefile.svg?branch=develop)](https://travis-ci.org/erocarrera/pefile)|
-|[![Coverage Status](https://coveralls.io/repos/github/erocarrera/pefile/badge.svg?branch=master)](https://coveralls.io/github/erocarrera/pefile?branch=master)|[![Coverage Status](https://coveralls.io/repos/erocarrera/pefile/badge.svg?branch=develop)](https://coveralls.io/r/erocarrera/pefile?branch=develop)|
-
+[![PyPI version](https://badge.fury.io/py/pefile.svg)](https://badge.fury.io/py/pefile)
+![pefile test](https://github.com/erocarrera/pefile/actions/workflows/tests.yml/badge.svg)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 
 _pefile_ is a multi-platform Python module to parse and work with [Portable Executable (PE) files](http://en.wikipedia.org/wiki/Portable_Executable). Most of the information contained in the PE file headers is accessible, as well as all the sections' details and data.
 
