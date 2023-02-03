@@ -45,8 +45,7 @@ jobs:
         name: Clone https://github.com/pombredanne/pefile-tests
         uses: actions/checkout@master
         with:
-          name: pombredanne/pefile-tests
-          ref: refs/heads/release
+          repository: pombredanne/pefile-tests
           path: ./pefile-tests
 
       - name: "Run tox for ${{ matrix.python-version }}"
