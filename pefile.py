@@ -5341,7 +5341,7 @@ class PE:
                 # Corrupt? a bad pointer... we assume it's all
                 # useless, no exports
                 return None
-            if symbol_address is None:
+            if symbol_address is None or symbol_address == 0:
                 continue
 
             # If the function's RVA points within the export directory
@@ -5711,7 +5711,7 @@ class PE:
         Returns:
             the hexdigest of the SHA256 hash of the exported symbols.
         """
-        
+
         if not hasattr(self, "DIRECTORY_ENTRY_EXPORT"):
             return ""
 

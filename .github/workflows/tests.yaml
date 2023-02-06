@@ -42,10 +42,10 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - if: ${{matrix.coverage}}
-        name: Clone https://github.com/pombredanne/pefile-tests
+        name: Clone https://github.com/erocarrera/pefile-tests
         uses: actions/checkout@master
         with:
-          repository: pombredanne/pefile-tests
+          repository: erocarrera/pefile-tests
           path: ./pefile-tests
 
       - name: "Run tox for ${{ matrix.python-version }}"
