@@ -2903,7 +2903,7 @@ class PE:
     def __exit__(self, type, value, traceback):
         self.close()
 
-    def close(self):
+    def _close_data(self):
         if (
             self.__from_file is True
             and hasattr(self, "__data__")
@@ -2914,6 +2914,9 @@ class PE:
         ):
             self.__data__.close()
             del self.__data__
+
+    def close(self):
+        self._close_data()
 
     def __unpack_data__(self, format, data, file_offset):
         """Apply structure format to raw data.
@@ -7332,7 +7335,9 @@ class PE:
 
     def set_data_bytes(self, offset: int, data: bytes):
         if not isinstance(self.__data__, bytearray):
-            self.__data__ = bytearray(self.__data__)
+            new_data = bytearray(self.__data__)
+            self._close_data()
+            self.__data__ = new_data
 
         self.__data__[offset : offset + len(data)] = data
 
@@ -7590,7 +7595,9 @@ class PE:
         #         print('Idx: {0} G {1:02x} {3} B {2:02x}'.format(
         #             idx, ord(self.__data__[idx]), b,
         #             self.__data__[idx], chr(b)))
-        self.__data__ = self.write()
+        new_data = self.write()
+        self._close_data()
+        self.__data__ = new_data
 
         # Get the offset to the CheckSum field in the OptionalHeader
         # (The offset is the same in PE32 and PE32+)
