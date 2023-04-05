@@ -3359,10 +3359,10 @@ class PE:
             rich_data = self.__data__[0x80 : rich_index + 8]
             # Make the data have length a multiple of 4, otherwise the
             # subsequent parsing will fail. It's not impossible that we retrieve
-            # truncated data that it's not a multiple.
-            rich_data = rich_data[: 4 * int(len(rich_data) / 4)]
+            # truncated data that is not a multiple.
+            rich_data = rich_data[: 4 * (len(rich_data) // 4)]
             data = list(
-                struct.unpack("<{0}I".format(int(len(rich_data) / 4)), rich_data)
+                struct.unpack("<{0}I".format(len(rich_data) // 4), rich_data)
             )
             if RICH not in data:
                 return None
@@ -3394,7 +3394,7 @@ class PE:
         result["values"] = headervalues
 
         data = data[4:]
-        for i in range(int(len(data) / 2)):
+        for i in range(len(data) // 2):
 
             # Stop until the Rich footer signature is found
             #
@@ -4209,7 +4209,7 @@ class PE:
 
         entries = []
         offsets_and_type = set()
-        for idx in range(int(len(data) / 2)):
+        for idx in range(len(data) // 2):
 
             entry = self.__unpack_data__(
                 self.__IMAGE_BASE_RELOCATION_ENTRY_format__,
@@ -4254,7 +4254,7 @@ class PE:
         entry_size = StructureWithBitfields(format).sizeof()
         entries = []
         offsets = set()
-        for idx in range(int(len(data) / entry_size)):
+        for idx in range(len(data) // entry_size):
 
             entry = self.__unpack_data_with_bitfields__(
                 format,
@@ -7610,11 +7610,11 @@ class PE:
         remainder = len(self.__data__) % 4
         data_len = len(self.__data__) + ((4 - remainder) * (remainder != 0))
 
-        for i in range(int(data_len / 4)):
+        for i in range(data_len // 4):
             # Skip the checksum field
-            if i == int(checksum_offset / 4):
+            if i == checksum_offset // 4:
                 continue
-            if i + 1 == (int(data_len / 4)) and remainder:
+            if i + 1 == (data_len // 4) and remainder:
                 dword = struct.unpack(
                     "I", self.__data__[i * 4 :] + (b"\0" * (4 - remainder))
                 )[0]
