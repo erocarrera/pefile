@@ -2667,17 +2667,17 @@ class PE:
     __IMAGE_INDIR_CONTROL_TRANSFER_DYNAMIC_RELOCATION_format__ = (
         "IMAGE_INDIR_CONTROL_TRANSFER_DYNAMIC_RELOCATION",
         (
-            "I:12,PageRelativeOffset",
-            "I:1,IndirectCall",
-            "I:1,RexWPrefix",
-            "I:1,CfgCheck",
-            "I:1,Reserved",
+            "H:12,PageRelativeOffset",
+            "H:1,IndirectCall",
+            "H:1,RexWPrefix",
+            "H:1,CfgCheck",
+            "H:1,Reserved",
         ),
     )
 
     __IMAGE_SWITCHTABLE_BRANCH_DYNAMIC_RELOCATION_format__ = (
         "IMAGE_SWITCHTABLE_BRANCH_DYNAMIC_RELOCATION",
-        ("I:12,PageRelativeOffset", "I:4,RegisterNumber"),
+        ("H:12,PageRelativeOffset", "H:4,RegisterNumber"),
     )
 
     __IMAGE_TLS_DIRECTORY_format__ = (
@@ -4271,6 +4271,9 @@ class PE:
                     "Overlapping offsets in relocation data "
                     "at RVA: 0x%x" % (reloc_offset + rva)
                 )
+                break
+            if reloc_offset == 0:
+                self.__warnings.append(f"Ignoring zero-padding at file_offset: 0x{file_offset:08x}")
                 break
             offsets.add(reloc_offset)
 
