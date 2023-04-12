@@ -2774,7 +2774,7 @@ class PE:
             "I,ProcessHeapFlags",
             "I,ProcessAffinityMask",
             "H,CSDVersion",
-            "H,Reserved1",
+            "H,DependentLoadFlags",
             "I,EditList",
             "I,SecurityCookie",
             "I,SEHandlerTable",
@@ -2799,9 +2799,18 @@ class PE:
             "I,DynamicValueRelocTableOffset",
             "H,DynamicValueRelocTableSection",
             "H,Reserved2",
-            "I,GuardRFVerifyStackPointerFunctionPointer" "I,HotPatchTableOffset",
+            "I,GuardRFVerifyStackPointerFunctionPointer",
+            "I,HotPatchTableOffset",
             "I,Reserved3",
             "I,EnclaveConfigurationPointer",
+            "I,VolatileMetadataPointer",
+            "I,GuardEHContinuationTable",
+            "I,GuardEHContinuationCount",
+            "I,GuardXFGCheckFunctionPointer",
+            "I,GuardXFGDispatchFunctionPointer",
+            "I,GuardXFGTableDispatchFunctionPointer",
+            "I,CastGuardOsDeterminedFailureMode",
+            "I,GuardMemcpyFunctionPointer",
         ),
     )
 
@@ -2823,7 +2832,7 @@ class PE:
             "Q,ProcessAffinityMask",
             "I,ProcessHeapFlags",
             "H,CSDVersion",
-            "H,Reserved1",
+            "H,DependentLoadFlags",
             "Q,EditList",
             "Q,SecurityCookie",
             "Q,SEHandlerTable",
@@ -2852,6 +2861,14 @@ class PE:
             "I,HotPatchTableOffset",
             "I,Reserved3",
             "Q,EnclaveConfigurationPointer",
+            "Q,VolatileMetadataPointer",
+            "Q,GuardEHContinuationTable",
+            "Q,GuardEHContinuationCount",
+            "Q,GuardXFGCheckFunctionPointer",
+            "Q,GuardXFGDispatchFunctionPointer",
+            "Q,GuardXFGTableDispatchFunctionPointer",
+            "Q,CastGuardOsDeterminedFailureMode",
+            "Q,GuardMemcpyFunctionPointer",
         ),
     )
 
@@ -4424,9 +4441,6 @@ class PE:
                     "Overlapping offsets in relocation data "
                     "at RVA: 0x%x" % (reloc_offset + rva)
                 )
-                break
-            if reloc_offset == 0:
-                self.__warnings.append(f"Ignoring zero-padding at file_offset: 0x{file_offset:08x}")
                 break
             offsets.add(reloc_offset)
 
