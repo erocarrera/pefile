@@ -7748,6 +7748,41 @@ class PE:
                     and load_config.EnclaveConfigurationPointer
                 ):
                     load_config.EnclaveConfigurationPointer += relocation_difference
+                if (
+                    hasattr(load_config, "VolatileMetadataPointer")
+                    and load_config.VolatileMetadataPointer
+                ):
+                    load_config.VolatileMetadataPointer += relocation_difference
+                if (
+                    hasattr(load_config, "GuardEHContinuationTable")
+                    and load_config.GuardEHContinuationTable
+                ):
+                    load_config.GuardEHContinuationTable += relocation_difference
+                if (
+                    hasattr(load_config, "GuardXFGCheckFunctionPointer")
+                    and load_config.GuardXFGCheckFunctionPointer
+                ):
+                    load_config.GuardXFGCheckFunctionPointer += relocation_difference
+                if (
+                    hasattr(load_config, "GuardXFGDispatchFunctionPointer")
+                    and load_config.GuardXFGDispatchFunctionPointer
+                ):
+                    load_config.GuardXFGDispatchFunctionPointer += relocation_difference
+                if (
+                    hasattr(load_config, "GuardXFGTableDispatchFunctionPointer")
+                    and load_config.GuardXFGTableDispatchFunctionPointer
+                ):
+                    load_config.GuardXFGTableDispatchFunctionPointer += relocation_difference
+                if (
+                    hasattr(load_config, "CastGuardOsDeterminedFailureMode")
+                    and load_config.CastGuardOsDeterminedFailureMode
+                ):
+                    load_config.CastGuardOsDeterminedFailureMode += relocation_difference
+                if (
+                    hasattr(load_config, "GuardMemcpyFunctionPointer")
+                    and load_config.GuardMemcpyFunctionPointer
+                ):
+                    load_config.GuardMemcpyFunctionPointer += relocation_difference
 
     def verify_checksum(self):
 
