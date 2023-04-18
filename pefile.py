@@ -1734,6 +1734,33 @@ class DynamicRelocationData(DataContainer):
     """
 
 
+class FunctionOverrideData(DataContainer):
+    """Holds Function and bdd dynamic relocation information.
+
+    struct:        IMAGE_DYNAMIC_RELOCATION structure
+    symbol:        Symbol to which dynamic relocations must be applied
+    bdd_relocs:    List of bdd dynamic relocations (BddDynamicRelocationData instances)
+    func_relocs:   List of function override dynamic relocations (FunctionOverrideDynamicRelocationData instances)
+    """
+
+
+class FunctionOverrideDynamicRelocationData(DataContainer):
+    """Holds Function override dynamic relocation information.
+
+    struct:        IMAGE_FUNCTION_OVERRIDE_DYNAMIC_RELOCATION structure
+    func_rva:      Original function rva
+    override_rvas: List of overriding function rvas
+    relocations:   List of dynamic relocations (BaseRelocationData instances)
+    """
+
+
+class BddDynamicRelocationData(DataContainer):
+    """Holds Bdd dynamic relocation information.
+
+    struct:        IMAGE_BDD_DYNAMIC_RELOCATION structure
+    """
+
+
 class BaseRelocationData(DataContainer):
     """Holds base relocation information.
 
@@ -2667,17 +2694,42 @@ class PE:
     __IMAGE_INDIR_CONTROL_TRANSFER_DYNAMIC_RELOCATION_format__ = (
         "IMAGE_INDIR_CONTROL_TRANSFER_DYNAMIC_RELOCATION",
         (
-            "I:12,PageRelativeOffset",
-            "I:1,IndirectCall",
-            "I:1,RexWPrefix",
-            "I:1,CfgCheck",
-            "I:1,Reserved",
+            "H:12,PageRelativeOffset",
+            "H:1,IndirectCall",
+            "H:1,RexWPrefix",
+            "H:1,CfgCheck",
+            "H:1,Reserved",
         ),
     )
 
     __IMAGE_SWITCHTABLE_BRANCH_DYNAMIC_RELOCATION_format__ = (
         "IMAGE_SWITCHTABLE_BRANCH_DYNAMIC_RELOCATION",
-        ("I:12,PageRelativeOffset", "I:4,RegisterNumber"),
+        ("H:12,PageRelativeOffset", "H:4,RegisterNumber"),
+    )
+
+    __IMAGE_FUNCTION_OVERRIDE_HEADER_format__ = (
+        "IMAGE_FUNCTION_OVERRIDE_HEADER",
+        ("I,FuncOverrideSize",),
+    )
+
+    __IMAGE_FUNCTION_OVERRIDE_DYNAMIC_RELOCATION_format__ = (
+        "IMAGE_FUNCTION_OVERRIDE_DYNAMIC_RELOCATION",
+        (
+            "I,OriginalRva",
+            "I,BDDOffset",
+            "I,RvaSize",
+            "I,BaseRelocSize",
+        ),
+    )
+
+    __IMAGE_BDD_INFO_format__ = (
+        "IMAGE_BDD_INFO",
+        ("I,Version", "I,BDDSize"),
+    )
+
+    __IMAGE_BDD_DYNAMIC_RELOCATION_format__ = (
+        "IMAGE_BDD_DYNAMIC_RELOCATION",
+        ("H,Left", "H,Right", "I,Value"),
     )
 
     __IMAGE_TLS_DIRECTORY_format__ = (
@@ -2722,7 +2774,7 @@ class PE:
             "I,ProcessHeapFlags",
             "I,ProcessAffinityMask",
             "H,CSDVersion",
-            "H,Reserved1",
+            "H,DependentLoadFlags",
             "I,EditList",
             "I,SecurityCookie",
             "I,SEHandlerTable",
@@ -2747,9 +2799,18 @@ class PE:
             "I,DynamicValueRelocTableOffset",
             "H,DynamicValueRelocTableSection",
             "H,Reserved2",
-            "I,GuardRFVerifyStackPointerFunctionPointer" "I,HotPatchTableOffset",
+            "I,GuardRFVerifyStackPointerFunctionPointer",
+            "I,HotPatchTableOffset",
             "I,Reserved3",
             "I,EnclaveConfigurationPointer",
+            "I,VolatileMetadataPointer",
+            "I,GuardEHContinuationTable",
+            "I,GuardEHContinuationCount",
+            "I,GuardXFGCheckFunctionPointer",
+            "I,GuardXFGDispatchFunctionPointer",
+            "I,GuardXFGTableDispatchFunctionPointer",
+            "I,CastGuardOsDeterminedFailureMode",
+            "I,GuardMemcpyFunctionPointer",
         ),
     )
 
@@ -2771,7 +2832,7 @@ class PE:
             "Q,ProcessAffinityMask",
             "I,ProcessHeapFlags",
             "H,CSDVersion",
-            "H,Reserved1",
+            "H,DependentLoadFlags",
             "Q,EditList",
             "Q,SecurityCookie",
             "Q,SEHandlerTable",
@@ -2800,6 +2861,14 @@ class PE:
             "I,HotPatchTableOffset",
             "I,Reserved3",
             "Q,EnclaveConfigurationPointer",
+            "Q,VolatileMetadataPointer",
+            "Q,GuardEHContinuationTable",
+            "Q,GuardEHContinuationCount",
+            "Q,GuardXFGCheckFunctionPointer",
+            "Q,GuardXFGDispatchFunctionPointer",
+            "Q,GuardXFGTableDispatchFunctionPointer",
+            "Q,CastGuardOsDeterminedFailureMode",
+            "Q,GuardMemcpyFunctionPointer",
         ),
     )
 
@@ -4119,7 +4188,18 @@ class PE:
                     )
                 )
 
-            if symbol > 5:
+            elif symbol == 7:
+                func_relocs, bdd_relocs = self.parse_function_override_data(rva)
+                dynamic_relocations.append(
+                    FunctionOverrideData(
+                        struct=dynamic_rlc, 
+                        symbol=symbol,
+                        bdd_relocs=bdd_relocs,
+                        func_relocs=func_relocs,
+                    )
+                )
+
+            elif symbol > 5:
                 relocations = self.parse_image_base_relocation_list(rva, size)
                 dynamic_relocations.append(
                     DynamicRelocationData(
@@ -4130,6 +4210,96 @@ class PE:
             rva += size
 
         return dynamic_relocations
+
+    def parse_function_override_data(self, rva):
+        """"""
+        func_relocs = []
+        bdd_relocs = []
+
+        format = self.__IMAGE_FUNCTION_OVERRIDE_HEADER_format__
+        func_header = self.__unpack_data__(
+            format,
+            self.get_data(rva, Structure(format).sizeof()),
+            self.get_offset_from_rva(rva),
+        )
+        if not func_header:
+            self.__warnings.append(
+                "Invalid function override header. Can't read "
+                "data at RVA: 0x%x" % rva
+            )
+            return func_relocs, bdd_relocs
+        rva += Structure(format).sizeof()
+
+        func_end = rva + func_header.FuncOverrideSize
+        
+        while rva < func_end:
+            format = self.__IMAGE_FUNCTION_OVERRIDE_DYNAMIC_RELOCATION_format__
+            func_info = self.__unpack_data__(
+                format,
+                self.get_data(rva, Structure(format).sizeof()),
+                self.get_offset_from_rva(rva),
+            )
+            if not func_info:
+                self.__warnings.append(
+                    "Invalid function override info. Can't read "
+                    "data at RVA: 0x%x" % rva
+                )
+                return func_relocs, bdd_relocs
+            rva += Structure(format).sizeof()
+
+            override_rvas = []
+            for i in range(func_info.RvaSize // 4):
+                override_rvas.append(struct.unpack("<I", self.get_data(rva, 4))[0])
+                rva += 4
+
+            relocations = self.parse_image_base_relocation_list(rva, func_info.BaseRelocSize)
+            rva += func_info.BaseRelocSize
+
+            func_relocs.append(
+                FunctionOverrideDynamicRelocationData(
+                    struct=func_info,
+                    func_rva=func_info.OriginalRva,
+                    override_rvas=override_rvas,
+                    relocations=relocations,
+                )
+            )
+
+        format = self.__IMAGE_BDD_INFO_format__
+        bdd_info = self.__unpack_data__(
+            format,
+            self.get_data(rva, Structure(format).sizeof()),
+            self.get_offset_from_rva(rva),
+        )
+        if not bdd_info:
+            self.__warnings.append(
+                "Invalid bdd info. Can't read "
+                "data at RVA: 0x%x" % rva
+            )
+            return func_relocs, bdd_relocs
+        rva += Structure(format).sizeof()
+        
+        for i in range(bdd_info.BDDSize // 8):
+            format = self.__IMAGE_BDD_DYNAMIC_RELOCATION_format__
+            bdd_reloc = self.__unpack_data__(
+                format,
+                self.get_data(rva, Structure(format).sizeof()),
+                self.get_offset_from_rva(rva),
+            )
+            if not bdd_reloc:
+                self.__warnings.append(
+                    "Invalid bdd dynamic relocation. Can't read "
+                    "data at RVA: 0x%x" % rva
+                )
+                return func_relocs, bdd_relocs
+            rva += Structure(format).sizeof()
+
+            bdd_relocs.append(
+                BddDynamicRelocationData(
+                    struct=bdd_reloc
+                ) 
+            )
+
+        return func_relocs, bdd_relocs
 
     def parse_relocations_directory(self, rva, size):
         """"""
@@ -7578,6 +7748,41 @@ class PE:
                     and load_config.EnclaveConfigurationPointer
                 ):
                     load_config.EnclaveConfigurationPointer += relocation_difference
+                if (
+                    hasattr(load_config, "VolatileMetadataPointer")
+                    and load_config.VolatileMetadataPointer
+                ):
+                    load_config.VolatileMetadataPointer += relocation_difference
+                if (
+                    hasattr(load_config, "GuardEHContinuationTable")
+                    and load_config.GuardEHContinuationTable
+                ):
+                    load_config.GuardEHContinuationTable += relocation_difference
+                if (
+                    hasattr(load_config, "GuardXFGCheckFunctionPointer")
+                    and load_config.GuardXFGCheckFunctionPointer
+                ):
+                    load_config.GuardXFGCheckFunctionPointer += relocation_difference
+                if (
+                    hasattr(load_config, "GuardXFGDispatchFunctionPointer")
+                    and load_config.GuardXFGDispatchFunctionPointer
+                ):
+                    load_config.GuardXFGDispatchFunctionPointer += relocation_difference
+                if (
+                    hasattr(load_config, "GuardXFGTableDispatchFunctionPointer")
+                    and load_config.GuardXFGTableDispatchFunctionPointer
+                ):
+                    load_config.GuardXFGTableDispatchFunctionPointer += relocation_difference
+                if (
+                    hasattr(load_config, "CastGuardOsDeterminedFailureMode")
+                    and load_config.CastGuardOsDeterminedFailureMode
+                ):
+                    load_config.CastGuardOsDeterminedFailureMode += relocation_difference
+                if (
+                    hasattr(load_config, "GuardMemcpyFunctionPointer")
+                    and load_config.GuardMemcpyFunctionPointer
+                ):
+                    load_config.GuardMemcpyFunctionPointer += relocation_difference
 
     def verify_checksum(self):
 
