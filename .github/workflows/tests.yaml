@@ -89,7 +89,7 @@ jobs:
           echo "### Total coverage: ${TOTAL}%" >> $GITHUB_STEP_SUMMARY
 
       - name: "Make badge"
-        uses: schneegans/dynamic-badges-action@v1.4.0
+        uses: schneegans/dynamic-badges-action@v1.6.0
         with:
           # GIST_TOKEN is a GitHub personal access token with scope "gist".
           auth: ${{ secrets.GIST_TOKEN }}
