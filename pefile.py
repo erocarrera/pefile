@@ -6409,10 +6409,10 @@ class PE:
 
         s = self.get_section_by_rva(rva)
 
-        if length:
-            end = rva + length
-        else:
+        if length is None:
             end = None
+        else:
+            end = rva + length
 
         if not s:
             if rva < len(self.header):
