@@ -10,7 +10,6 @@ REGRESSION_TESTS_DIR = "tests/test_files"
 
 
 class Test_pefile(unittest.TestCase):
-
     maxDiff = None
 
     def setUp(self):
@@ -283,7 +282,6 @@ class Test_pefile(unittest.TestCase):
         diff, differences = 0, list()
         for idx in range(len(original_data)):
             if original_data and new_data and original_data[idx] != new_data[idx]:
-
                 diff += 1
                 # Skip the zeroes that pefile automatically adds to pad a new,
                 # shorter string, into the space occupied by a longer one.
