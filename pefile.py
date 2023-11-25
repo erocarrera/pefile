@@ -6300,7 +6300,9 @@ class PE:
             if padding_length > 0:
                 mapped_data += b"\0" * padding_length
             elif padding_length < 0:
-                mapped_data = mapped_data[:padding_length]
+                mapped_data = self.header + b"\0" * (
+                    len(mapped_data) + padding_length - len(self.header)
+                )
 
             mapped_data += section.get_data()
 
