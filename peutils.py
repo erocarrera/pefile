@@ -40,7 +40,7 @@ class SignatureDatabase(object):
         # RegExp to match a signature block
         #
         self.parse_sig = re.compile(
-            "\[(.*?)\]\s+?signature\s*=\s*(.*?)(\s+\?\?)*\s*ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)",
+            r"\[(.*?)\]\s+?signature\s*=\s*(.*?)(\s+\?\?)*\s*ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)",
             re.S,
         )
 
