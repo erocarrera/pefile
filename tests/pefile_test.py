@@ -232,12 +232,12 @@ class Test_pefile(unittest.TestCase):
 
         self.assertEqual(
             pefile.PE(os.path.join(REGRESSION_TESTS_DIR, "mfc40.dll")).get_exphash(),
-            "a9624d1572c8950b235070113e4f84fb8dc2104ea2537c680e4e75073505b0b2",
+            "62d630f6941ad56df3b0a079873a82bc",
         )
 
         self.assertEqual(
             pefile.PE(os.path.join(REGRESSION_TESTS_DIR, "kernel32.dll")).get_exphash(),
-            "5fe9d0d774e8d2ef6684c2800280bbbe77702ba5c5fbcb410b2a0538405fc6ef",
+            "ce0e98011116b41414acebc1e8c411c9",
         )
 
         self.assertEqual(
@@ -247,7 +247,7 @@ class Test_pefile(unittest.TestCase):
                     "66c74e4c9dbd1d33b22f63cd0318b72dea88f9dbb4d36a3383d3da20b037d42e",
                 )
             ).get_exphash(),
-            "cb775cf87244218418740b5e76d92ef658f1cf1960b3b6f445ef7c80c58d50c8",
+            "1f00d8a63daedf9970feb050bad38030",
         )
 
         self.assertEqual(
