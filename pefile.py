@@ -29,6 +29,8 @@ import math
 import string
 import mmap
 import uuid
+import gc
+
 
 from collections import Counter
 from typing import Union
@@ -2962,6 +2964,7 @@ class PE:
         ):
             self.__data__.close()
             del self.__data__
+        gc.collect()
 
     def close(self):
         self._close_data()
