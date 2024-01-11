@@ -2293,7 +2293,7 @@ allowed_filename = (
     string.ascii_lowercase
     + string.ascii_uppercase
     + string.digits
-    + "!#$%&'()-@^_`{}~+,.;=[]"
+    + "!#$%&'()-@^_`{}~+,.;=[]:"
 ).encode()
 
 
