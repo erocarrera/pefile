@@ -102,7 +102,7 @@ fast_load = False
 # This will set a maximum length of a string to be retrieved from the file.
 # It's there to prevent loading massive amounts of data from memory mapped
 # files. Strings longer than 1MB should be rather rare.
-MAX_STRING_LENGTH = 0x100000  # 2^20
+MAX_STRING_LENGTH = 0x100000  # 1^20
 
 # Maximum number of imports to parse.
 MAX_IMPORT_SYMBOLS = 0x2000
