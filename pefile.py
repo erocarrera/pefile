@@ -1465,13 +1465,13 @@ class StructureWithBitfields(Structure):
     def __unpack__(self, data):
         # calling the original routine to deal with special cases/spurious data
         # structures
-        super(StructureWithBitfields, self).__unpack__(data)
+        super().__unpack__(data)
         self._unpack_bitfield_attributes()
 
     def __pack__(self):
         self._pack_bitfield_attributes()
         try:
-            data = super(StructureWithBitfields, self).__pack__()
+            data = super().__pack__()
         finally:
             self._unpack_bitfield_attributes()
         return data
@@ -1480,7 +1480,7 @@ class StructureWithBitfields(Structure):
         tk = self.__keys__
         self.__keys__ = self.__keys_ext__
         try:
-            ret = super(StructureWithBitfields, self).dump(indentation)
+            ret = super().dump(indentation)
         finally:
             self.__keys__ = tk
         return ret
@@ -1489,7 +1489,7 @@ class StructureWithBitfields(Structure):
         tk = self.__keys__
         self.__keys__ = self.__keys_ext__
         try:
-            ret = super(StructureWithBitfields, self).dump_dict()
+            ret = super().dump_dict()
         finally:
             self.__keys__ = tk
         return ret
@@ -1532,7 +1532,7 @@ class DataContainer:
     """Generic data container."""
 
     def __init__(self, **args):
-        bare_setattr = super(DataContainer, self).__setattr__
+        bare_setattr = super().__setattr__
         for key, value in args.items():
             bare_setattr(key, value)
 
@@ -1845,7 +1845,7 @@ class UnwindInfo(StructureWithBitfields):
     """
 
     def __init__(self, file_offset=0):
-        super(UnwindInfo, self).__init__(
+        super().__init__(
             (
                 "UNWIND_INFO",
                 (
@@ -1859,7 +1859,7 @@ class UnwindInfo(StructureWithBitfields):
             ),
             file_offset=file_offset,
         )
-        self._full_size = super(UnwindInfo, self).sizeof()
+        self._full_size = super().sizeof()
         self._opt_field_name = None
         self._code_info = StructureWithBitfields(
             ("UNWIND_CODE", ("B,CodeOffset", "B:4,UnwindOp", "B:4,OpInfo")),
@@ -1875,10 +1875,10 @@ class UnwindInfo(StructureWithBitfields):
         if self._finished_unpacking:
             return None
 
-        super(UnwindInfo, self).__unpack__(data)
+        super().__unpack__(data)
         codes_cnt_max = (self.CountOfCodes + 1) & ~1
         hdlr_offset = (
-            super(UnwindInfo, self).sizeof() + codes_cnt_max * self._code_info.sizeof()
+            super().sizeof() + codes_cnt_max * self._code_info.sizeof()
         )
         self._full_size = hdlr_offset + (
             0 if self.Flags == 0 else STRUCT_SIZEOF_TYPES["I"]
@@ -1891,7 +1891,7 @@ class UnwindInfo(StructureWithBitfields):
             return "Unsupported version of UNWIND_INFO at " + hex(self.__file_offset__)
 
         self.UnwindCodes = []
-        ro = super(UnwindInfo, self).sizeof()
+        ro = super().sizeof()
         codes_left = self.CountOfCodes
         while codes_left > 0:
             self._code_info.__unpack__(data[ro : ro + self._code_info.sizeof()])
@@ -1942,7 +1942,7 @@ class UnwindInfo(StructureWithBitfields):
             )
             self.__keys_ext__.append([self._opt_field_name])
         try:
-            dump = super(UnwindInfo, self).dump(indentation)
+            dump = super().dump(indentation)
         finally:
             if self._opt_field_name != None:
                 self.__keys_ext__.pop()
@@ -1964,7 +1964,7 @@ class UnwindInfo(StructureWithBitfields):
             )
             self.__keys_ext__.append([self._opt_field_name])
         try:
-            ret = super(UnwindInfo, self).dump_dict()
+            ret = super().dump_dict()
         finally:
             if self._opt_field_name != None:
                 self.__keys_ext__.pop()
@@ -1985,8 +1985,8 @@ class UnwindInfo(StructureWithBitfields):
 
     def __pack__(self):
         data = bytearray(self._full_size)
-        data[0 : super(UnwindInfo, self).sizeof()] = super(UnwindInfo, self).__pack__()
-        cur_offset = super(UnwindInfo, self).sizeof()
+        data[0 : super().sizeof()] = super().__pack__()
+        cur_offset = super().sizeof()
 
         for uc in self.UnwindCodes:
             if cur_offset + uc.struct.sizeof() > self._full_size:
@@ -2093,7 +2093,7 @@ class PrologEpilogOpSetFP(PrologEpilogOp):
     """UWOP_SET_FPREG"""
 
     def initialize(self, unw_code, data, unw_info, file_offset):
-        super(PrologEpilogOpSetFP, self).initialize(
+        super().initialize(
             unw_code, data, unw_info, file_offset
         )
         self._frame_register = unw_info.FrameRegister
@@ -2197,7 +2197,7 @@ class PrologEpilogOpEpilogMarker(PrologEpilogOp):
     def initialize(self, unw_code, data, unw_info, file_offset):
         self._long_offst = True
         self._first = not hasattr(unw_info, "SizeOfEpilog")
-        super(PrologEpilogOpEpilogMarker, self).initialize(
+        super().initialize(
             unw_code, data, unw_info, file_offset
         )
         if self._first:
