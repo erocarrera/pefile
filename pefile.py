@@ -3773,7 +3773,7 @@ class PE:
                             value = entry[1](dir_entry.VirtualAddress, dir_entry.Size)
                         except PEFormatError as excp:
                             self.__warnings.append(
-                                f'Failed to process directoty "{entry[0]}": {excp}'
+                                f'Failed to process directory "{entry[0]}": {excp}'
                             )
                     if value:
                         setattr(self, entry[0][6:], value)
