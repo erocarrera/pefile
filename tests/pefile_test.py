@@ -423,45 +423,11 @@ class Test_pefile(unittest.TestCase):
         entry_point_data = pe.get_data(pe.OPTIONAL_HEADER.AddressOfEntryPoint, 32)
 
         # this is the correct EP data
-        good_ep_data = [
-            0xB8,
-            0x00,
-            0x04,
-            0x40,
-            0x00,
-            0xFF,
-            0xD0,
-            0x6A,
-            0x00,
-            0xE8,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0xFF,
-            0x25,
-            0x00,
-            0x02,
-            0x40,
-            0x00,
-            0x44,
-            0x02,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-            0x00,
-        ]
+        good_ep_data = bytes.fromhex(
+            "B800044000FFD06A00E800000000FF2500024000440200000000000000000000"
+        )
 
-        if isinstance(entry_point_data[0], int):
-            self.assertEqual([i for i in entry_point_data], good_ep_data)
-        else:
-            self.assertEqual([ord(i) for i in entry_point_data], good_ep_data)
+        self.assertEqual(entry_point_data, good_ep_data)
 
     def test_entry_point_retrieval_with_unusual_PointerToRawData_values(self):
         # Fixed a bug in pefile <= 1.2.10-106. Fixed in revision 107
@@ -477,45 +443,10 @@ class Test_pefile(unittest.TestCase):
         entry_point_data = pe.get_data(pe.OPTIONAL_HEADER.AddressOfEntryPoint, 32)
 
         # this is the correct EP data
-        good_ep_data = [
-            0xBE,
-            0xE0,
-            0x11,
-            0x40,
-            0x00,
-            0xFF,
-            0x36,
-            0xE9,
-            0xC3,
-            0x00,
-            0x00,
-            0x00,
-            0x48,
-            0x01,
-            0x0F,
-            0x01,
-            0x0B,
-            0x01,
-            0x4B,
-            0x45,
-            0x52,
-            0x4E,
-            0x45,
-            0x4C,
-            0x33,
-            0x32,
-            0x2E,
-            0x44,
-            0x4C,
-            0x4C,
-            0x00,
-            0x00,
-        ]
-
-        if isinstance(entry_point_data[0], int):
-            self.assertEqual([i for i in entry_point_data], good_ep_data)
-        else:
-            self.assertEqual([ord(i) for i in entry_point_data], good_ep_data)
+        good_ep_data = bytes.fromhex(
+            "BEE0114000FF36E9C300000048010F010B014B45524E454C33322E444C4C0000"
+        )
+        self.assertEqual(entry_point_data, good_ep_data)
 
     def test_VS_VERSIONINFO_dword_aligment(self):
         # Fixed a bug in pefile < 1.2.10-96. Fixed in revision 96:
