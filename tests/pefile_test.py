@@ -420,33 +420,82 @@ class Test_pefile(unittest.TestCase):
         )
         pe = pefile.PE(control_file)
 
-        entry_point_data = pe.get_data(pe.OPTIONAL_HEADER.AddressOfEntryPoint, 32)
-
-        # this is the correct EP data
-        good_ep_data = bytes.fromhex(
-            "B800044000FFD06A00E800000000FF2500024000440200000000000000000000"
+        self.assertEqual(
+            pe.get_data(pe.OPTIONAL_HEADER.AddressOfEntryPoint, 32),
+            bytes.fromhex(
+                "B800044000FFD06A00E800000000FF2500024000440200000000000000000000"
+            ),
         )
-
-        self.assertEqual(entry_point_data, good_ep_data)
 
     def test_entry_point_retrieval_with_unusual_PointerToRawData_values(self):
         # Fixed a bug in pefile <= 1.2.10-106. Fixed in revision 107
         # http://code.google.com/p/pefile/source/detail?r=107
 
-        # this file has abnormal PointerToRawData values that lead to the EP
-        # not being correctly retrieved
+        # This file has abnormal PointerToRawData values that lead to the EP
+        # not being correctly retrieved. The first section's PointerToRawData
+        # is 0x10, which is rounded down to zero, it's VirtualAddress is 0x1000.
+        # The entry point is at 0x1018, hence it will correspond to reading at
+        # offset 0x18 in the file.
         control_file = os.path.join(
             REGRESSION_TESTS_DIR, "unconventional_PointerToRawData_values"
         )
         pe = pefile.PE(control_file)
 
-        entry_point_data = pe.get_data(pe.OPTIONAL_HEADER.AddressOfEntryPoint, 32)
-
-        # this is the correct EP data
-        good_ep_data = bytes.fromhex(
-            "BEE0114000FF36E9C300000048010F010B014B45524E454C33322E444C4C0000"
+        self.assertEqual(
+            pe.get_data(pe.OPTIONAL_HEADER.AddressOfEntryPoint, 32),
+            bytes.fromhex(
+                "BEE0114000FF36E9C300000048010F010B014B45524E454C33322E444C4C0000"
+            ),
         )
-        self.assertEqual(entry_point_data, good_ep_data)
+        self.assertEqual(
+            pe.get_data(pe.OPTIONAL_HEADER.AddressOfEntryPoint, 32),
+            pe.__data__[0x18 : 0x18 + 32],
+        )
+
+        # This file is provided in https://github.com/hasherezade/pe-bear/issues/11
+        # to reproduce the reported issue.
+        # The entry point is at 0x167000, which is at the very beginning of the last
+        # section, named ".new". The PointerToRawData of this section is 0x161D28,
+        # which gets rounded to 0x161c00 (as if using the default alignment of 0x200),
+        # which is the one specified in the OptionalHeader's FileAlignment.
+        # Note that modifying the FileAlignment in the OptionalHeader to 0x1000 does
+        # not make any difference, the Windows loader still aligns the PointerToRawData
+        # to 0x200.
+        fname = "pe-bear_issue_11/packed.exe"
+        if os.path.exists(os.path.join(REGRESSION_TESTS_DIR, fname)):
+            control_file = os.path.join(REGRESSION_TESTS_DIR, fname)
+            pe = pefile.PE(control_file)
+
+            self.assertEqual(
+                pe.get_data(pe.OPTIONAL_HEADER.AddressOfEntryPoint, 10),
+                # This is the correct EP data at file offset 0x161c00 (0x161D28 rounded
+                # down with alignment 0x200)
+                bytes.fromhex("55f3499ca68cc9e57b9d"),
+            )
+
+        # The file has a section with PointerToRawData = VirtualAddress = 0xc. Section
+        # data is read starting from zero, as 0xc gets rounded down to zero.
+        control_file = os.path.join(REGRESSION_TESTS_DIR, "tiny-1.exe")
+        pe = pefile.PE(control_file)
+
+        self.assertEqual(
+            pe.get_data(pe.OPTIONAL_HEADER.AddressOfEntryPoint, 10),
+            # Data at file offset 0xc
+            bytes.fromhex("6a2a58c3000000000000"),
+        )
+
+        # The section "whole" has a PointerToRawData = 0x1 which gets rounded down to
+        # zero. The whole file is then read and loaded at the section's VirtualAddress,
+        # effectively creating a copy.
+        control_file = os.path.join(
+            REGRESSION_TESTS_DIR, "corkami_ange_testfiles/whole_pe_section.exe"
+        )
+        pe = pefile.PE(control_file)
+
+        self.assertEqual(
+            pe.get_data(0x2000, 10),
+            pe.__data__[0:10],
+        )
 
     def test_VS_VERSIONINFO_dword_aligment(self):
         # Fixed a bug in pefile < 1.2.10-96. Fixed in revision 96:
