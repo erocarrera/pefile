@@ -74,7 +74,7 @@ def lru_cache(maxsize=128, typed=False, copy=False):
 def cache_adjust_FileAlignment(val, file_alignment):
     if file_alignment < FILE_ALIGNMENT_HARDCODED_VALUE:
         return val
-    return (int(val / file_alignment)) * file_alignment
+    return (int(val / 0x200)) * 0x200
 
 
 @lru_cache(maxsize=2048)
