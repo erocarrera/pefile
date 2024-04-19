@@ -71,13 +71,6 @@ def lru_cache(maxsize=128, typed=False, copy=False):
 
 
 @lru_cache(maxsize=2048)
-def cache_adjust_FileAlignment(val, file_alignment):
-    if file_alignment < FILE_ALIGNMENT_HARDCODED_VALUE:
-        return val
-    return (int(val / 0x200)) * 0x200
-
-
-@lru_cache(maxsize=2048)
 def cache_adjust_SectionAlignment(val, section_alignment, file_alignment):
     if section_alignment < 0x1000:  # page size
         section_alignment = file_alignment
@@ -363,7 +356,8 @@ dll_characteristics = [
 
 DLL_CHARACTERISTICS = two_way_dict(dll_characteristics)
 
-FILE_ALIGNMENT_HARDCODED_VALUE = 0x200
+MIN_VALID_FILE_ALIGNMENT = 0x200
+SECTOR_SIZE = 0x200
 
 
 # Unwind info-related enums
@@ -1158,11 +1152,16 @@ class SectionStructure(Structure):
         self.section_max_addr = None
 
     def get_PointerToRawData_adj(self):
-        if self.PointerToRawData_adj is None:
-            if self.PointerToRawData is not None:
-                self.PointerToRawData_adj = self.pe.adjust_FileAlignment(
-                    self.PointerToRawData, self.pe.OPTIONAL_HEADER.FileAlignment
-                )
+        if self.PointerToRawData_adj is None and self.PointerToRawData is not None:
+            ptrd = self.pe.adjust_PointerToRawData(self.PointerToRawData)
+            # When the SectionAligment is smaller than the native page-size if the
+            # section’s PointerToRawData and VirtualAddress match, the section's data
+            # will be read at that offset. Implemented in the Window's function:
+            # LdrpWx86FormatVirtualImage.
+            if self.pe.OPTIONAL_HEADER.SectionAlignment < 0x1000:
+                if self.PointerToRawData == self.VirtualAddress:
+                    ptrd = self.VirtualAddress
+            self.PointerToRawData_adj = ptrd
         return self.PointerToRawData_adj
 
     def get_VirtualAddress_adj(self):
@@ -1877,9 +1876,7 @@ class UnwindInfo(StructureWithBitfields):
 
         super().__unpack__(data)
         codes_cnt_max = (self.CountOfCodes + 1) & ~1
-        hdlr_offset = (
-            super().sizeof() + codes_cnt_max * self._code_info.sizeof()
-        )
+        hdlr_offset = super().sizeof() + codes_cnt_max * self._code_info.sizeof()
         self._full_size = hdlr_offset + (
             0 if self.Flags == 0 else STRUCT_SIZEOF_TYPES["I"]
         )
@@ -2093,9 +2090,7 @@ class PrologEpilogOpSetFP(PrologEpilogOp):
     """UWOP_SET_FPREG"""
 
     def initialize(self, unw_code, data, unw_info, file_offset):
-        super().initialize(
-            unw_code, data, unw_info, file_offset
-        )
+        super().initialize(unw_code, data, unw_info, file_offset)
         self._frame_register = unw_info.FrameRegister
         self._frame_offset = unw_info.FrameOffset * 16
 
@@ -2197,9 +2192,7 @@ class PrologEpilogOpEpilogMarker(PrologEpilogOp):
     def initialize(self, unw_code, data, unw_info, file_offset):
         self._long_offst = True
         self._first = not hasattr(unw_info, "SizeOfEpilog")
-        super().initialize(
-            unw_code, data, unw_info, file_offset
-        )
+        super().initialize(unw_code, data, unw_info, file_offset)
         if self._first:
             setattr(unw_info, "SizeOfEpilog", self.struct.Size)
             self._long_offst = unw_code.OpInfo & 1 == 0
@@ -3247,7 +3240,6 @@ class PE:
         )
 
         self.OPTIONAL_HEADER.DATA_DIRECTORY = []
-        # offset = (optional_header_offset + self.FILE_HEADER.SizeOfOptionalHeader)
         offset = optional_header_offset + self.OPTIONAL_HEADER.sizeof()
 
         self.NT_HEADERS.FILE_HEADER = self.FILE_HEADER
@@ -3328,9 +3320,7 @@ class PE:
         # can't be found?
         #
         rawDataPointers = [
-            self.adjust_FileAlignment(
-                s.PointerToRawData, self.OPTIONAL_HEADER.FileAlignment
-            )
+            self.adjust_PointerToRawData(s.PointerToRawData)
             for s in self.sections
             if s.PointerToRawData > 0
         ]
@@ -3600,9 +3590,9 @@ class PE:
                     f"Error parsing section {i}. SizeOfRawData is larger than file."
                 )
 
-            if self.adjust_FileAlignment(
-                section.PointerToRawData, self.OPTIONAL_HEADER.FileAlignment
-            ) > len(self.__data__):
+            if self.adjust_PointerToRawData(section.PointerToRawData) > len(
+                self.__data__
+            ):
                 simultaneous_errors += 1
                 self.__warnings.append(
                     f"Error parsing section {i}. PointerToRawData points beyond "
@@ -6282,9 +6272,7 @@ class PE:
                 continue
 
             srd = section.SizeOfRawData
-            prd = self.adjust_FileAlignment(
-                section.PointerToRawData, self.OPTIONAL_HEADER.FileAlignment
-            )
+            prd = self.adjust_PointerToRawData(section.PointerToRawData)
             VirtualAddress_adj = self.adjust_SectionAlignment(
                 section.VirtualAddress,
                 self.OPTIONAL_HEADER.SectionAlignment,
@@ -7450,9 +7438,7 @@ class PE:
         """
 
         for section in self.sections:
-            section_data_start = self.adjust_FileAlignment(
-                section.PointerToRawData, self.OPTIONAL_HEADER.FileAlignment
-            )
+            section_data_start = self.adjust_PointerToRawData(section.PointerToRawData)
             section_data_end = section_data_start + section.SizeOfRawData
             if section_data_start < len(self.__data__) and section_data_end < len(
                 self.__data__
@@ -7928,30 +7914,26 @@ class PE:
 
         return self.__data__[:]
 
-    # According to http://corkami.blogspot.com/2010/01/parce-que-la-planche-aura-brule.html
-    # if PointerToRawData is less that 0x200 it's rounded to zero. Loading the test file
-    # in a debugger it's easy to verify that the PointerToRawData value of 1 is rounded
-    # to zero. Hence we reproduce the behavior
-    #
     # According to the document:
     # [ Microsoft Portable Executable and Common Object File Format Specification ]
     # "The alignment factor (in bytes) that is used to align the raw data of sections in
     #  the image file. The value should be a power of 2 between 512 and 64 K, inclusive.
     #  The default is 512. If the SectionAlignment is less than the architecture's page
     #  size, then FileAlignment must match SectionAlignment."
-    #
-    # The following is a hard-coded constant if the Windows loader
-    def adjust_FileAlignment(self, val, file_alignment):
-        if file_alignment > FILE_ALIGNMENT_HARDCODED_VALUE:
+    def adjust_PointerToRawData(self, val):
+        if self.OPTIONAL_HEADER.FileAlignment >= MIN_VALID_FILE_ALIGNMENT:
             # If it's not a power of two, report it:
-            if self.FileAlignment_Warning is False and not power_of_two(file_alignment):
+            if self.FileAlignment_Warning is False and not power_of_two(
+                self.OPTIONAL_HEADER.FileAlignment
+            ):
                 self.__warnings.append(
                     "If FileAlignment > 0x200 it should be a power of 2. Value: %x"
-                    % (file_alignment)
+                    % (self.OPTIONAL_HEADER.FileAlignment)
                 )
                 self.FileAlignment_Warning = True
 
-        return cache_adjust_FileAlignment(val, file_alignment)
+        # (val / SECTOR_SIZE) * SECTOR_SIZE
+        return val & ~0x1FF
 
     # According to the document:
     # [ Microsoft Portable Executable and Common Object File Format Specification ]
@@ -7960,14 +7942,16 @@ class PE:
     #  architecture."
     #
     def adjust_SectionAlignment(self, val, section_alignment, file_alignment):
-        if file_alignment < FILE_ALIGNMENT_HARDCODED_VALUE:
+        # If the SectionAlignment is less than the architecture's page size, then
+        # FileAlignment must match SectionAlignment.
+        if section_alignment < 0x1000:
             if (
                 file_alignment != section_alignment
                 and self.SectionAlignment_Warning is False
             ):
                 self.__warnings.append(
-                    "If FileAlignment(%x) < 0x200 it should equal SectionAlignment(%x)"
-                    % (file_alignment, section_alignment)
+                    f"If SectionAlignment({section_alignment:x}) < 0x1000 it should "
+                    f"equal FileAlignment({file_alignment:x})"
                 )
                 self.SectionAlignment_Warning = True
 
