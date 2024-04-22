@@ -3,6 +3,7 @@
 [![PyPI version](https://badge.fury.io/py/pefile.svg)](https://badge.fury.io/py/pefile)
 ![pefile test](https://github.com/erocarrera/pefile/actions/workflows/tests.yaml/badge.svg)
 ![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/erocarrera/2150adbc4ea8c61e381fdb9da0943723/raw/covbadge.json)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/erocarrera/pefile/badge)](https://scorecard.dev/viewer/?uri=github.com/erocarrera/pefile)
 [![Contributors](https://img.shields.io/github/contributors/erocarrera/pefile)](https://github.com/erocarrera/pefile/graphs/contributors)
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![Downloads](https://static.pepy.tech/badge/pefile/month)](https://pepy.tech/project/pefile)
