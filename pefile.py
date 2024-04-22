@@ -7950,8 +7950,8 @@ class PE:
                 and self.SectionAlignment_Warning is False
             ):
                 self.__warnings.append(
-                    f"If SectionAlignment({section_alignment:x}) < 0x1000 it should "
-                    f"equal FileAlignment({file_alignment:x})"
+                    f"If SectionAlignment(0x{section_alignment:x}) < 0x1000 it should "
+                    f"equal FileAlignment(0x{file_alignment:x})"
                 )
                 self.SectionAlignment_Warning = True
 
