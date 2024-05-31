@@ -1342,7 +1342,7 @@ def set_bitfields_format(format):
     class Accumulator:
         def __init__(self, fmt, comp_fields):
             self._subfields = []
-            # add a prefix to distinguish the artificially created compoud field
+            # add a prefix to distinguish the artificially created compound field
             # from regular fields
             self._name = "~"
             self._type = None
@@ -3410,7 +3410,7 @@ class PE:
 
         clear_data = bytearray()
         for idx, val in enumerate(raw_data):
-            clear_data.append((ord_(val) ^ ord_(key[idx % len(key)])))
+            clear_data.append(ord_(val) ^ ord_(key[idx % len(key)]))
         result["clear_data"] = bytes(clear_data)
 
         # the checksum should be present 3 times after the DanS signature
@@ -5919,7 +5919,7 @@ class PE:
                 )
 
         if not dllnames_only:
-            suspicious_imports = set(["LoadLibrary", "GetProcAddress"])
+            suspicious_imports = {"LoadLibrary", "GetProcAddress"}
             suspicious_imports_count = 0
             total_symbols = 0
             for imp_dll in import_descs:
@@ -7825,15 +7825,15 @@ class PE:
         # If it imports from "ntoskrnl.exe" or other kernel components it should
         # be a driver
         #
-        system_DLLs = set(
-            (b"ntoskrnl.exe", b"hal.dll", b"ndis.sys", b"bootvid.dll", b"kdcom.dll")
-        )
+        system_DLLs = {
+            b"ntoskrnl.exe", b"hal.dll", b"ndis.sys", b"bootvid.dll", b"kdcom.dll"
+        }
         if system_DLLs.intersection(
             [imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT]
         ):
             return True
 
-        driver_like_section_names = set((b"page", b"paged"))
+        driver_like_section_names = {b"page", b"paged"}
         if driver_like_section_names.intersection(
             [section.Name.lower().rstrip(b"\x00") for section in self.sections]
         ) and (
