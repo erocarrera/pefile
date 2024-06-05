@@ -3387,7 +3387,7 @@ class PE:
         # Read a block of data
         try:
             # The end of the structure is 8 bytes after the start of the Rich
-            # string.
+            # string (although there is padding after this).
             rich_data = self.__data__[0x80 : rich_index + 8]
             # Make the data have length a multiple of 4, otherwise the
             # subsequent parsing will fail. It's not impossible that we retrieve
@@ -3413,11 +3413,12 @@ class PE:
             clear_data.append((ord_(val) ^ ord_(key[idx % len(key)])))
         result["clear_data"] = bytes(clear_data)
 
+        # PE files are stored in little-endian order, the same byte order as an x86
+        # https://wiki.osdev.org/PE
+        checksum = int.from_bytes(key, 'little')
         # the checksum should be present 3 times after the DanS signature
-        #
-        checksum = data[1]
-        if data[0] ^ checksum != DANS or data[2] != checksum or data[3] != checksum:
-            return None
+        if data[0] ^ checksum != DANS or data[1] != checksum or data[2] != checksum or data[3] != checksum:
+            self.__warnings.append("Rich Header is not in Microsoft format, possibly malformed")
 
         result["checksum"] = checksum
         headervalues = []
