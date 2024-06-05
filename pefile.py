@@ -3120,7 +3120,7 @@ class PE:
         if not self.FILE_HEADER:
             raise PEFormatError("File Header missing")
 
-        # Set the image's flags according the the Characteristics member
+        # Set the image's flags according to the Characteristics member
         set_flags(self.FILE_HEADER, self.FILE_HEADER.Characteristics, image_flags)
 
         optional_header_offset = nt_headers_offset + 4 + self.FILE_HEADER.sizeof()
@@ -3232,7 +3232,7 @@ class PE:
             DLL_CHARACTERISTICS, "IMAGE_DLLCHARACTERISTICS_"
         )
 
-        # Set the Dll Characteristics flags according the the DllCharacteristics member
+        # Set the Dll Characteristics flags according to the DllCharacteristics member
         set_flags(
             self.OPTIONAL_HEADER,
             self.OPTIONAL_HEADER.DllCharacteristics,
@@ -3640,7 +3640,7 @@ class PE:
 
             section_flags = retrieve_flags(SECTION_CHARACTERISTICS, "IMAGE_SCN_")
 
-            # Set the section's flags according the the Characteristics member
+            # Set the section's flags according to the Characteristics member
             set_flags(section, section.Characteristics, section_flags)
 
             if section.__dict__.get(
@@ -5458,7 +5458,7 @@ class PE:
 
             # If the function's RVA points within the export directory
             # it will point to a string with the forwarded symbol's string
-            # instead of pointing the the function start address.
+            # instead of pointing to the function start address.
             if symbol_address >= rva and symbol_address < rva + size:
                 forwarder_str = self.get_string_at_rva(symbol_address)
                 try:
@@ -6304,7 +6304,7 @@ class PE:
         return mapped_data
 
     def get_resources_strings(self):
-        """Returns a list of all the strings found withing the resources (if any).
+        """Returns a list of all the strings found within the resources (if any).
 
         This method will scan all entries in the resources directory of the PE, if
         there is one, and will return a [] with the strings.
