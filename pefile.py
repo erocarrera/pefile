@@ -20,27 +20,21 @@ __author__ = "Ero Carrera"
 __version__ = "2023.2.7"
 __contact__ = "ero.carrera@gmail.com"
 
-import collections
-import os
-import struct
 import codecs
-import time
-import math
-import string
-import mmap
-import uuid
-import gc
-
-
-from collections import Counter
-from typing import Union
-from hashlib import sha1
-from hashlib import sha256
-from hashlib import sha512
-from hashlib import md5
-
-import functools
+import collections
 import copy as copymod
+import functools
+import gc
+import math
+import mmap
+import os
+import string
+import struct
+import time
+import uuid
+from collections import Counter
+from hashlib import md5, sha1, sha256, sha512
+from typing import Union
 
 import ordlookup
 

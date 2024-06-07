@@ -1,5 +1,4 @@
-from . import ws2_32
-from . import oleaut32
+from . import oleaut32, ws2_32
 
 """
 A small module for keeping a database of ordinal to symbol

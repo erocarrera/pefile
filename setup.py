@@ -5,9 +5,8 @@ import os
 import re
 import sys
 
-
 try:
-    from setuptools import setup, Command
+    from setuptools import Command, setup
 except ImportError as excp:
     from distutils.core import setup, Command
 
