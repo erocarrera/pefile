@@ -1,8 +1,8 @@
+import difflib
 import os
 import sys
-import difflib
-from hashlib import sha256
 import unittest
+from hashlib import sha256
 
 import pefile
 
