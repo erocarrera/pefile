@@ -17,7 +17,7 @@ __version__ = pefile.__version__
 __contact__ = "ero.carrera@gmail.com"
 
 
-class SignatureDatabase(object):
+class SignatureDatabase:
     """This class loads and keeps a parsed PEiD signature database.
 
     Usage:
@@ -397,7 +397,7 @@ class SignatureDatabase(object):
                     sig_f = urllib.request.urlopen(filename)
                     sig_data = sig_f.read()
                     sig_f.close()
-                except IOError:
+                except OSError:
                     # Let this be raised back to the user...
                     raise
             else:
@@ -407,7 +407,7 @@ class SignatureDatabase(object):
                     sig_f = open(filename, "rt")
                     sig_data = sig_f.read()
                     sig_f.close()
-                except IOError:
+                except OSError:
                     # Let this be raised back to the user...
                     raise
         else:
