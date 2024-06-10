@@ -998,7 +998,6 @@ class Structure:
         if len(data) > self.__format_length__:
             data = data[: self.__format_length__]
 
-        # OC Patch:
         # Some malware have incorrect header lengths.
         # Fail gracefully if this occurs
         # Buggy malware: a29b0118af8b7408444df81701ad5a7f
@@ -3072,7 +3071,6 @@ class PE:
         if not self.DOS_HEADER or self.DOS_HEADER.e_magic != IMAGE_DOS_SIGNATURE:
             raise PEFormatError("DOS Header magic not found.")
 
-        # OC Patch:
         # Check for sane value in e_lfanew
         #
         if self.DOS_HEADER.e_lfanew > len(self.__data__):
@@ -3088,7 +3086,6 @@ class PE:
 
         # We better check the signature right here, before the file screws
         # around with sections:
-        # OC Patch:
         # Some malware will cause the Signature value to not exist at all
         if not self.NT_HEADERS or not self.NT_HEADERS.Signature:
             raise PEFormatError("NT Headers not found.")
@@ -3210,7 +3207,6 @@ class PE:
         if not self.FILE_HEADER:
             raise PEFormatError("File Header missing")
 
-        # OC Patch:
         # Die gracefully if there is no OPTIONAL_HEADER field
         # 975440f5ad5e2e4a92c4d9a5f22f75c1
         if self.OPTIONAL_HEADER is None:
@@ -3306,7 +3302,6 @@ class PE:
 
         offset = self.parse_sections(sections_offset)
 
-        # OC Patch:
         # There could be a problem if there are no raw data sections
         # greater than 0
         # fc91013eb72529da005110a3403541b6 example
@@ -3721,8 +3716,6 @@ class PE:
                 directories = [directories]
 
         for entry in directory_parsing:
-            # OC Patch:
-            #
             try:
                 directory_index = DIRECTORY_ENTRY[entry[0]]
                 dir_entry = self.OPTIONAL_HEADER.DATA_DIRECTORY[directory_index]
@@ -3930,7 +3923,7 @@ class PE:
                     self.__data__[rva : rva + bnd_descr_size],
                     file_offset=rva,
                 )
-                # OC Patch:
+                
                 if not bnd_frwd_ref:
                     raise PEFormatError("IMAGE_BOUND_FORWARDER_REF cannot be read")
                 rva += bnd_frwd_ref.sizeof()
@@ -4259,7 +4252,6 @@ class PE:
 
         relocations = []
         while rva < end:
-            # OC Patch:
             # Malware that has bad RVA entries will cause an error.
             # Just continue on after an exception
             #
@@ -4588,7 +4580,6 @@ class PE:
         are available as its attributes.
         """
 
-        # OC Patch:
         if dirs is None:
             dirs = [rva]
 
@@ -4735,8 +4726,6 @@ class PE:
                     )
 
             if res.DataIsDirectory:
-                # OC Patch:
-                #
                 # One trick malware can do is to recursively reference
                 # the next directory. This causes hilarity to ensue when
                 # trying to parse everything correctly.
@@ -5965,7 +5954,6 @@ class PE:
         # bound.
         iat = self.get_import_table(first_thunk, max_length, contains_addresses)
 
-        # OC Patch:
         # Would crash if IAT or ILT had None type
         if (not iat or len(iat) == 0) and (not ilt or len(ilt) == 0):
             self.__warnings.append(
@@ -7222,7 +7210,6 @@ class PE:
 
         return dump_dict
 
-    # OC Patch
     def get_physical_by_rva(self, rva):
         """Gets the physical address in the PE file from an RVA value."""
         try:
