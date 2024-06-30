@@ -1138,7 +1138,7 @@ class SectionStructure(Structure):
         self.VirtualAddress = None
         self.SizeOfRawData = None
         self.Misc_VirtualSize = None
-        Structure.__init__(self, *argl, **argd)
+        super().__init__(*argl, **argd)
         self.PointerToRawData_adj = None
         self.VirtualAddress_adj = None
         self.section_min_addr = None
