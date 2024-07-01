@@ -1375,7 +1375,7 @@ def set_bitfields_format(format):
     ac = Accumulator(old_fmt, comp_fields)
 
     for elm in format[1]:
-        if not ":" in elm:
+        if ":" not in elm:
             ac.wrap_up()
             old_fmt.append(elm)
             continue
@@ -1400,7 +1400,7 @@ def set_bitfields_format(format):
 
     extended_keys = []
     for idx, val in enumerate(keys):
-        if not idx in comp_fields:
+        if idx not in comp_fields:
             extended_keys.append(val)
             continue
         _, sbf = comp_fields[idx]
@@ -3833,7 +3833,7 @@ class PE:
                 continue
             if not hasattr(rf.unwindinfo, "FunctionEntry"):
                 continue
-            if not rf.unwindinfo.FunctionEntry in rva2rt:
+            if rf.unwindinfo.FunctionEntry not in rva2rt:
                 self.__warnings.append(
                     f"FunctionEntry of UNWIND_INFO at {rf.struct.get_file_offset():x}"
                     " points to an entry that does not exist"
@@ -5541,7 +5541,7 @@ class PE:
         symbol_counts = collections.defaultdict(int)
         export_parsing_loop_completed_normally = True
         for idx in range(min(export_dir.NumberOfFunctions, int(safety_boundary / 4))):
-            if not idx + export_dir.Base in ordinals:
+            if idx + export_dir.Base not in ordinals:
                 try:
                     symbol_address = self.get_dword_from_data(address_of_functions, idx)
                 except PEFormatError:
