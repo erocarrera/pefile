@@ -7837,9 +7837,7 @@ class PE:
         def update_if_sum_is_larger_and_within_file(
             offset_and_size, file_size=len(self.__data__)
         ):
-            if sum(offset_and_size) <= file_size and sum(offset_and_size) > sum(
-                largest_offset_and_size
-            ):
+            if sum(largest_offset_and_size) < sum(offset_and_size) <= file_size:
                 return offset_and_size
             return largest_offset_and_size
 
