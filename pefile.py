@@ -3521,10 +3521,8 @@ class PE:
         if not filename:
             return new_file_data
 
-        f = open(filename, "wb+")
-        f.write(new_file_data)
-        f.close()
-        return
+        with open(filename, "wb+") as f:
+            f.write(new_file_data)
 
     def parse_sections(self, offset):
         """Fetch the PE file sections.
