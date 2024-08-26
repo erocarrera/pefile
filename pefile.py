@@ -1182,7 +1182,7 @@ class SectionStructure(Structure):
         `ignore_padding=True` will truncate the result in order
         not to return the padding (if any).
 
-        Returns bytes() under Python 3.x and set() under Python 2.7
+        Returns bytes().
         """
 
         if start is None:
@@ -2267,7 +2267,7 @@ class PrologEpilogOpsFactory:
 
 
 # Valid FAT32 8.3 short filename characters according to:
-#  http://en.wikipedia.org/wiki/8.3_filename
+# https://en.wikipedia.org/wiki/8.3_filename
 # This will help decide whether DLL ASCII names are likely
 # to be valid or otherwise corrupt data
 #
@@ -3352,7 +3352,7 @@ class PE:
 
     def parse_rich_header(self):
         """Parses the rich header
-        see http://www.ntcore.com/files/richsign.htm for more information
+        see https://www.ntcore.com/files/richsign.htm for more information
 
         Structure:
         00 DanS ^ checksum, checksum, checksum, checksum
@@ -3453,6 +3453,8 @@ class PE:
 
         This method will load the data directories which might not have
         been loaded if the "fast_load" option was used.
+
+        It also parses the rich header, which may or may not present.
         """
 
         self.parse_data_directories()
@@ -4409,7 +4411,7 @@ class PE:
                 return None
 
             # apply structure according to DEBUG_TYPE
-            # http://www.debuginfo.com/articles/debuginfomatch.html
+            # https://www.debuginfo.com/articles/debuginfomatch.html
             #
             dbg_type = None
 
@@ -6365,7 +6367,7 @@ class PE:
                     # and we will simply return the offset as the RVA
                     #
                     # The case illustrating this behavior can be found at:
-                    # http://corkami.blogspot.com/2010/01/hey-hey-hey-whats-in-your-head.html
+                    # https://corkami.blogspot.com/2010/01/hey-hey-hey-whats-in-your-head.html
                     # where the import table is not contained by any section
                     # hence the RVA needs to be resolved to a raw offset
                     return offset
