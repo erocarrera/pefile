@@ -3414,10 +3414,17 @@ class PE:
 
         # PE files are stored in little-endian order, the same byte order as an x86
         # https://wiki.osdev.org/PE
-        checksum = int.from_bytes(key, 'little')
+        checksum = int.from_bytes(key, "little")
         # the checksum should be present 3 times after the DanS signature
-        if data[0] ^ checksum != DANS or data[1] != checksum or data[2] != checksum or data[3] != checksum:
-            self.__warnings.append("Rich Header is not in Microsoft format, possibly malformed")
+        if (
+            data[0] ^ checksum != DANS
+            or data[1] != checksum
+            or data[2] != checksum
+            or data[3] != checksum
+        ):
+            self.__warnings.append(
+                "Rich Header is not in Microsoft format, possibly malformed"
+            )
 
         result["checksum"] = checksum
         headervalues = []
@@ -7868,7 +7875,11 @@ class PE:
         # If it imports from "ntoskrnl.exe" or other kernel components it should
         # be a driver
         system_DLLs = {
-            b"ntoskrnl.exe", b"hal.dll", b"ndis.sys", b"bootvid.dll", b"kdcom.dll"
+            b"ntoskrnl.exe",
+            b"hal.dll",
+            b"ndis.sys",
+            b"bootvid.dll",
+            b"kdcom.dll",
         }
         if system_DLLs.intersection(
             {imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT}
