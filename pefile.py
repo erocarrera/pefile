@@ -350,6 +350,12 @@ dll_characteristics = [
 
 DLL_CHARACTERISTICS = two_way_dict(dll_characteristics)
 
+ex_dll_characteristics = [
+    ("IMAGE_DLLCHARACTERISTICS_EX_CET_COMPAT", 0x0001),
+]
+
+EX_DLL_CHARACTERISTICS = two_way_dict(ex_dll_characteristics)
+
 MIN_VALID_FILE_ALIGNMENT = 0x200
 SECTOR_SIZE = 0x200
 
@@ -4553,6 +4559,30 @@ class PE:
                         dbg_type = self.__unpack_data__(
                             ___IMAGE_DEBUG_MISC_format__, dbg_type_data, dbg_type_offset
                         )
+
+            elif dbg.Type == 20:
+                # IMAGE_DEBUG_TYPE_EX_DLLCHARACTERISTICS
+                dbg_type_offset = dbg.PointerToRawData
+                dbg_type_size = dbg.SizeOfData
+                dbg_type_data = self.__data__[
+                    dbg_type_offset : dbg_type_offset + dbg_type_size
+                ]
+                # Note: the names for these formats and structure members are made up.
+                # They are not documented properly.
+                ___IMAGE_DEBUG_EX_DLLCHARACTERISTICS_format__ = [
+                    "IMAGE_DEBUG_EX_DLLCHARACTERISTICS",
+                    [
+                        "I,ExDllCharacteristics",
+                    ],
+                ]
+                dbg_type = self.__unpack_data__(
+                    ___IMAGE_DEBUG_EX_DLLCHARACTERISTICS_format__, dbg_type_data, dbg_type_offset
+                )
+
+                ex_dll_characteristics_flags = retrieve_flags(
+                    EX_DLL_CHARACTERISTICS, "IMAGE_DLLCHARACTERISTICS_EX_"
+                )
+                set_flags(dbg_type, dbg_type.ExDllCharacteristics, ex_dll_characteristics_flags)
 
             debug.append(DebugData(struct=dbg, entry=dbg_type))
 
