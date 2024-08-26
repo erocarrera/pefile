@@ -676,7 +676,6 @@ def parse_strings(data, counter, l):
                 l[counter] = data[i : i + len_ * 2].decode("utf-16le")
             except UnicodeDecodeError:
                 error_count += 1
-                pass
             if error_count >= 3:
                 break
             i += len_ * 2
@@ -1129,10 +1128,10 @@ class Structure:
 class SectionStructure(Structure):
     """Convenience section handling class."""
 
-    def __init__(self, *argl, **argd):
-        if "pe" in argd:
-            self.pe = argd["pe"]
-            del argd["pe"]
+    def __init__(self, *args, **kwargs):
+        if "pe" in kwargs:
+            self.pe = kwargs["pe"]
+            del kwargs["pe"]
 
         self.PointerToRawData = None
         self.VirtualAddress = None
@@ -1523,9 +1522,9 @@ class StructureWithBitfields(Structure):
 class DataContainer:
     """Generic data container."""
 
-    def __init__(self, **args):
+    def __init__(self, **kwargs):
         bare_setattr = super().__setattr__
-        for key, value in args.items():
+        for key, value in kwargs.items():
             bare_setattr(key, value)
 
 
@@ -5618,7 +5617,7 @@ class PE:
 
         # Try to avoid bogus VAs, which are out of the image.
         # This also filters out entries that are zero
-        if begin_of_image <= va and va < end_of_image:
+        if begin_of_image <= va < end_of_image:
             va -= begin_of_image
         return va
 
