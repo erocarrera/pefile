@@ -1,4 +1,4 @@
-from . import oleaut32, ws2_32
+from . import oleaut32, ws2_32, wsock32
 
 """
 A small module containing a database of ordinal to symbol mappings for DLLs
