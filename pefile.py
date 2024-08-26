@@ -352,6 +352,11 @@ DLL_CHARACTERISTICS = two_way_dict(dll_characteristics)
 
 ex_dll_characteristics = [
     ("IMAGE_DLLCHARACTERISTICS_EX_CET_COMPAT", 0x0001),
+    ("IMAGE_DLLCHARACTERISTICS_EX_CET_COMPAT_STRICT_MODE", 0x0002),
+    ("IMAGE_DLLCHARACTERISTICS_EX_CET_SET_CONTEXT_IP_VALIDATION_RELAXED_MODE", 0x0004),
+    ("IMAGE_DLLCHARACTERISTICS_EX_CET_DYNAMIC_APIS_ALLOW_IN_PROC", 0x0008),
+    ("IMAGE_DLLCHARACTERISTICS_EX_CET_RESERVED_1", 0x0010),
+    ("IMAGE_DLLCHARACTERISTICS_EX_CET_RESERVED_2", 0x0020),
 ]
 
 EX_DLL_CHARACTERISTICS = two_way_dict(ex_dll_characteristics)
@@ -3929,7 +3934,7 @@ class PE:
                     self.__data__[rva : rva + bnd_descr_size],
                     file_offset=rva,
                 )
-                
+
                 if not bnd_frwd_ref:
                     raise PEFormatError("IMAGE_BOUND_FORWARDER_REF cannot be read")
                 rva += bnd_frwd_ref.sizeof()
@@ -4576,13 +4581,19 @@ class PE:
                     ],
                 ]
                 dbg_type = self.__unpack_data__(
-                    ___IMAGE_DEBUG_EX_DLLCHARACTERISTICS_format__, dbg_type_data, dbg_type_offset
+                    ___IMAGE_DEBUG_EX_DLLCHARACTERISTICS_format__,
+                    dbg_type_data,
+                    dbg_type_offset,
                 )
 
                 ex_dll_characteristics_flags = retrieve_flags(
                     EX_DLL_CHARACTERISTICS, "IMAGE_DLLCHARACTERISTICS_EX_"
                 )
-                set_flags(dbg_type, dbg_type.ExDllCharacteristics, ex_dll_characteristics_flags)
+                set_flags(
+                    dbg_type,
+                    dbg_type.ExDllCharacteristics,
+                    ex_dll_characteristics_flags,
+                )
 
             debug.append(DebugData(struct=dbg, entry=dbg_type))
 
@@ -6589,6 +6600,27 @@ class PE:
             if getattr(self.OPTIONAL_HEADER, flag[0]):
                 flags.append(flag[0])
         dump.add_line(", ".join(flags))
+
+        ex_dll_characteristics_flags = retrieve_flags(
+            EX_DLL_CHARACTERISTICS, "IMAGE_DLLCHARACTERISTICS_EX_"
+        )
+        if ex_dll_characteristics_flags:
+            flags = []
+            if (
+                hasattr(self, "DIRECTORY_ENTRY_DEBUG")
+                and self.DIRECTORY_ENTRY_DEBUG is not None
+            ):
+                for debug_entry in self.DIRECTORY_ENTRY_DEBUG:
+                    if (
+                        debug_entry.struct.Type
+                        == DEBUG_TYPE["IMAGE_DEBUG_TYPE_EX_DLLCHARACTERISTICS"]
+                    ):
+                        for flag in sorted(ex_dll_characteristics_flags):
+                            if getattr(debug_entry.entry, flag[0]):
+                                flags.append(flag[0])
+            if flags:
+                dump.add("ExDllCharacteristics: ")
+                dump.add_line(", ".join(flags))
         dump.add_newline()
 
         dump.add_header("PE Sections")
