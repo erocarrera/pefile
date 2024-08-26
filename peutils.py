@@ -9,7 +9,10 @@ All rights reserved.
 import os
 import re
 import string
-import urllib.request, urllib.parse, urllib.error
+import urllib.error
+import urllib.parse
+import urllib.request
+
 import pefile
 
 __author__ = "Ero Carrera"
@@ -17,7 +20,7 @@ __version__ = pefile.__version__
 __contact__ = "ero.carrera@gmail.com"
 
 
-class SignatureDatabase(object):
+class SignatureDatabase:
     """This class loads and keeps a parsed PEiD signature database.
 
     Usage:
@@ -40,7 +43,7 @@ class SignatureDatabase(object):
         # RegExp to match a signature block
         #
         self.parse_sig = re.compile(
-            "\[(.*?)\]\s+?signature\s*=\s*(.*?)(\s+\?\?)*\s*ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)",
+            r"\[(.*?)\]\s+?signature\s*=\s*(.*?)(\s+\?\?)*\s*ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)",
             re.S,
         )
 
@@ -397,7 +400,7 @@ class SignatureDatabase(object):
                     sig_f = urllib.request.urlopen(filename)
                     sig_data = sig_f.read()
                     sig_f.close()
-                except IOError:
+                except OSError:
                     # Let this be raised back to the user...
                     raise
             else:
@@ -407,7 +410,7 @@ class SignatureDatabase(object):
                     sig_f = open(filename, "rt")
                     sig_data = sig_f.read()
                     sig_f.close()
-                except IOError:
+                except OSError:
                     # Let this be raised back to the user...
                     raise
         else:

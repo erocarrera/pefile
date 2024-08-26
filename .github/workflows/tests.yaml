@@ -15,19 +15,26 @@ jobs:
           - macos-latest
           - windows-latest
         python-version:
-          - "3.7"
           - "3.8"
           - "3.9"
           - "3.10"
+          - "3.11"
+          - "3.12"
+          - "pypy3.9"
         include:
           - os: ubuntu-latest
             python-version: "3.10"
             coverage: 1
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d # v5.1.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
@@ -41,11 +48,10 @@ jobs:
           # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
-      - if: ${{matrix.coverage}}
-        name: Clone https://github.com/pombredanne/pefile-tests
-        uses: actions/checkout@master
+      - name: Clone https://github.com/erocarrera/pefile-tests
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
-          repository: pombredanne/pefile-tests
+          repository: erocarrera/pefile-tests
           path: ./pefile-tests
 
       - name: "Run tox for ${{ matrix.python-version }}"
@@ -54,7 +60,7 @@ jobs:
 
       - if: ${{matrix.coverage}}
         name: "Upload coverage data"
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba # v4.3.2
         with:
           name: covdata
           path: .coverage.*
@@ -64,11 +70,16 @@ jobs:
     needs: tests
     runs-on: ubuntu-latest
     steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        with:
+          egress-policy: audit
+
       - name: "Check out the repo"
-        uses: "actions/checkout@v3"
+        uses: "actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11"  # v4.1.1
 
       - name: "Set up Python"
-        uses: "actions/setup-python@v4"
+        uses: "actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d"  # v5.1.0
         with:
           python-version: "3.10"
 
@@ -77,7 +88,7 @@ jobs:
           python -m pip install tox tox-gh-actions
 
       - name: "Download coverage data"
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@8caf195ad4b1dee92908e23f56eeb0696f1dd42d # v4.1.5
         with:
           name: covdata
 
@@ -89,7 +100,7 @@ jobs:
           echo "### Total coverage: ${TOTAL}%" >> $GITHUB_STEP_SUMMARY
 
       - name: "Make badge"
-        uses: schneegans/dynamic-badges-action@v1.4.0
+        uses: schneegans/dynamic-badges-action@5d424ad4060f866e4d1dab8f8da0456e6b1c4f56 # v1.6.0
         with:
           # GIST_TOKEN is a GitHub personal access token with scope "gist".
           auth: ${{ secrets.GIST_TOKEN }}
