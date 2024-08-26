@@ -7778,7 +7778,7 @@ class PE:
         # Checking that the ImageBase field of the OptionalHeader is above or
         # equal to 0x80000000 (that is, whether it lies in the upper 2GB of
         # the address space, normally belonging to the kernel) is not a
-        # reliable enough indicator.  For instance, PEs that play the invalid
+        # reliable enough indicator. For instance, PEs that play the invalid
         # ImageBase trick to get relocated could be incorrectly assumed to be
         # drivers.
 
@@ -7803,18 +7803,17 @@ class PE:
         # self.DIRECTORY_ENTRY_IMPORT will now exist, although it may be empty.
         # If it imports from "ntoskrnl.exe" or other kernel components it should
         # be a driver
-        #
         system_DLLs = {
             b"ntoskrnl.exe", b"hal.dll", b"ndis.sys", b"bootvid.dll", b"kdcom.dll"
         }
         if system_DLLs.intersection(
-            [imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT]
+            {imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT}
         ):
             return True
 
         driver_like_section_names = {b"page", b"paged"}
         if driver_like_section_names.intersection(
-            [section.Name.lower().rstrip(b"\x00") for section in self.sections]
+            {section.Name.lower().rstrip(b"\x00") for section in self.sections}
         ) and (
             self.OPTIONAL_HEADER.Subsystem
             in (
@@ -7835,9 +7834,7 @@ class PE:
         def update_if_sum_is_larger_and_within_file(
             offset_and_size, file_size=len(self.__data__)
         ):
-            if sum(offset_and_size) <= file_size and sum(offset_and_size) > sum(
-                largest_offset_and_size
-            ):
+            if sum(largest_offset_and_size) < sum(offset_and_size) <= file_size:
                 return offset_and_size
             return largest_offset_and_size
 
