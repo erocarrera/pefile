@@ -6294,7 +6294,7 @@ class PE:
             self.relocate_image(ImageBase)
 
         # Collect all sections in one code block
-        mapped_data = self.__data__[:]
+        mapped_data = self.header
         for section in self.sections:
             # Miscellaneous integrity tests.
             # Some packer will set these to bogus values to make tools go nuts.
