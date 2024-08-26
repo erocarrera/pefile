@@ -4,13 +4,9 @@ import ast
 import os
 import re
 import sys
-
-try:
-    from setuptools import Command, setup
-except ImportError as excp:
-    from distutils.core import setup, Command
-
 from unittest import TestLoader, TextTestRunner
+
+from setuptools import Command, setup
 
 
 os.environ["COPY_EXTENDED_ATTRIBUTES_DISABLE"] = "true"

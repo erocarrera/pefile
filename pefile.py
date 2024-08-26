@@ -1137,7 +1137,7 @@ class SectionStructure(Structure):
         self.VirtualAddress = None
         self.SizeOfRawData = None
         self.Misc_VirtualSize = None
-        Structure.__init__(self, *args, **kwargs)
+        super().__init__(*argl, **argd)
         self.PointerToRawData_adj = None
         self.VirtualAddress_adj = None
         self.section_min_addr = None
@@ -1374,7 +1374,7 @@ def set_bitfields_format(format):
     ac = Accumulator(old_fmt, comp_fields)
 
     for elm in format[1]:
-        if not ":" in elm:
+        if ":" not in elm:
             ac.wrap_up()
             old_fmt.append(elm)
             continue
@@ -1399,7 +1399,7 @@ def set_bitfields_format(format):
 
     extended_keys = []
     for idx, val in enumerate(keys):
-        if not idx in comp_fields:
+        if idx not in comp_fields:
             extended_keys.append(val)
             continue
         _, sbf = comp_fields[idx]
@@ -3520,10 +3520,8 @@ class PE:
         if not filename:
             return new_file_data
 
-        f = open(filename, "wb+")
-        f.write(new_file_data)
-        f.close()
-        return
+        with open(filename, "wb+") as f:
+            f.write(new_file_data)
 
     def parse_sections(self, offset):
         """Fetch the PE file sections.
@@ -3832,7 +3830,7 @@ class PE:
                 continue
             if not hasattr(rf.unwindinfo, "FunctionEntry"):
                 continue
-            if not rf.unwindinfo.FunctionEntry in rva2rt:
+            if rf.unwindinfo.FunctionEntry not in rva2rt:
                 self.__warnings.append(
                     f"FunctionEntry of UNWIND_INFO at {rf.struct.get_file_offset():x}"
                     " points to an entry that does not exist"
@@ -5540,7 +5538,7 @@ class PE:
         symbol_counts = collections.defaultdict(int)
         export_parsing_loop_completed_normally = True
         for idx in range(min(export_dir.NumberOfFunctions, int(safety_boundary / 4))):
-            if not idx + export_dir.Base in ordinals:
+            if idx + export_dir.Base not in ordinals:
                 try:
                     symbol_address = self.get_dword_from_data(address_of_functions, idx)
                 except PEFormatError:
@@ -7779,7 +7777,7 @@ class PE:
         # Checking that the ImageBase field of the OptionalHeader is above or
         # equal to 0x80000000 (that is, whether it lies in the upper 2GB of
         # the address space, normally belonging to the kernel) is not a
-        # reliable enough indicator.  For instance, PEs that play the invalid
+        # reliable enough indicator. For instance, PEs that play the invalid
         # ImageBase trick to get relocated could be incorrectly assumed to be
         # drivers.
 
@@ -7804,18 +7802,17 @@ class PE:
         # self.DIRECTORY_ENTRY_IMPORT will now exist, although it may be empty.
         # If it imports from "ntoskrnl.exe" or other kernel components it should
         # be a driver
-        #
         system_DLLs = {
             b"ntoskrnl.exe", b"hal.dll", b"ndis.sys", b"bootvid.dll", b"kdcom.dll"
         }
         if system_DLLs.intersection(
-            [imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT]
+            {imp.dll.lower() for imp in self.DIRECTORY_ENTRY_IMPORT}
         ):
             return True
 
         driver_like_section_names = {b"page", b"paged"}
         if driver_like_section_names.intersection(
-            [section.Name.lower().rstrip(b"\x00") for section in self.sections]
+            {section.Name.lower().rstrip(b"\x00") for section in self.sections}
         ) and (
             self.OPTIONAL_HEADER.Subsystem
             in (
@@ -7836,9 +7833,7 @@ class PE:
         def update_if_sum_is_larger_and_within_file(
             offset_and_size, file_size=len(self.__data__)
         ):
-            if sum(offset_and_size) <= file_size and sum(offset_and_size) > sum(
-                largest_offset_and_size
-            ):
+            if sum(largest_offset_and_size) < sum(offset_and_size) <= file_size:
                 return offset_and_size
             return largest_offset_and_size
 
