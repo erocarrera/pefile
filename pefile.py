@@ -265,6 +265,7 @@ subsystem_types = [
     ("IMAGE_SUBSYSTEM_EFI_ROM", 13),
     ("IMAGE_SUBSYSTEM_XBOX", 14),
     ("IMAGE_SUBSYSTEM_WINDOWS_BOOT_APPLICATION", 16),
+    ("IMAGE_SUBSYSTEM_XBOX_CODE_CATALOG", 17),
 ]
 
 SUBSYSTEM_TYPE = two_way_dict(subsystem_types)
