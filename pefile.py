@@ -5867,7 +5867,7 @@ class PE:
         if len(export_list) == 0:
             return ""
 
-        return md5(",".join(export_list).encode()).hexdigest()
+        return sha256(",".join(export_list).encode()).hexdigest()
 
     def parse_import_directory(self, rva, size, dllnames_only=False):
         """Walk and parse the import directory."""
