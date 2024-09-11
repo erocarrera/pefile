@@ -7965,44 +7965,44 @@ class PE:
 
         return self.__data__[:]
 
-    # According to the document:
-    # [ Microsoft Portable Executable and Common Object File Format Specification ]
-    # "The alignment factor (in bytes) that is used to align the raw data of sections in
-    #  the image file. The value should be a power of 2 between 512 and 64 K, inclusive.
-    #  The default is 512. If the SectionAlignment is less than the architecture's page
-    #  size, then FileAlignment must match SectionAlignment."
     def adjust_PointerToRawData(self, val):
+        # "The alignment factor (in bytes) that is used to align the raw data of sections in
+        #  the image file. The value should be a power of 2 between 512 and 64 K, inclusive.
+        #  The default is 512. If the SectionAlignment is less than the architecture's page
+        #  size, then FileAlignment must match SectionAlignment."
+        # [Microsoft Portable Executable and Common Object File Format Specification]
+        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
         if self.OPTIONAL_HEADER.FileAlignment >= MIN_VALID_FILE_ALIGNMENT:
             # If it's not a power of two, report it:
-            if self.FileAlignment_Warning is False and not power_of_two(
-                self.OPTIONAL_HEADER.FileAlignment
+            if ( 
+                not power_of_two(self.OPTIONAL_HEADER.FileAlignment) 
+                and self.FileAlignment_Warning is False 
             ):
                 self.__warnings.append(
-                    "If FileAlignment > 0x200 it should be a power of 2. Value: %x"
-                    % (self.OPTIONAL_HEADER.FileAlignment)
+                    f"If FileAlignment > 0x200 it should be a power of 2. "
+                    f"Value: {self.OPTIONAL_HEADER.FileAlignment:#x}"
                 )
                 self.FileAlignment_Warning = True
 
         # (val / SECTOR_SIZE) * SECTOR_SIZE
         return val & ~0x1FF
 
-    # According to the document:
-    # [ Microsoft Portable Executable and Common Object File Format Specification ]
-    # "The alignment (in bytes) of sections when they are loaded into memory. It must be
-    #  greater than or equal to FileAlignment. The default is the page size for the
-    #  architecture."
-    #
     def adjust_SectionAlignment(self, val, section_alignment, file_alignment):
-        # If the SectionAlignment is less than the architecture's page size, then
-        # FileAlignment must match SectionAlignment.
+        # "The alignment (in bytes) of sections when they are loaded into memory. It must be
+        #  greater than or equal to FileAlignment. The default is the page size for the
+        #  architecture."
+        # [Microsoft Portable Executable and Common Object File Format Specification]
+        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
         if section_alignment < 0x1000:
+            # If the SectionAlignment is less than the architecture's page size, then
+            # FileAlignment must match SectionAlignment.
             if (
                 file_alignment != section_alignment
                 and self.SectionAlignment_Warning is False
             ):
                 self.__warnings.append(
-                    f"If SectionAlignment(0x{section_alignment:x}) < 0x1000 it should "
-                    f"equal FileAlignment(0x{file_alignment:x})"
+                    f"If SectionAlignment ({section_alignment:#x}) < 0x1000 it should "
+                    f"equal FileAlignment ({file_alignment:#x})"
                 )
                 self.SectionAlignment_Warning = True
 
