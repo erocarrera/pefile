@@ -6134,11 +6134,8 @@ class PE:
         return imported_symbols
 
     def get_import_table(self, rva, max_length=None, contains_addresses=False):
-        table = []
-
         # We need the ordinal flag for a simple heuristic
         # we're implementing within the loop
-        #
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
             ordinal_flag = IMAGE_ORDINAL_FLAG
             format = self.__IMAGE_THUNK_DATA_format__
@@ -6160,6 +6157,7 @@ class PE:
         addresses_of_data_set_64 = AddressSet()
         addresses_of_data_set_32 = AddressSet()
         start_rva = rva
+        table = []
         while rva:
             if max_length is not None and rva >= start_rva + max_length:
                 self.__warnings.append(
@@ -6169,8 +6167,7 @@ class PE:
             # Enforce an upper bounds on import symbols.
             if self.__total_import_symbols > MAX_IMPORT_SYMBOLS:
                 self.__warnings.append(
-                    "Excessive number of imports %d (>%s)"
-                    % (self.__total_import_symbols, MAX_IMPORT_SYMBOLS)
+                    f"Excessive number of imports {self.__total_import_symbols} (>{MAX_IMPORT_SYMBOLS})"
                 )
                 break
 
@@ -6197,7 +6194,7 @@ class PE:
 
             if failed or len(data) != expected_size:
                 self.__warnings.append(
-                    "Error parsing the import table. " "Invalid data at RVA: 0x%x" % rva
+                    f"Error parsing the import table. Invalid data at RVA: {rva:#x}"
                 )
                 return None
 
@@ -6223,21 +6220,20 @@ class PE:
             # 5945bb6f0ac879ddf61b1c284f3b8d20c06b228e75ae4f571fa87f5b9512902c
             if (
                 thunk_data
-                and thunk_data.AddressOfData >= start_rva
-                and thunk_data.AddressOfData <= rva
+                and start_rva <= thunk_data.AddressOfData <= rva
             ):
                 self.__warnings.append(
-                    "Error parsing the import table. "
-                    "AddressOfData overlaps with THUNK_DATA for "
-                    "THUNK at RVA 0x%x" % (rva)
+                    f"Error parsing the import table. "
+                    f"AddressOfData overlaps with THUNK_DATA for "
+                    f"THUNK at RVA {rva:#x}"
                 )
                 break
 
             if thunk_data and thunk_data.AddressOfData:
                 addr_of_data = thunk_data.AddressOfData
-                # If the entry looks like could be an ordinal...
+                # If the entry looks like it could be an ordinal...
                 if addr_of_data & ordinal_flag:
-                    # but its value is beyond 2^16, we will assume it's a
+                    # but its value is beyond 2^16, we will assume it's
                     # corrupted and ignore it altogether
                     if addr_of_data & 0x7FFFFFFF > 0xFFFF:
                         return []
