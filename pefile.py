@@ -21,7 +21,6 @@ __version__ = "2024.8.26"
 __contact__ = "ero.carrera@gmail.com"
 
 import codecs
-import collections
 import copy as copymod
 import functools
 import gc
@@ -32,7 +31,7 @@ import string
 import struct
 import time
 import uuid
-from collections import Counter
+from collections import Counter, defaultdict
 from hashlib import md5, sha1, sha256, sha512
 from typing import Union
 
@@ -5469,7 +5468,7 @@ class PE:
                 - export_dir.AddressOfNames
             )
 
-        symbol_counts = collections.defaultdict(int)
+        symbol_counts = defaultdict(int)
         export_parsing_loop_completed_normally = True
         for i in range(min(export_dir.NumberOfNames, int(safety_boundary / 4))):
             symbol_ordinal = self.get_word_from_data(address_of_name_ordinals, i)
@@ -5586,7 +5585,7 @@ class PE:
                 - export_dir.AddressOfFunctions
             )
 
-        symbol_counts = collections.defaultdict(int)
+        symbol_counts = defaultdict(int)
         export_parsing_loop_completed_normally = True
         for idx in range(min(export_dir.NumberOfFunctions, int(safety_boundary / 4))):
             if idx + export_dir.Base not in ordinals:
