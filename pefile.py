@@ -2318,11 +2318,11 @@ def is_valid_function_name(
 ) -> bool:
     allowed_extra = b"._?@$()<>"
     if relax_allowed_characters:
-        allowed_extra = b"!\"#$%&'()*+,-./:<>?[\\]^_`{|}~@"
+        allowed_extra += b"!\"#%&'*+,-/:[\\]^`{|}~"
     return (
         s is not None
         and isinstance(s, (str, bytes, bytearray))
-        and all((c in allowed_function_name or c in allowed_extra) for c in set(s))
+        and all(c in (allowed_function_name + allowed_extra) for c in set(s))
     )
 
 
