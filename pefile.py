@@ -6268,16 +6268,16 @@ class PE:
         """Returns the data corresponding to the memory layout of the PE file.
 
         The data includes the PE header and the sections loaded at offsets
-        corresponding to their relative virtual addresses. (the VirtualAddress
+        corresponding to their relative virtual addresses (the VirtualAddress
         section header member).
         Any offset in this data corresponds to the absolute memory address
-        ImageBase+offset.
+        ImageBase + offset.
 
-        The optional argument 'max_virtual_address' provides with means of limiting
+        The optional argument 'max_virtual_address' provides a way of limiting
         which sections are processed.
         Any section with their VirtualAddress beyond this value will be skipped.
         Normally, sections with values beyond this range are just there to confuse
-        tools. It's a common trick to see in packed executables.
+        tools. This is a common trick to see in packed executables.
 
         If the 'ImageBase' optional argument is supplied, the file's relocations
         will be applied to the image by calling the 'relocate_image()' method. Beware
@@ -6285,10 +6285,8 @@ class PE:
         """
 
         # Rebase if requested
-        #
         if ImageBase is not None:
             # Keep a copy of the image's data before modifying it by rebasing it
-            #
             original_data = self.__data__
 
             self.relocate_image(ImageBase)
@@ -6297,7 +6295,8 @@ class PE:
         mapped_data = self.header
         for section in self.sections:
             # Miscellaneous integrity tests.
-            # Some packer will set these to bogus values to make tools go nuts.
+            # Some packers will set these to bogus values to confuse tools.
+
             if section.Misc_VirtualSize == 0 and section.SizeOfRawData == 0:
                 continue
 
@@ -6327,7 +6326,6 @@ class PE:
             mapped_data += section.get_data()
 
         # If the image was rebased, restore it to its original form
-        #
         if ImageBase is not None:
             self.__data__ = original_data
 
