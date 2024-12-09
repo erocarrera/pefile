@@ -2424,6 +2424,8 @@ class PE:
         ),
     )
 
+    __IMAGE_NT_HEADERS_format__ = ("IMAGE_NT_HEADERS", ("I,Signature",))
+
     __IMAGE_FILE_HEADER_format__ = (
         "IMAGE_FILE_HEADER",
         (
@@ -2435,11 +2437,6 @@ class PE:
             "H,SizeOfOptionalHeader",
             "H,Characteristics",
         ),
-    )
-
-    __IMAGE_DATA_DIRECTORY_format__ = (
-        "IMAGE_DATA_DIRECTORY",
-        ("I,VirtualAddress", "I,Size"),
     )
 
     __IMAGE_OPTIONAL_HEADER_format__ = (
@@ -2513,7 +2510,10 @@ class PE:
         ),
     )
 
-    __IMAGE_NT_HEADERS_format__ = ("IMAGE_NT_HEADERS", ("I,Signature",))
+    __IMAGE_DATA_DIRECTORY_format__ = (
+        "IMAGE_DATA_DIRECTORY",
+        ("I,VirtualAddress", "I,Size"),
+    )
 
     __IMAGE_SECTION_HEADER_format__ = (
         "IMAGE_SECTION_HEADER",
