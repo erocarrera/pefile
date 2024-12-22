@@ -5850,7 +5850,7 @@ class PE:
         Similar to imphash, but based on exported symbol names and their specific order.
 
         Returns:
-            the hexdigest of the SHA256 hash of the exported symbols.
+            the hexdigest of the MD5 hash of the exported symbols.
         """
 
         if not hasattr(self, "DIRECTORY_ENTRY_EXPORT"):
@@ -5867,7 +5867,7 @@ class PE:
         if len(export_list) == 0:
             return ""
 
-        return sha256(",".join(export_list).encode()).hexdigest()
+        return md5(",".join(export_list).encode()).hexdigest()
 
     def parse_import_directory(self, rva, size, dllnames_only=False):
         """Walk and parse the import directory."""
