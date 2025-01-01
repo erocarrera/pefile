@@ -8,14 +8,14 @@ Import the module and parse a file.
 
 ```python
 import pefile
-pe =  pefile.PE(‘/path/to/pefile.exe’)
+pe =  pefile.PE('/path/to/pefile.exe')
 ```
 
 Optionally, setting the _fast\_load_ argument to _True_ will prevent parsing the directories. In large PE files this can make loading significantly faster and it might be a good idea to use it none of the information from the data directories is needed.
 
 ```python
 import pefile
-pe = pefile.PE(‘/path/to/pefile.exe’, fast_load=True)
+pe = pefile.PE('/path/to/pefile.exe', fast_load=True)
 ```
 
 A later call to the _full\_load()_ method would parse the missing information.
