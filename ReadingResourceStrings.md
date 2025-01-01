@@ -35,8 +35,8 @@ Hence, to extract those string from the file, we can write a small Python script
 
 First we need to read the directory entry for the resources and see if there's an entry of type RT\_STRING (value 6).
 
-```
-print [entry.id for entry in pe.DIRECTORY_ENTRY_RESOURCE.entries]
+```python
+print([entry.id for entry in pe.DIRECTORY_ENTRY_RESOURCE.entries])
 ```
 
 Would produce something like `(3, 4, 5, 6, 9, 14, 24)`. Therefore we know that in this specific PE file the RT\_STRING directory entry is at index 3.
@@ -82,7 +82,7 @@ We can iterate through the entries with the following code:
 
 (the strings will be saved in the _strings_ list)
 
-```
+```python
 # The List will contain all the extracted Unicode strings
 #
 strings = list()
@@ -130,5 +130,5 @@ for entry in rt_string_directory.directory.entries:
     ustr = pe.get_string_u_at_rva(data_rva+offset, max_length=ustr_length)
     offset += ustr_length*2
     strings.append(ustr)
-    print 'String of length', ustr_length, 'at offset', offset
+    print('String of length', ustr_length, 'at offset', offset)
 ```
