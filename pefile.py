@@ -13,11 +13,11 @@ PEs as well as malware, which often attempts to abuse the format way beyond its
 standard use. To the best of my knowledge most of the abuse is handled
 gracefully.
 
-Copyright (c) 2005-2023 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2024 Ero Carrera <ero.carrera@gmail.com>
 """
 
 __author__ = "Ero Carrera"
-__version__ = "2023.2.7"
+__version__ = "2024.8.26"
 __contact__ = "ero.carrera@gmail.com"
 
 import codecs
@@ -5796,7 +5796,7 @@ class PE:
 
         raise Exception("Invalid hashing algorithm specified")
 
-    def get_imphash(self):
+    def get_imphash(self, usedforsecurity=True): # Default for usedforsecurity set to True
         """Return the imphash of the PE file.
 
         Creates a hash based on imported symbol names and their specific order within
@@ -5842,7 +5842,7 @@ class PE:
                     funcname = funcname.decode()
                 impstrs.append("%s.%s" % (libname.lower(), funcname.lower()))
 
-        return md5(",".join(impstrs).encode()).hexdigest()
+        return md5(",".join(impstrs).encode(), usedforsecurity=usedforsecurity).hexdigest()
 
     def get_exphash(self):
         """Return the exphash of the PE file.
