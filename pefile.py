@@ -5796,7 +5796,7 @@ class PE:
 
         raise Exception("Invalid hashing algorithm specified")
 
-    def get_imphash(self, usedforsecurity=True): # Default for usedforsecurity set to True
+    def get_imphash(self, usedforsecurity=True):
         """Return the imphash of the PE file.
 
         Creates a hash based on imported symbol names and their specific order within
