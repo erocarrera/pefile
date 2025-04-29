@@ -10,7 +10,7 @@
 [![Downloads](https://static.pepy.tech/badge/pefile)](https://pepy.tech/project/pefile)
 
 
-_pefile_ is a multi-platform Python module to parse and work with [Portable Executable (PE) files](http://en.wikipedia.org/wiki/Portable_Executable). Most of the information contained in the PE file headers is accessible, as well as all the sections' details and data.
+_pefile_ is a multi-platform Python module to parse and work with [Portable Executable (PE) files](https://en.wikipedia.org/wiki/Portable_Executable). Most of the information contained in the PE file headers is accessible, as well as all the sections' details and data.
 
 The structures defined in the Windows header files will be accessible as attributes in the PE instance. The naming of fields/attributes will try to adhere to the naming scheme in those headers. Only shortcuts added for convenience will depart from that convention.
 
