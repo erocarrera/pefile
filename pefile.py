@@ -4353,7 +4353,7 @@ class PE:
                     "Overlapping offsets in relocation data "
                     "at RVA: 0x%x" % (reloc_offset + rva)
                 )
-                break
+                continue
 
             offsets_and_type.add((reloc_offset, reloc_type))
 
@@ -4395,7 +4395,7 @@ class PE:
                     "Overlapping offsets in relocation data "
                     "at RVA: 0x%x" % (reloc_offset + rva)
                 )
-                break
+                continue
             offsets.add(reloc_offset)
 
             entries.append(
