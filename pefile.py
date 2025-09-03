@@ -645,7 +645,6 @@ sublang = [
     ("SUBLANG_GAELIC_MANX", 0x03),
 ]
 
-SUBLANG = two_way_dict(sublang)
 
 # Initialize the dictionary with all the name->value pairs
 SUBLANG = dict(sublang)
