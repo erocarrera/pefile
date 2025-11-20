@@ -6422,7 +6422,7 @@ class PE:
     def get_offset_from_rva(self, rva):
         """Get the file offset corresponding to this RVA.
 
-        Given a RVA , this method will find the section where the
+        Given a RVA, this method will find the section where the
         data lies and return the offset within the file.
         """
 
@@ -8006,12 +8006,8 @@ class PE:
 def main():
     import sys
 
-    usage = """\
-pefile.py <filename>
-pefile.py exports <filename>"""
-
     if not sys.argv[1:]:
-        print(usage)
+        print('pefile.py <filename>', 'pefile.py exports <filename>', sep='\n')
     elif sys.argv[1] == "exports":
         if not sys.argv[2:]:
             sys.exit("error: <filename> required")
