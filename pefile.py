@@ -3715,16 +3715,16 @@ class PE:
         """
 
         directory_parsing = (
-            ("IMAGE_DIRECTORY_ENTRY_IMPORT", self.parse_import_directory),
             ("IMAGE_DIRECTORY_ENTRY_EXPORT", self.parse_export_directory),
+            ("IMAGE_DIRECTORY_ENTRY_IMPORT", self.parse_import_directory),
             ("IMAGE_DIRECTORY_ENTRY_RESOURCE", self.parse_resources_directory),
-            ("IMAGE_DIRECTORY_ENTRY_DEBUG", self.parse_debug_directory),
+            ("IMAGE_DIRECTORY_ENTRY_EXCEPTION", self.parse_exceptions_directory),
             ("IMAGE_DIRECTORY_ENTRY_BASERELOC", self.parse_relocations_directory),
+            ("IMAGE_DIRECTORY_ENTRY_DEBUG", self.parse_debug_directory),
             ("IMAGE_DIRECTORY_ENTRY_TLS", self.parse_directory_tls),
             ("IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG", self.parse_directory_load_config),
-            ("IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT", self.parse_delay_import_directory),
             ("IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT", self.parse_directory_bound_imports),
-            ("IMAGE_DIRECTORY_ENTRY_EXCEPTION", self.parse_exceptions_directory),
+            ("IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT", self.parse_delay_import_directory),
         )
 
         if directories is not None:
