@@ -1301,6 +1301,12 @@ class SectionStructure(Structure):
 
         return self.entropy_H(self.get_data())
 
+    def get_hash_md5(self):
+        """Get the MD5 hex-digest of the section's data."""
+
+        if md5 is not None:
+            return md5(self.get_data()).hexdigest()
+
     def get_hash_sha1(self):
         """Get the SHA-1 hex-digest of the section's data."""
 
@@ -1319,12 +1325,6 @@ class SectionStructure(Structure):
         if sha512 is not None:
             return sha512(self.get_data()).hexdigest()
 
-    def get_hash_md5(self):
-        """Get the MD5 hex-digest of the section's data."""
-
-        if md5 is not None:
-            return md5(self.get_data()).hexdigest()
-
     def entropy_H(self, data):
         """Calculate the entropy of a chunk of data."""
 
@@ -1335,7 +1335,7 @@ class SectionStructure(Structure):
 
         entropy = 0
         for x in occurences.values():
-            p_x = float(x) / len(data)
+            p_x = x / len(data)
             entropy -= p_x * math.log(p_x, 2)
 
         return entropy
@@ -6003,13 +6003,12 @@ class PE:
         # bound.
         iat = self.get_import_table(first_thunk, max_length, contains_addresses)
 
-        # Would crash if IAT or ILT had None type
-        if (not iat or len(iat) == 0) and (not ilt or len(ilt) == 0):
+        if (not iat) and (not ilt):
             self.__warnings.append(
                 "Damaged Import Table information. "
                 "ILT and/or IAT appear to be broken. "
-                f"OriginalFirstThunk: 0x{original_first_thunk:x} "
-                f"FirstThunk: 0x{first_thunk:x}"
+                f"OriginalFirstThunk: {original_first_thunk:#x} "
+                f"FirstThunk: {first_thunk:#x}"
             )
             return []
 
