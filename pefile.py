@@ -1001,15 +1001,12 @@ class Structure:
         return self.__format_length__
 
     def __unpack__(self, data):
-        data = data
-
         if len(data) > self.__format_length__:
             data = data[: self.__format_length__]
 
         # Some malware have incorrect header lengths.
         # Fail gracefully if this occurs
         # Buggy malware: a29b0118af8b7408444df81701ad5a7f
-        #
         elif len(data) < self.__format_length__:
             raise PEFormatError("Data length less than expected header length.")
 
