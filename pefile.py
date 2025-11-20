@@ -5850,7 +5850,7 @@ class PE:
         Similar to imphash, but based on exported symbol names and their specific order.
 
         Returns:
-            the hexdigest of the SHA256 hash of the exported symbols.
+            the hexdigest of the MD5 hash of the exported symbols.
         """
 
         if not hasattr(self, "DIRECTORY_ENTRY_EXPORT"):
