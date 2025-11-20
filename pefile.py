@@ -5955,7 +5955,7 @@ class PE:
                         if not symbol or not symbol.name:
                             continue
                         name = symbol.name
-                        if type(symbol.name) == bytes:
+                        if isinstance(symbol.name, bytes):
                             name = symbol.name.decode("utf-8")
                         if name.startswith(suspicious_symbol):
                             suspicious_imports_count += 1
