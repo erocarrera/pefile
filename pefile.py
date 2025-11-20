@@ -1435,11 +1435,11 @@ class StructureWithBitfields(Structure):
     reused.
 
     In addition, we create a dictionary:
-        <comound_field_index_in_keys> -->
+        <compound_field_index_in_keys> -->
             (data type, [ (subfield name, length in bits)+ ] )
-    that facilitates bitfield paking and unpacking.
+    that facilitates bitfield packing and unpacking.
 
-    With lru_cache() creating only once instance per format string, the memory
+    With lru_cache() creating only one instance per format string, the memory
     overhead is negligible.
     """
 
