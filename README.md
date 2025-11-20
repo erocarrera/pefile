@@ -10,11 +10,11 @@
 [![Downloads](https://static.pepy.tech/badge/pefile)](https://pepy.tech/project/pefile)
 
 
-_pefile_ is a multi-platform Python module to parse and work with [Portable Executable (PE) files](http://en.wikipedia.org/wiki/Portable_Executable). Most of the information contained in the PE file headers is accessible, as well as all the sections' details and data.
+_pefile_ is a multi-platform Python module to parse and work with [Portable Executable (PE) files](https://en.wikipedia.org/wiki/Portable_Executable). Most of the information contained in the PE file headers is accessible, as well as all the sections' details and data.
 
 The structures defined in the Windows header files will be accessible as attributes in the PE instance. The naming of fields/attributes will try to adhere to the naming scheme in those headers. Only shortcuts added for convenience will depart from that convention.
 
-_pefile_ requires some basic understanding of the layout of a PE file — with it, it's possible to explore nearly every single feature of the PE file format.
+_pefile_ requires some basic understanding of the layout of a PE file — with it, it is possible to explore nearly every single feature of the PE file format.
 
 ### Installation
 
@@ -31,7 +31,7 @@ Some of the tasks that pefile makes possible are:
 * Retrieving embedded data
 * [Reading strings from the resources](https://github.com/erocarrera/pefile/blob/wiki/ReadingResourceStrings.md)
 * Warnings for suspicious and malformed values
-* Basic butchering of PEs, like [writing to some fields](https://github.com/erocarrera/pefile/blob/wiki/UsageExamples.md#reading-and-writing-standard-header-members) and [other parts](https://github.com/erocarrera/pefile/blob/wiki/ModifyingPEImageData.md) of the PE
+* Basic modifying of PEs, like [writing to some fields](https://github.com/erocarrera/pefile/blob/wiki/UsageExamples.md#reading-and-writing-standard-header-members) and [other parts](https://github.com/erocarrera/pefile/blob/wiki/ModifyingPEImageData.md) of the PE
   * This functionality won't rearrange PE file structures to make room for new fields, so use it with care.
   * Overwriting fields should mostly be safe.
 * Packer detection with [PEiD’s signatures](https://github.com/erocarrera/pefile/blob/wiki/PEiDSignatures.md)
@@ -51,7 +51,7 @@ _pefile_ runs in several pipelines scanning hundreds of thousands of new PE file
 
 ## Dependencies
 
-_pefile_ is self-contained. The module has no dependencies; it is endianness independent; and it works on OS X, Windows, and Linux.
+_pefile_ is self-contained. The module has no dependencies; it is endianness independent; and it works on Windows, macOS, and Linux.
 
 ## Recent changes
 
