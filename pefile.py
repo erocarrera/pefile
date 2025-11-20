@@ -7821,7 +7821,7 @@ class PE:
         if (
             (not self.is_dll())
             and (not self.is_driver())
-            and (EXE_flag & self.FILE_HEADER.Characteristics) == EXE_flag
+            and (EXE_flag & self.FILE_HEADER.Characteristics)
         ):
             return True
 
@@ -7835,7 +7835,7 @@ class PE:
 
         DLL_flag = IMAGE_CHARACTERISTICS["IMAGE_FILE_DLL"]
 
-        if (DLL_flag & self.FILE_HEADER.Characteristics) == DLL_flag:
+        if DLL_flag & self.FILE_HEADER.Characteristics:
             return True
 
         return False
