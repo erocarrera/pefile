@@ -75,7 +75,7 @@ def cache_adjust_SectionAlignment(val, section_alignment, file_alignment):
     #    section_alignment = 0x80
 
     if section_alignment and val % section_alignment:
-        return section_alignment * (int(val / section_alignment))
+        return section_alignment * (val // section_alignment)
     return val
 
 
