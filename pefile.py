@@ -2979,7 +2979,7 @@ class PE:
         except PEFormatError as err:
             self.__warnings.append(
                 f'Corrupt header "{format[0]}" at file offset {file_offset}. '
-                f'Exception: {err}'.format
+                f'Exception: {err}'
             )
             return None
 
