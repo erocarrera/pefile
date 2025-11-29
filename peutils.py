@@ -552,13 +552,27 @@ def is_suspicious(pe):
     pass
 
 
-def is_probably_packed(pe):
-    """Returns True is there is a high likelihood that a file is packed or contains compressed data.
+def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):
+    """
+    The entropy of sections are analyzed to determine if they likely contain
+    compressed data (default > 7.4). The proportion of the total size of these
+    (probably) compressed sections to the total file size (excluding any
+    overlay) is calculated. If this proportion is greater than a threshold
+    (default > 0.2) the PE file is likely packed or compressed.
 
-    The sections of the PE file will be analyzed, if enough sections
-    look like containing compressed data and the data makes
-    up for more than 20% of the total file size, the function will
-    return True.
+    The section entropy default of 7.4 is empirical, based on looking at a few
+    files packed by different packers. This and the packed threshold can be user
+    specified.
+
+    Args:
+        pe: An instance of class PE.
+        section_entropy: Threshold of a section being considered packed / compressed.
+        packed_threshold: The proportion of the size of high-entropy sections to
+            total file size, above which it is assumed that it could be an installer
+            or a packed file.
+
+    Returns:
+        True if file is probably packed or contains compressed data, False otherwise.
     """
 
     # Calculate the length of the data up to the end of the last section in the
@@ -576,13 +590,10 @@ def is_probably_packed(pe):
     total_compressed_data = 0
     for section in pe.sections:
         s_entropy = section.get_entropy()
-        s_length = len(section.get_data())
-        # The value of 7.4 is empirical, based on looking at a few files packed
-        # by different packers
-        if s_entropy > 7.4:
-            total_compressed_data += s_length
+        if s_entropy > section_entropy:
+            total_compressed_data += len(section.get_data())
 
-    if (total_compressed_data / total_pe_data_length) > 0.2:
+    if (total_compressed_data / total_pe_data_length) > packed_threshold:
         has_significant_amount_of_compressed_data = True
 
     return has_significant_amount_of_compressed_data
