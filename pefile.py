@@ -2316,9 +2316,20 @@ allowed_function_name = (
 def is_valid_function_name(
     s: Union[str, bytes, bytearray], relax_allowed_characters: bool = False
 ) -> bool:
-    allowed_extra = b"$().<>?@_"
+    """
+    MangleChars = "$:?([.)]"        // watcom
+                  "@$%?"            // microsoft
+                  "@$%&";           // borland
+    Source: ida.cfg
+
+    "_" is also used in mangled names
+    "<>" C++ templates, e.g. functions in wincorlib.dll
+
+    allowed_extra = watcom + microsoft + borland + "_" + "<>"
+    """
+    allowed_extra = b"$%&().:<>?@[]_"
     if relax_allowed_characters:
-        allowed_extra = string.punctuation.encode()
+        allowed_extra = string.punctuation.encode()  # superset of allowed_extra
     return (
         s is not None
         and isinstance(s, (str, bytes, bytearray))
