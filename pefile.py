@@ -1331,7 +1331,7 @@ class SectionStructure(Structure):
         entropy = 0
         for x in occurences.values():
             p_x = x / len(data)
-            entropy -= p_x * math.log(p_x, 2)
+            entropy -= p_x * math.log2(p_x)
 
         return entropy
 
