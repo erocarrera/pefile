@@ -3492,7 +3492,7 @@ class PE:
         assigning to attributes in the PE objects) and write
         the changes back to a file whose name is provided as
         an argument. The filename is optional, if not
-        provided the data will be returned as a 'str' object.
+        provided the data will be returned as a 'bytearray' object.
         """
 
         file_data = bytearray(self.__data__)
