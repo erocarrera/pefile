@@ -2974,9 +2974,8 @@ class PE:
             structure.__unpack__(data)
         except PEFormatError as err:
             self.__warnings.append(
-                'Corrupt header "{0}" at file offset {1}. Exception: {2}'.format(
-                    format[0], file_offset, err
-                )
+                f'Corrupt header "{format[0]}" at file offset {file_offset}. '
+                f'Exception: {err}'.format
             )
             return None
 
@@ -2996,9 +2995,8 @@ class PE:
             structure.__unpack__(data)
         except PEFormatError as err:
             self.__warnings.append(
-                'Corrupt header "{0}" at file offset {1}. Exception: {2}'.format(
-                    format[0], file_offset, err
-                )
+                f'Corrupt header "{format[0]}" at file offset {file_offset}. '
+                f'Exception: {err}'
             )
             return None
 
@@ -3029,10 +3027,10 @@ class PE:
                     self.__data__ = mmap.mmap(self.fileno, 0, access=mmap.ACCESS_READ)
                 self.__from_file = True
             except IOError as excp:
-                exception_msg = "{0}".format(excp)
+                exception_msg = f"{excp}"
                 exception_msg = exception_msg and (": %s" % exception_msg)
                 raise Exception(
-                    "Unable to access file '{0}'{1}".format(fname, exception_msg)
+                    f"Unable to access file '{fname}'{exception_msg}"
                 )
             finally:
                 if fd is not None:
