@@ -9,8 +9,6 @@ All rights reserved.
 import os
 import re
 import string
-import urllib.error
-import urllib.parse
 import urllib.request
 
 import pefile
