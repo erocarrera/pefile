@@ -5795,7 +5795,7 @@ class PE:
 
         raise Exception("Invalid hashing algorithm specified")
 
-    def get_imphash(self):
+    def get_imphash(self, usedforsecurity=True):
         """Return the imphash of the PE file.
 
         Creates a hash based on imported symbol names and their specific order within
@@ -5841,7 +5841,7 @@ class PE:
                     funcname = funcname.decode()
                 impstrs.append("%s.%s" % (libname.lower(), funcname.lower()))
 
-        return md5(",".join(impstrs).encode()).hexdigest()
+        return md5(",".join(impstrs).encode(), usedforsecurity=usedforsecurity).hexdigest()
 
     def get_exphash(self):
         """Return the exphash of the PE file.
