@@ -2,15 +2,13 @@
 """peutils, Portable Executable utilities module
 
 
-Copyright (c) 2005-2023 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2024 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 """
 import os
 import re
 import string
-import urllib.error
-import urllib.parse
 import urllib.request
 
 import pefile
