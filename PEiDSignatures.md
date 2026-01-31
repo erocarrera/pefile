@@ -10,7 +10,7 @@ http:/<span></span>/woodmann.com/BobSoft/Files/Other/UserDB.zip (dead link, albe
 
 First import the new module, _peutils_, included with _pefile_
 
-```
+```python
 import peutils
 ```
 
@@ -18,19 +18,19 @@ Then we need to load a signature database, we can do this in different ways.
 
   * Loading a database from a file in the local filesystem
 
-```
+```python
 signatures = peutils.SignatureDatabase('/path/to/signature.txt')
 ```
 
   * Loading a database directly from a URL
 
-```
+```python
 signatures = peutils.SignatureDatabase('http://url.to/signature/file.txt')
 ```
 
   * And finally, directly from data (for instance, if we have already read and loaded the contents of a database)
 
-```
+```python
 with file('/path/to/signature/file.txt', 'rt') as f: 
     sig_data = f.read()
 signatures = peutils.SignatureDatabase(data=sig_data)
@@ -38,7 +38,7 @@ signatures = peutils.SignatureDatabase(data=sig_data)
 
 It's also possible to aggregate more signatures to an already created instance by just using the _load()_ method:
 
-```
+```python
 signatures.load('/Users/ero/Devel/pefile/userdb-extra.txt')
 ```
 
@@ -47,7 +47,7 @@ signatures.load('/Users/ero/Devel/pefile/userdb-extra.txt')
 
 Once we have a _SignatureDatabase_ instance, we can run PE instances through it in order to find matching packer signatures:
 
-```
+```python
 matches = signatures.match(pe, ep_only = True)
 ```
 
@@ -61,7 +61,7 @@ matches = signatures.match(pe, ep_only = True)
 
 We can also get all possible matches found as the signature tree is walked. The last signature will always be the most precise (as more bytes will have been matched) and is the one returned by the _match()_ method.
 
-```
+```python
 matches = sig.match_all(pe, ep_only = True)
 ```
 
@@ -79,7 +79,7 @@ Experimental and not specially intelligent when generating signatures, _peutils_
 
 One can generate signatures for the entry point of a PE file as follows:
 
-```
+```python
 signatures.generate_ep_signature(pe, 'Name of the signature', length_of_the_signature)
 ```
 
@@ -87,7 +87,7 @@ signatures.generate_ep_signature(pe, 'Name of the signature', length_of_the_sign
 Alternatively signatures for all section in a PE file can be generated as follows:
 
 
-```
+```python
 signatures.generate_section_signatures(pe, 'Name of the signature', length_of_the_signature)
 ```
 
