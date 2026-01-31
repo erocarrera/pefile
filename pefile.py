@@ -1932,7 +1932,7 @@ class UnwindInfo(StructureWithBitfields):
 
     def dump(self, indentation=0):
         # Because __keys_ext__ are shared among all the instances with the same
-        # format string, we have to add and sunsequently remove the optional field
+        # format string, we have to add and subsequently remove the optional field
         # each time.
         # It saves space (as compared to keeping a copy self.__keys_ext__ per
         # UnwindInfo instance), but makes our dump() implementation thread-unsafe.
