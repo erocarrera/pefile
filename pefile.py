@@ -6545,7 +6545,7 @@ class PE:
         return self.dump_info()
 
     def has_relocs(self):
-        """Checks if the PE file has relocation directory"""
+        """Checks if the PE file has a relocation directory"""
         return hasattr(self, "DIRECTORY_ENTRY_BASERELOC")
 
     def has_dynamic_relocs(self):
@@ -6556,7 +6556,7 @@ class PE:
         return False
 
     def print_info(self, encoding="utf-8"):
-        """Print all the PE header information in a human readable from."""
+        """Print all the PE header information in a human readable form."""
         print(self.dump_info(encoding=encoding))
 
     def dump_info(self, dump=None, encoding="ascii"):
@@ -7956,7 +7956,7 @@ class PE:
         return None
 
     def trim(self):
-        """Return the just data defined by the PE headers, removing any overlaid data."""
+        """Return just the data defined by the PE headers, removing any overlaid data."""
 
         overlay_data_offset = self.get_overlay_data_start_offset()
 
