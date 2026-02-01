@@ -682,7 +682,7 @@ def parse_strings(data, counter, l):
 
         len_ = struct.unpack("<h", data_slice)[0]
         i += 2
-        if len_ != 0 and 0 <= len_ * 2 <= len(data):
+        if 0 < len_ * 2 <= len(data):
             try:
                 l[counter] = data[i : i + len_ * 2].decode("utf-16le")
             except UnicodeDecodeError:
