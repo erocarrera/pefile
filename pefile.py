@@ -7758,15 +7758,15 @@ class PE:
         return self.OPTIONAL_HEADER.CheckSum == self.generate_checksum()
 
     def generate_checksum(self):
-        # This will make sure that the data representing the PE image
+        # This will ensure that the data representing the PE image
         # is updated with any changes that might have been made by
         # assigning values to header fields as those are not automatically
         # updated upon assignment.
         #
         # data = self.write()
-        # print('{0}'.format(len(data)))
+        # print(f'len(data)')
         # for idx, b in enumerate(data):
-        #     if b != ord(self.__data__[idx]) or (idx > 1244440 and idx < 1244460):
+        #     if b != ord(self.__data__[idx]) or (1244440 < idx < 1244460):
         #         print('Idx: {0} G {1:02x} {3} B {2:02x}'.format(
         #             idx, ord(self.__data__[idx]), b,
         #             self.__data__[idx], chr(b)))
@@ -7774,13 +7774,13 @@ class PE:
         self._close_data()
         self.__data__ = new_data
 
-        # Get the offset to the CheckSum field in the OptionalHeader
-        # (The offset is the same in PE32 and PE32+)
+        # Get the offset to the CheckSum field in the OptionalHeader.
+        # The offset is the same in PE32 and PE32+.
         checksum_offset = self.OPTIONAL_HEADER.get_file_offset() + 0x40  # 64
 
         checksum = 0
-        # Verify the data is dword-aligned. Add padding if needed
-        #
+        # Ensure the data is dword-aligned. 
+        # Add padding if needed.
         remainder = len(self.__data__) % 4
         data_len = len(self.__data__) + ((4 - remainder) * (remainder != 0))
 
@@ -7800,11 +7800,10 @@ class PE:
                 checksum = (checksum & 0xFFFFFFFF) + (checksum >> 32)
 
         checksum = (checksum & 0xFFFF) + (checksum >> 16)
-        checksum = (checksum) + (checksum >> 16)
-        checksum = checksum & 0xFFFF
+        checksum += (checksum >> 16)
+        checksum &= 0xFFFF
 
-        # The length is the one of the original data, not the padded one
-        #
+        # The length is of the original data, not the padded one
         return checksum + len(self.__data__)
 
     def is_exe(self):
