@@ -2350,6 +2350,10 @@ class PE:
     whole PE structure. The "full_load" method can be used to parse
     the missing data at a later stage.
 
+    Warnings will be raised during parsing if a section is larger and/or
+    at a higher offset than the limit configured by the 'max_offset'
+    parameter, which defaults to '0x10000000'.
+
     Basic headers information will be available in the attributes:
 
     DOS_HEADER
@@ -2897,6 +2901,7 @@ class PE:
         fast_load=None,
         max_symbol_exports=MAX_SYMBOL_EXPORT_COUNT,
         max_repeated_symbol=120,
+        max_offset=0x10000000,
     ):
         self.max_symbol_exports = max_symbol_exports
         self.max_repeated_symbol = max_repeated_symbol
@@ -2938,7 +2943,7 @@ class PE:
 
         fast_load = fast_load if fast_load is not None else globals()["fast_load"]
         try:
-            self.__parse__(name, data, fast_load)
+            self.__parse__(name, data, fast_load, max_offset)
         except:
             self.close()
             raise
@@ -3010,7 +3015,7 @@ class PE:
 
         return structure
 
-    def __parse__(self, fname, data, fast_load):
+    def __parse__(self, fname, data, fast_load, max_offset):
         """Parse a Portable Executable file.
 
         Loads a PE file, parsing all its structures and making them available
@@ -3310,7 +3315,7 @@ class PE:
             ):
                 break
 
-        offset = self.parse_sections(sections_offset)
+        offset = self.parse_sections(sections_offset, max_offset)
 
         # There could be a problem if there are no raw data sections
         # greater than 0
@@ -3544,7 +3549,7 @@ class PE:
         with open(filename, "wb+") as f:
             f.write(new_file_data)
 
-    def parse_sections(self, offset):
+    def parse_sections(self, offset, max_offset=0x10000000):
         """Fetch the PE file sections.
 
         The sections will be readily available in the "sections" attribute.
@@ -3557,6 +3562,10 @@ class PE:
         section instance.
 
         Refer to the SectionStructure class for additional info.
+
+        The method will raise a warning if a section is larger and/or at
+        a higher offset than the limit configured by the 'max_offset'
+        parameter.
         """
 
         self.sections = []
@@ -3606,11 +3615,11 @@ class PE:
                     "the end of the file."
                 )
 
-            if section.Misc_VirtualSize > 0x10000000:
+            if section.Misc_VirtualSize > max_offset:
                 simultaneous_errors += 1
                 self.__warnings.append(
                     f"Suspicious value found parsing section {i}. VirtualSize is "
-                    "extremely large > 256MiB."
+                    f"extremely large > {max_offset} bytes."
                 )
 
             if (
@@ -3619,12 +3628,12 @@ class PE:
                     self.OPTIONAL_HEADER.SectionAlignment,
                     self.OPTIONAL_HEADER.FileAlignment,
                 )
-                > 0x10000000
+                > max_offset
             ):
                 simultaneous_errors += 1
                 self.__warnings.append(
                     f"Suspicious value found parsing section {i}. VirtualAddress is "
-                    "beyond 0x10000000."
+                    f"beyond {max_offset}."
                 )
 
             if (
