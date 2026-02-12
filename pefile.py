@@ -3307,7 +3307,9 @@ class PE:
             # if we go beyond that, we assume the number of directories
             # is wrong and stop processing
             if offset >= (
-                optional_header_offset + self.OPTIONAL_HEADER.sizeof() + 8 * 16
+                optional_header_offset
+                + self.OPTIONAL_HEADER.sizeof()
+                + IMAGE_NUMBEROF_DIRECTORY_ENTRIES * 8
             ):
                 break
 
