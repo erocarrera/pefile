@@ -3246,6 +3246,15 @@ class PE:
         self.NT_HEADERS.FILE_HEADER = self.FILE_HEADER
         self.NT_HEADERS.OPTIONAL_HEADER = self.OPTIONAL_HEADER
 
+        # Detect artificially reduced values of NumberOfRvaAndSizes
+        #
+        directory_delta = (self.FILE_HEADER.SizeOfOptionalHeader 
+            - (self.OPTIONAL_HEADER.sizeof() + self.OPTIONAL_HEADER.NumberOfRvaAndSizes * 8)) // 8
+        if directory_delta > 0:
+            self.__warnings.append(
+                'SizeofOptionalHeader indicates that NumberOfRvaAndSizes is off by at least %d.' % directory_delta)
+            self.OPTIONAL_HEADER.NumberOfRvaAndSizes += directory_delta
+
         # Windows 8 specific check
         #
         if (
