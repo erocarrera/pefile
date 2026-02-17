@@ -127,7 +127,7 @@ class SignatureDatabase:
 
         data = pe.__data__[offset : offset + sig_length]
 
-        signature_bytes = " ".join(["%02x" % ord(c) for c in data])
+        signature_bytes = " ".join([f"{ord(c):02x}" for c in data])
 
         if ep_only == True:
             ep_only = "true"
