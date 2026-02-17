@@ -3374,7 +3374,6 @@ class PE:
         """
 
         # Rich Header constants
-        #
         DANS = 0x536E6144  # 'DanS' as dword
         RICH = 0x68636952  # 'Rich' as dword
 
@@ -3418,7 +3417,7 @@ class PE:
         checksum = int.from_bytes(key, "little")
         # the checksum should be present 3 times after the DanS signature
         if (
-            data[0] ^ checksum != DANS
+            data[0] != DANS ^ checksum
             or data[1] != checksum
             or data[2] != checksum
             or data[3] != checksum
@@ -3434,16 +3433,13 @@ class PE:
         data = data[4:]
         for i in range(len(data) // 2):
             # Stop until the Rich footer signature is found
-            #
             if data[2 * i] == RICH:
                 # it should be followed by the checksum
-                #
                 if data[2 * i + 1] != checksum:
                     self.__warnings.append("Rich Header is malformed")
                 break
 
             # header values come by pairs
-            #
             headervalues += [data[2 * i] ^ checksum, data[2 * i + 1] ^ checksum]
         return result
 
