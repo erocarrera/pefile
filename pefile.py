@@ -4466,11 +4466,11 @@ class PE:
                         dbg_type_size - Structure(__CV_INFO_PDB70_format__).sizeof()
                     )
 
-                    # pdbFileName_size can be negative here, as seen in the malware
-                    # sample with hash
-                    # MD5: 7c297600870d026c014d42596bb9b5fd
-                    # SHA256:
-                    #   83f4e63681fcba8a9d7bbb1688c71981b1837446514a1773597e0192bba9fac3
+                    # pdbFileName_size can be negative,
+                    # as seen in the malware sample with
+                    #
+                    # SHA-256: 83f4e63681fcba8a9d7bbb1688c71981b1837446514a1773597e0192bba9fac3
+                    #
                     # Checking for positive size here to ensure proper parsing.
                     if pdbFileName_size > 0:
                         __CV_INFO_PDB70_format__[1].append(
@@ -4549,10 +4549,10 @@ class PE:
                 )
 
                 # Need to check that dbg_type_partial contains a correctly unpacked data
-                # structure, as the malware sample with the following hash
-                # MD5:    5e7d6707d693108de5a303045c17d95b
-                # SHA256:
-                #  5dd94a95025f3b6e3dd440d52f7c6d2964fdd1aa119e0ee92e38c7bf83829e5c
+                # structure, as the malware sample with
+                #
+                # SHA-256: 5dd94a95025f3b6e3dd440d52f7c6d2964fdd1aa119e0ee92e38c7bf83829e5c
+                #
                 # contains a value of None for dbg_type_partial after unpacking,
                 # presumably due to a malformed DEBUG entry.
                 if dbg_type_partial:
@@ -5851,7 +5851,7 @@ class PE:
         Similar to imphash, but based on exported symbol names and their specific order.
 
         Returns:
-            the hexdigest of the SHA256 hash of the exported symbols.
+            the hexdigest of the SHA-256 hash of the exported symbols.
         """
 
         if not hasattr(self, "DIRECTORY_ENTRY_EXPORT"):
@@ -6089,17 +6089,15 @@ class PE:
             except IndexError:
                 imp_bound = None
 
-            # The file with hashes:
+            # The file with 
             #
-            # MD5: bfe97192e8107d52dd7b4010d12b2924
-            # SHA256: 3d22f8b001423cb460811ab4f4789f277b35838d45c62ec0454c877e7c82c7f5
+            # SHA-256: 3d22f8b001423cb460811ab4f4789f277b35838d45c62ec0454c877e7c82c7f5
             #
             # has an invalid table built in a way that it's parseable but contains
             # invalid entries that lead pefile to take extremely long amounts of time to
             # parse. It also leads to extreme memory consumption.
             # To prevent similar cases, if invalid entries are found in the middle of a
-            # table the parsing will be aborted
-            #
+            # table the parsing will be aborted.
             if imp_ord is None and imp_name is None:
                 raise PEFormatError("Invalid entries, aborting parsing.")
 
@@ -6220,8 +6218,9 @@ class PE:
             # Check if the AddressOfData lies within the range of RVAs that it's
             # being scanned, abort if that is the case, as it is very unlikely
             # to be legitimate data.
-            # Seen in PE with SHA256:
-            # 5945bb6f0ac879ddf61b1c284f3b8d20c06b228e75ae4f571fa87f5b9512902c
+            #
+            # Seen in PE with 
+            # SHA-256: 5945bb6f0ac879ddf61b1c284f3b8d20c06b228e75ae4f571fa87f5b9512902c
             if (
                 thunk_data
                 and thunk_data.AddressOfData >= start_rva
@@ -6382,12 +6381,10 @@ class PE:
             # Before we give up we check whether the file might
             # contain the data anyway. There are cases of PE files
             # without sections that rely on windows loading the first
-            # 8291 bytes into memory and assume the data will be
-            # there
-            # A functional file with these characteristics is:
-            # MD5: 0008892cdfbc3bda5ce047c565e52295
-            # SHA-1: c7116b9ff950f86af256defb95b5d4859d4752a9
+            # 8291 bytes into memory and assume the data will be there.
             #
+            # A functional file with these characteristics has
+            # SHA-256: 879adc27caa31bd27b08c4d3a363028dcfa859c1094de27e2a54d3cf53d2adef
             if rva < len(self.__data__):
                 return self.__data__[rva:end]
 
