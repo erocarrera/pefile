@@ -2307,7 +2307,7 @@ def is_valid_dos_filename(s):
 # charset we will assume the name is invalid.
 # The dot "." character comes from: https://github.com/erocarrera/pefile/pull/346
 # All other symbols can be inserted by adding a name with that symbol to a .def file,
-# and passing it to link.exe (See export_test.py)
+# and passing it to link.exe, see export_test.py.
 allowed_function_name = (
     string.ascii_lowercase + string.ascii_uppercase + string.digits
 ).encode()
@@ -2317,13 +2317,24 @@ allowed_function_name = (
 def is_valid_function_name(
     s: Union[str, bytes, bytearray], relax_allowed_characters: bool = False
 ) -> bool:
-    allowed_extra = b"._?@$()<>"
+    """
+    MangleChars = "$:?([.)]"        // watcom
+                  "@$%?"            // microsoft
+                  "@$%&";           // borland
+    Source: ida.cfg
+
+    "_" is also used in mangled names
+    "<>" C++ templates, e.g. functions in wincorlib.dll
+
+    allowed_extra = watcom + microsoft + borland + "_" + "<>"
+    """
+    allowed_extra = b"$%&().:<>?@[]_"
     if relax_allowed_characters:
-        allowed_extra = b"!\"#$%&'()*+,-./:<>?[\\]^_`{|}~@"
+        allowed_extra = string.punctuation.encode()  # superset of allowed_extra
     return (
         s is not None
         and isinstance(s, (str, bytes, bytearray))
-        and all((c in allowed_function_name or c in allowed_extra) for c in set(s))
+        and all(c in (allowed_function_name + allowed_extra) for c in set(s))
     )
 
 
