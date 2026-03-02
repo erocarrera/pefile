@@ -40,8 +40,6 @@ import ordlookup
 
 codecs.register_error("backslashreplace_", codecs.lookup_error("backslashreplace"))
 
-long = int
-
 
 # lru_cache with a shallow copy of the objects returned (list, dicts, ..)
 # we don't use deepcopy as it's _really_ slow and the data we retrieved using
@@ -1063,7 +1061,7 @@ class Structure:
         for keys in self.__keys__:
             for key in keys:
                 val = getattr(self, key)
-                if isinstance(val, (int, long)):
+                if isinstance(val, int):
                     if key.startswith("Signature_"):
                         val_str = "{:<8X}".format(val)
                     else:
@@ -1113,7 +1111,7 @@ class Structure:
         for keys in self.__keys__:
             for key in keys:
                 val = getattr(self, key)
-                if isinstance(val, (int, long)):
+                if isinstance(val, int):
                     if key == "TimeDateStamp" or key == "dwTimeStamp":
                         try:
                             val = "0x%-8X [%s UTC]" % (
