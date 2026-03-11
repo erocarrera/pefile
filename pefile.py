@@ -89,7 +89,7 @@ fast_load = False
 # files. Strings longer than 1MB should be rather rare.
 MAX_STRING_LENGTH = 0x100000  # 2^20
 
-# Maximum number of imports to parse.
+# Maximum number of imports to parse
 MAX_IMPORT_SYMBOLS = 0x2000
 
 # Limit maximum length for specific string types separately
@@ -136,8 +136,7 @@ directory_entry_types = [
     ("IMAGE_DIRECTORY_ENTRY_SECURITY", 4),
     ("IMAGE_DIRECTORY_ENTRY_BASERELOC", 5),
     ("IMAGE_DIRECTORY_ENTRY_DEBUG", 6),
-    # Architecture on non-x86 platforms
-    ("IMAGE_DIRECTORY_ENTRY_COPYRIGHT", 7),
+    ("IMAGE_DIRECTORY_ENTRY_COPYRIGHT", 7),  # Architecture on non-x86 platforms
     ("IMAGE_DIRECTORY_ENTRY_GLOBALPTR", 8),
     ("IMAGE_DIRECTORY_ENTRY_TLS", 9),
     ("IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG", 10),
@@ -947,7 +946,7 @@ class Structure:
     """
 
     def __init__(self, format, name=None, file_offset=None):
-        # Format is forced little endian, for big endian non Intel platforms
+        # Format is forced little endian, for big endian non-Intel platforms
         self.__format_str__ = "<"
         self.__keys__ = []
         self.__format_length__ = 0
@@ -992,7 +991,7 @@ class Structure:
         self.__file_offset__ = offset
 
     def all_zeroes(self):
-        """Returns true is the unpacked data is all zeros."""
+        """Returns true if the unpacked data is all zeros."""
 
         return self.__all_zeroes__
 
@@ -1256,7 +1255,7 @@ class SectionStructure(Structure):
     def contains_rva(self, rva):
         """Check whether the section contains the address provided."""
 
-        # speedup
+        # Speedup
         if self.section_min_addr is not None and self.section_max_addr is not None:
             return self.section_min_addr <= rva < self.section_max_addr
 
@@ -2023,7 +2022,7 @@ class PrologEpilogOp:
     def length_in_code_structures(self, unw_code, unw_info):
         """Computes how many UNWIND_CODE structures UNWIND_CODE occupies.
         May be called before initialize() and, for that reason, should not rely on
-        the values of intance attributes.
+        the values of instance attributes.
         """
         return 1
 
@@ -2282,7 +2281,7 @@ class PrologEpilogOpsFactory:
 # to be valid or otherwise corrupt data
 #
 # The filename length is not checked because the DLLs filename
-# can be longer that the 8.3
+# can be longer than 8.3
 
 allowed_filename = (
     string.ascii_lowercase
@@ -3081,7 +3080,6 @@ class PE:
             raise PEFormatError("DOS Header magic not found.")
 
         # Check for sane value in e_lfanew
-        #
         if self.DOS_HEADER.e_lfanew > len(self.__data__):
             raise PEFormatError("Invalid e_lfanew value, probably not a PE file")
 
