@@ -3499,32 +3499,31 @@ class PE:
             offset = structure.get_file_offset()
             file_data[offset : offset + len(struct_data)] = struct_data
 
-        if hasattr(self, "VS_VERSIONINFO"):
-            if hasattr(self, "FileInfo"):
-                for finfo in self.FileInfo:
-                    for entry in finfo:
-                        if hasattr(entry, "StringTable"):
-                            for st_entry in entry.StringTable:
-                                for key, entry in list(st_entry.entries.items()):
-                                    # Offsets and lengths of the keys and values.
-                                    # Each value in the dictionary is a tuple:
-                                    #  (key length, value length)
-                                    # The lengths are in characters, not in bytes.
-                                    offsets = st_entry.entries_offsets[key]
-                                    lengths = st_entry.entries_lengths[key]
+        if hasattr(self, "VS_VERSIONINFO") and hasattr(self, "FileInfo"):
+            for finfo in self.FileInfo:
+                for entry in finfo:
+                    if hasattr(entry, "StringTable"):
+                        for st_entry in entry.StringTable:
+                            for key, entry in st_entry.entries.items():
+                                # Offsets and lengths of the keys and values.
+                                # Each value in the dictionary is a tuple:
+                                #  (key length, value length)
+                                # The lengths are in characters, not in bytes.
+                                offsets = st_entry.entries_offsets[key]
+                                lengths = st_entry.entries_lengths[key]
 
-                                    if len(entry) > lengths[1]:
-                                        l = entry.decode("utf-8").encode("utf-16le")
-                                        file_data[
-                                            offsets[1] : offsets[1] + lengths[1] * 2
-                                        ] = l[: lengths[1] * 2]
-                                    else:
-                                        encoded_data = entry.decode("utf-8").encode(
-                                            "utf-16le"
-                                        )
-                                        file_data[
-                                            offsets[1] : offsets[1] + len(encoded_data)
-                                        ] = encoded_data
+                                if len(entry) > lengths[1]:
+                                    l = entry.decode("utf-8").encode("utf-16le")
+                                    file_data[
+                                        offsets[1] : offsets[1] + lengths[1] * 2
+                                    ] = l[: lengths[1] * 2]
+                                else:
+                                    encoded_data = entry.decode("utf-8").encode(
+                                        "utf-16le"
+                                    )
+                                    file_data[
+                                        offsets[1] : offsets[1] + len(encoded_data)
+                                    ] = encoded_data
 
         new_file_data = file_data
         if not filename:
