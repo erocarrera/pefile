@@ -21,7 +21,6 @@ __version__ = "2024.8.26"
 __contact__ = "ero.carrera@gmail.com"
 
 import codecs
-import collections
 import copy as copymod
 import functools
 import gc
@@ -32,15 +31,13 @@ import string
 import struct
 import time
 import uuid
-from collections import Counter
+from collections import Counter, defaultdict
 from hashlib import md5, sha1, sha256, sha512
 from typing import Union
 
 import ordlookup
 
 codecs.register_error("backslashreplace_", codecs.lookup_error("backslashreplace"))
-
-long = int
 
 
 # lru_cache with a shallow copy of the objects returned (list, dicts, ..)
@@ -76,7 +73,7 @@ def cache_adjust_SectionAlignment(val, section_alignment, file_alignment):
     #    section_alignment = 0x80
 
     if section_alignment and val % section_alignment:
-        return section_alignment * (int(val / section_alignment))
+        return section_alignment * (val // section_alignment)
     return val
 
 
@@ -91,7 +88,7 @@ fast_load = False
 # files. Strings longer than 1MB should be rather rare.
 MAX_STRING_LENGTH = 0x100000  # 2^20
 
-# Maximum number of imports to parse.
+# Maximum number of imports to parse
 MAX_IMPORT_SYMBOLS = 0x2000
 
 # Limit maximum length for specific string types separately
@@ -138,8 +135,7 @@ directory_entry_types = [
     ("IMAGE_DIRECTORY_ENTRY_SECURITY", 4),
     ("IMAGE_DIRECTORY_ENTRY_BASERELOC", 5),
     ("IMAGE_DIRECTORY_ENTRY_DEBUG", 6),
-    # Architecture on non-x86 platforms
-    ("IMAGE_DIRECTORY_ENTRY_COPYRIGHT", 7),
+    ("IMAGE_DIRECTORY_ENTRY_COPYRIGHT", 7),  # Architecture on non-x86 platforms
     ("IMAGE_DIRECTORY_ENTRY_GLOBALPTR", 8),
     ("IMAGE_DIRECTORY_ENTRY_TLS", 9),
     ("IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG", 10),
@@ -265,6 +261,7 @@ subsystem_types = [
     ("IMAGE_SUBSYSTEM_EFI_ROM", 13),
     ("IMAGE_SUBSYSTEM_XBOX", 14),
     ("IMAGE_SUBSYSTEM_WINDOWS_BOOT_APPLICATION", 16),
+    ("IMAGE_SUBSYSTEM_XBOX_CODE_CATALOG", 17),
 ]
 
 SUBSYSTEM_TYPE = two_way_dict(subsystem_types)
@@ -273,6 +270,7 @@ SUBSYSTEM_TYPE = two_way_dict(subsystem_types)
 machine_types = [
     ("IMAGE_FILE_MACHINE_UNKNOWN", 0x0),
     ("IMAGE_FILE_MACHINE_I386", 0x014C),
+    ("IMAGE_FILE_MACHINE_R3000BE", 0x160),
     ("IMAGE_FILE_MACHINE_R3000", 0x0162),
     ("IMAGE_FILE_MACHINE_R4000", 0x0166),
     ("IMAGE_FILE_MACHINE_R10000", 0x0168),
@@ -645,7 +643,6 @@ sublang = [
     ("SUBLANG_GAELIC_MANX", 0x03),
 ]
 
-SUBLANG = two_way_dict(sublang)
 
 # Initialize the dictionary with all the name->value pairs
 SUBLANG = dict(sublang)
@@ -682,7 +679,7 @@ def parse_strings(data, counter, l):
 
         len_ = struct.unpack("<h", data_slice)[0]
         i += 2
-        if len_ != 0 and 0 <= len_ * 2 <= len(data):
+        if 0 < len_ * 2 <= len(data):
             try:
                 l[counter] = data[i : i + len_ * 2].decode("utf-16le")
             except UnicodeDecodeError:
@@ -948,7 +945,7 @@ class Structure:
     """
 
     def __init__(self, format, name=None, file_offset=None):
-        # Format is forced little endian, for big endian non Intel platforms
+        # Format is forced little endian, for big endian non-Intel platforms
         self.__format_str__ = "<"
         self.__keys__ = []
         self.__format_length__ = 0
@@ -993,7 +990,7 @@ class Structure:
         self.__file_offset__ = offset
 
     def all_zeroes(self):
-        """Returns true is the unpacked data is all zeros."""
+        """Returns true if the unpacked data is all zeros."""
 
         return self.__all_zeroes__
 
@@ -1003,15 +1000,12 @@ class Structure:
         return self.__format_length__
 
     def __unpack__(self, data):
-        data = data
-
         if len(data) > self.__format_length__:
             data = data[: self.__format_length__]
 
         # Some malware have incorrect header lengths.
         # Fail gracefully if this occurs
         # Buggy malware: a29b0118af8b7408444df81701ad5a7f
-        #
         elif len(data) < self.__format_length__:
             raise PEFormatError("Data length less than expected header length.")
 
@@ -1062,7 +1056,7 @@ class Structure:
         for keys in self.__keys__:
             for key in keys:
                 val = getattr(self, key)
-                if isinstance(val, (int, long)):
+                if isinstance(val, int):
                     if key.startswith("Signature_"):
                         val_str = "{:<8X}".format(val)
                     else:
@@ -1112,7 +1106,7 @@ class Structure:
         for keys in self.__keys__:
             for key in keys:
                 val = getattr(self, key)
-                if isinstance(val, (int, long)):
+                if isinstance(val, int):
                     if key == "TimeDateStamp" or key == "dwTimeStamp":
                         try:
                             val = "0x%-8X [%s UTC]" % (
@@ -1144,11 +1138,11 @@ class SectionStructure(Structure):
             self.pe = kwargs["pe"]
             del kwargs["pe"]
 
+        super().__init__(*args, **kwargs)
         self.PointerToRawData = None
         self.VirtualAddress = None
         self.SizeOfRawData = None
         self.Misc_VirtualSize = None
-        super().__init__(*args, **kwargs)
         self.PointerToRawData_adj = None
         self.VirtualAddress_adj = None
         self.section_min_addr = None
@@ -1257,7 +1251,7 @@ class SectionStructure(Structure):
     def contains_rva(self, rva):
         """Check whether the section contains the address provided."""
 
-        # speedup
+        # Speedup
         if self.section_min_addr is not None and self.section_max_addr is not None:
             return self.section_min_addr <= rva < self.section_max_addr
 
@@ -1300,6 +1294,12 @@ class SectionStructure(Structure):
 
         return self.entropy_H(self.get_data())
 
+    def get_hash_md5(self):
+        """Get the MD5 hex-digest of the section's data."""
+
+        if md5 is not None:
+            return md5(self.get_data()).hexdigest()
+
     def get_hash_sha1(self):
         """Get the SHA-1 hex-digest of the section's data."""
 
@@ -1318,12 +1318,6 @@ class SectionStructure(Structure):
         if sha512 is not None:
             return sha512(self.get_data()).hexdigest()
 
-    def get_hash_md5(self):
-        """Get the MD5 hex-digest of the section's data."""
-
-        if md5 is not None:
-            return md5(self.get_data()).hexdigest()
-
     def entropy_H(self, data):
         """Calculate the entropy of a chunk of data."""
 
@@ -1334,8 +1328,8 @@ class SectionStructure(Structure):
 
         entropy = 0
         for x in occurences.values():
-            p_x = float(x) / len(data)
-            entropy -= p_x * math.log(p_x, 2)
+            p_x = x / len(data)
+            entropy -= p_x * math.log2(p_x)
 
         return entropy
 
@@ -1435,11 +1429,11 @@ class StructureWithBitfields(Structure):
     reused.
 
     In addition, we create a dictionary:
-        <comound_field_index_in_keys> -->
+        <compound_field_index_in_keys> -->
             (data type, [ (subfield name, length in bits)+ ] )
-    that facilitates bitfield paking and unpacking.
+    that facilitates bitfield packing and unpacking.
 
-    With lru_cache() creating only once instance per format string, the memory
+    With lru_cache() creating only one instance per format string, the memory
     overhead is negligible.
     """
 
@@ -1932,7 +1926,7 @@ class UnwindInfo(StructureWithBitfields):
 
     def dump(self, indentation=0):
         # Because __keys_ext__ are shared among all the instances with the same
-        # format string, we have to add and sunsequently remove the optional field
+        # format string, we have to add and subsequently remove the optional field
         # each time.
         # It saves space (as compared to keeping a copy self.__keys_ext__ per
         # UnwindInfo instance), but makes our dump() implementation thread-unsafe.
@@ -2024,7 +2018,7 @@ class PrologEpilogOp:
     def length_in_code_structures(self, unw_code, unw_info):
         """Computes how many UNWIND_CODE structures UNWIND_CODE occupies.
         May be called before initialize() and, for that reason, should not rely on
-        the values of intance attributes.
+        the values of instance attributes.
         """
         return 1
 
@@ -2283,7 +2277,7 @@ class PrologEpilogOpsFactory:
 # to be valid or otherwise corrupt data
 #
 # The filename length is not checked because the DLLs filename
-# can be longer that the 8.3
+# can be longer than 8.3
 
 allowed_filename = (
     string.ascii_lowercase
@@ -2978,9 +2972,8 @@ class PE:
             structure.__unpack__(data)
         except PEFormatError as err:
             self.__warnings.append(
-                'Corrupt header "{0}" at file offset {1}. Exception: {2}'.format(
-                    format[0], file_offset, err
-                )
+                f'Corrupt header "{format[0]}" at file offset {file_offset}. '
+                f'Exception: {err}'
             )
             return None
 
@@ -3000,9 +2993,8 @@ class PE:
             structure.__unpack__(data)
         except PEFormatError as err:
             self.__warnings.append(
-                'Corrupt header "{0}" at file offset {1}. Exception: {2}'.format(
-                    format[0], file_offset, err
-                )
+                f'Corrupt header "{format[0]}" at file offset {file_offset}. '
+                f'Exception: {err}'
             )
             return None
 
@@ -3033,10 +3025,10 @@ class PE:
                     self.__data__ = mmap.mmap(self.fileno, 0, access=mmap.ACCESS_READ)
                 self.__from_file = True
             except IOError as excp:
-                exception_msg = "{0}".format(excp)
+                exception_msg = f"{excp}"
                 exception_msg = exception_msg and (": %s" % exception_msg)
                 raise Exception(
-                    "Unable to access file '{0}'{1}".format(fname, exception_msg)
+                    f"Unable to access file '{fname}'{exception_msg}"
                 )
             finally:
                 if fd is not None:
@@ -3082,7 +3074,6 @@ class PE:
             raise PEFormatError("DOS Header magic not found.")
 
         # Check for sane value in e_lfanew
-        #
         if self.DOS_HEADER.e_lfanew > len(self.__data__):
             raise PEFormatError("Invalid e_lfanew value, probably not a PE file")
 
@@ -3306,7 +3297,9 @@ class PE:
             # if we go beyond that, we assume the number of directories
             # is wrong and stop processing
             if offset >= (
-                optional_header_offset + self.OPTIONAL_HEADER.sizeof() + 8 * 16
+                optional_header_offset
+                + self.OPTIONAL_HEADER.sizeof()
+                + IMAGE_NUMBEROF_DIRECTORY_ENTRIES * 8
             ):
                 break
 
@@ -3373,7 +3366,6 @@ class PE:
         """
 
         # Rich Header constants
-        #
         DANS = 0x536E6144  # 'DanS' as dword
         RICH = 0x68636952  # 'Rich' as dword
 
@@ -3417,7 +3409,7 @@ class PE:
         checksum = int.from_bytes(key, "little")
         # the checksum should be present 3 times after the DanS signature
         if (
-            data[0] ^ checksum != DANS
+            data[0] != DANS ^ checksum
             or data[1] != checksum
             or data[2] != checksum
             or data[3] != checksum
@@ -3433,16 +3425,13 @@ class PE:
         data = data[4:]
         for i in range(len(data) // 2):
             # Stop until the Rich footer signature is found
-            #
             if data[2 * i] == RICH:
                 # it should be followed by the checksum
-                #
                 if data[2 * i + 1] != checksum:
                     self.__warnings.append("Rich Header is malformed")
                 break
 
             # header values come by pairs
-            #
             headervalues += [data[2 * i] ^ checksum, data[2 * i + 1] ^ checksum]
         return result
 
@@ -3500,7 +3489,7 @@ class PE:
         assigning to attributes in the PE objects) and write
         the changes back to a file whose name is provided as
         an argument. The filename is optional, if not
-        provided the data will be returned as a 'str' object.
+        provided the data will be returned as a 'bytearray' object.
         """
 
         file_data = bytearray(self.__data__)
@@ -3510,32 +3499,31 @@ class PE:
             offset = structure.get_file_offset()
             file_data[offset : offset + len(struct_data)] = struct_data
 
-        if hasattr(self, "VS_VERSIONINFO"):
-            if hasattr(self, "FileInfo"):
-                for finfo in self.FileInfo:
-                    for entry in finfo:
-                        if hasattr(entry, "StringTable"):
-                            for st_entry in entry.StringTable:
-                                for key, entry in list(st_entry.entries.items()):
-                                    # Offsets and lengths of the keys and values.
-                                    # Each value in the dictionary is a tuple:
-                                    #  (key length, value length)
-                                    # The lengths are in characters, not in bytes.
-                                    offsets = st_entry.entries_offsets[key]
-                                    lengths = st_entry.entries_lengths[key]
+        if hasattr(self, "VS_VERSIONINFO") and hasattr(self, "FileInfo"):
+            for finfo in self.FileInfo:
+                for entry in finfo:
+                    if hasattr(entry, "StringTable"):
+                        for st_entry in entry.StringTable:
+                            for key, entry in st_entry.entries.items():
+                                # Offsets and lengths of the keys and values.
+                                # Each value in the dictionary is a tuple:
+                                #  (key length, value length)
+                                # The lengths are in characters, not in bytes.
+                                offsets = st_entry.entries_offsets[key]
+                                lengths = st_entry.entries_lengths[key]
 
-                                    if len(entry) > lengths[1]:
-                                        l = entry.decode("utf-8").encode("utf-16le")
-                                        file_data[
-                                            offsets[1] : offsets[1] + lengths[1] * 2
-                                        ] = l[: lengths[1] * 2]
-                                    else:
-                                        encoded_data = entry.decode("utf-8").encode(
-                                            "utf-16le"
-                                        )
-                                        file_data[
-                                            offsets[1] : offsets[1] + len(encoded_data)
-                                        ] = encoded_data
+                                if len(entry) > lengths[1]:
+                                    l = entry.decode("utf-8").encode("utf-16le")
+                                    file_data[
+                                        offsets[1] : offsets[1] + lengths[1] * 2
+                                    ] = l[: lengths[1] * 2]
+                                else:
+                                    encoded_data = entry.decode("utf-8").encode(
+                                        "utf-16le"
+                                    )
+                                    file_data[
+                                        offsets[1] : offsets[1] + len(encoded_data)
+                                    ] = encoded_data
 
         new_file_data = file_data
         if not filename:
@@ -3717,16 +3705,16 @@ class PE:
         """
 
         directory_parsing = (
-            ("IMAGE_DIRECTORY_ENTRY_IMPORT", self.parse_import_directory),
             ("IMAGE_DIRECTORY_ENTRY_EXPORT", self.parse_export_directory),
+            ("IMAGE_DIRECTORY_ENTRY_IMPORT", self.parse_import_directory),
             ("IMAGE_DIRECTORY_ENTRY_RESOURCE", self.parse_resources_directory),
-            ("IMAGE_DIRECTORY_ENTRY_DEBUG", self.parse_debug_directory),
+            ("IMAGE_DIRECTORY_ENTRY_EXCEPTION", self.parse_exceptions_directory),
             ("IMAGE_DIRECTORY_ENTRY_BASERELOC", self.parse_relocations_directory),
+            ("IMAGE_DIRECTORY_ENTRY_DEBUG", self.parse_debug_directory),
             ("IMAGE_DIRECTORY_ENTRY_TLS", self.parse_directory_tls),
             ("IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG", self.parse_directory_load_config),
-            ("IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT", self.parse_delay_import_directory),
             ("IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT", self.parse_directory_bound_imports),
-            ("IMAGE_DIRECTORY_ENTRY_EXCEPTION", self.parse_exceptions_directory),
+            ("IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT", self.parse_delay_import_directory),
         )
 
         if directories is not None:
@@ -5469,7 +5457,7 @@ class PE:
                 - export_dir.AddressOfNames
             )
 
-        symbol_counts = collections.defaultdict(int)
+        symbol_counts = defaultdict(int)
         export_parsing_loop_completed_normally = True
         for i in range(min(export_dir.NumberOfNames, int(safety_boundary / 4))):
             symbol_ordinal = self.get_word_from_data(address_of_name_ordinals, i)
@@ -5586,7 +5574,7 @@ class PE:
                 - export_dir.AddressOfFunctions
             )
 
-        symbol_counts = collections.defaultdict(int)
+        symbol_counts = defaultdict(int)
         export_parsing_loop_completed_normally = True
         for idx in range(min(export_dir.NumberOfFunctions, int(safety_boundary / 4))):
             if idx + export_dir.Base not in ordinals:
@@ -5796,7 +5784,7 @@ class PE:
 
         raise Exception("Invalid hashing algorithm specified")
 
-    def get_imphash(self):
+    def get_imphash(self, usedforsecurity=True):
         """Return the imphash of the PE file.
 
         Creates a hash based on imported symbol names and their specific order within
@@ -5842,7 +5830,7 @@ class PE:
                     funcname = funcname.decode()
                 impstrs.append("%s.%s" % (libname.lower(), funcname.lower()))
 
-        return md5(",".join(impstrs).encode()).hexdigest()
+        return md5(",".join(impstrs).encode(), usedforsecurity=usedforsecurity).hexdigest()
 
     def get_exphash(self):
         """Return the exphash of the PE file.
@@ -5850,7 +5838,7 @@ class PE:
         Similar to imphash, but based on exported symbol names and their specific order.
 
         Returns:
-            the hexdigest of the SHA256 hash of the exported symbols.
+            the hexdigest of the MD5 hash of the exported symbols.
         """
 
         if not hasattr(self, "DIRECTORY_ENTRY_EXPORT"):
@@ -5959,7 +5947,7 @@ class PE:
                         if not symbol or not symbol.name:
                             continue
                         name = symbol.name
-                        if type(symbol.name) == bytes:
+                        if isinstance(symbol.name, bytes):
                             name = symbol.name.decode("utf-8")
                         if name.startswith(suspicious_symbol):
                             suspicious_imports_count += 1
@@ -6002,13 +5990,12 @@ class PE:
         # bound.
         iat = self.get_import_table(first_thunk, max_length, contains_addresses)
 
-        # Would crash if IAT or ILT had None type
-        if (not iat or len(iat) == 0) and (not ilt or len(ilt) == 0):
+        if (not iat) and (not ilt):
             self.__warnings.append(
                 "Damaged Import Table information. "
                 "ILT and/or IAT appear to be broken. "
-                f"OriginalFirstThunk: 0x{original_first_thunk:x} "
-                f"FirstThunk: 0x{first_thunk:x}"
+                f"OriginalFirstThunk: {original_first_thunk:#x} "
+                f"FirstThunk: {first_thunk:#x}"
             )
             return []
 
@@ -6134,11 +6121,8 @@ class PE:
         return imported_symbols
 
     def get_import_table(self, rva, max_length=None, contains_addresses=False):
-        table = []
-
         # We need the ordinal flag for a simple heuristic
         # we're implementing within the loop
-        #
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
             ordinal_flag = IMAGE_ORDINAL_FLAG
             format = self.__IMAGE_THUNK_DATA_format__
@@ -6160,6 +6144,7 @@ class PE:
         addresses_of_data_set_64 = AddressSet()
         addresses_of_data_set_32 = AddressSet()
         start_rva = rva
+        table = []
         while rva:
             if max_length is not None and rva >= start_rva + max_length:
                 self.__warnings.append(
@@ -6169,8 +6154,7 @@ class PE:
             # Enforce an upper bounds on import symbols.
             if self.__total_import_symbols > MAX_IMPORT_SYMBOLS:
                 self.__warnings.append(
-                    "Excessive number of imports %d (>%s)"
-                    % (self.__total_import_symbols, MAX_IMPORT_SYMBOLS)
+                    f"Excessive number of imports {self.__total_import_symbols} (>{MAX_IMPORT_SYMBOLS})"
                 )
                 break
 
@@ -6197,7 +6181,7 @@ class PE:
 
             if failed or len(data) != expected_size:
                 self.__warnings.append(
-                    "Error parsing the import table. " "Invalid data at RVA: 0x%x" % rva
+                    f"Error parsing the import table. Invalid data at RVA: {rva:#x}"
                 )
                 return None
 
@@ -6223,21 +6207,20 @@ class PE:
             # 5945bb6f0ac879ddf61b1c284f3b8d20c06b228e75ae4f571fa87f5b9512902c
             if (
                 thunk_data
-                and thunk_data.AddressOfData >= start_rva
-                and thunk_data.AddressOfData <= rva
+                and start_rva <= thunk_data.AddressOfData <= rva
             ):
                 self.__warnings.append(
-                    "Error parsing the import table. "
-                    "AddressOfData overlaps with THUNK_DATA for "
-                    "THUNK at RVA 0x%x" % (rva)
+                    f"Error parsing the import table. "
+                    f"AddressOfData overlaps with THUNK_DATA for "
+                    f"THUNK at RVA {rva:#x}"
                 )
                 break
 
             if thunk_data and thunk_data.AddressOfData:
                 addr_of_data = thunk_data.AddressOfData
-                # If the entry looks like could be an ordinal...
+                # If the entry looks like it could be an ordinal...
                 if addr_of_data & ordinal_flag:
-                    # but its value is beyond 2^16, we will assume it's a
+                    # but its value is beyond 2^16, we will assume it's
                     # corrupted and ignore it altogether
                     if addr_of_data & 0x7FFFFFFF > 0xFFFF:
                         return []
@@ -6268,16 +6251,16 @@ class PE:
         """Returns the data corresponding to the memory layout of the PE file.
 
         The data includes the PE header and the sections loaded at offsets
-        corresponding to their relative virtual addresses. (the VirtualAddress
+        corresponding to their relative virtual addresses (the VirtualAddress
         section header member).
         Any offset in this data corresponds to the absolute memory address
-        ImageBase+offset.
+        ImageBase + offset.
 
-        The optional argument 'max_virtual_address' provides with means of limiting
+        The optional argument 'max_virtual_address' provides a way of limiting
         which sections are processed.
         Any section with their VirtualAddress beyond this value will be skipped.
         Normally, sections with values beyond this range are just there to confuse
-        tools. It's a common trick to see in packed executables.
+        tools. This is a common trick to see in packed executables.
 
         If the 'ImageBase' optional argument is supplied, the file's relocations
         will be applied to the image by calling the 'relocate_image()' method. Beware
@@ -6285,10 +6268,8 @@ class PE:
         """
 
         # Rebase if requested
-        #
         if ImageBase is not None:
             # Keep a copy of the image's data before modifying it by rebasing it
-            #
             original_data = self.__data__
 
             self.relocate_image(ImageBase)
@@ -6297,7 +6278,8 @@ class PE:
         mapped_data = self.header
         for section in self.sections:
             # Miscellaneous integrity tests.
-            # Some packer will set these to bogus values to make tools go nuts.
+            # Some packers will set these to bogus values to confuse tools.
+
             if section.Misc_VirtualSize == 0 and section.SizeOfRawData == 0:
                 continue
 
@@ -6327,7 +6309,6 @@ class PE:
             mapped_data += section.get_data()
 
         # If the image was rebased, restore it to its original form
-        #
         if ImageBase is not None:
             self.__data__ = original_data
 
@@ -6428,7 +6409,7 @@ class PE:
     def get_offset_from_rva(self, rva):
         """Get the file offset corresponding to this RVA.
 
-        Given a RVA , this method will find the section where the
+        Given a RVA, this method will find the section where the
         data lies and return the offset within the file.
         """
 
@@ -6545,7 +6526,7 @@ class PE:
         return self.dump_info()
 
     def has_relocs(self):
-        """Checks if the PE file has relocation directory"""
+        """Checks if the PE file has a relocation directory"""
         return hasattr(self, "DIRECTORY_ENTRY_BASERELOC")
 
     def has_dynamic_relocs(self):
@@ -6556,7 +6537,7 @@ class PE:
         return False
 
     def print_info(self, encoding="utf-8"):
-        """Print all the PE header information in a human readable from."""
+        """Print all the PE header information in a human readable form."""
         print(self.dump_info(encoding=encoding))
 
     def dump_info(self, dump=None, encoding="ascii"):
@@ -7758,15 +7739,15 @@ class PE:
         return self.OPTIONAL_HEADER.CheckSum == self.generate_checksum()
 
     def generate_checksum(self):
-        # This will make sure that the data representing the PE image
+        # This will ensure that the data representing the PE image
         # is updated with any changes that might have been made by
         # assigning values to header fields as those are not automatically
         # updated upon assignment.
         #
         # data = self.write()
-        # print('{0}'.format(len(data)))
+        # print(f'len(data)')
         # for idx, b in enumerate(data):
-        #     if b != ord(self.__data__[idx]) or (idx > 1244440 and idx < 1244460):
+        #     if b != ord(self.__data__[idx]) or (1244440 < idx < 1244460):
         #         print('Idx: {0} G {1:02x} {3} B {2:02x}'.format(
         #             idx, ord(self.__data__[idx]), b,
         #             self.__data__[idx], chr(b)))
@@ -7774,13 +7755,13 @@ class PE:
         self._close_data()
         self.__data__ = new_data
 
-        # Get the offset to the CheckSum field in the OptionalHeader
-        # (The offset is the same in PE32 and PE32+)
+        # Get the offset to the CheckSum field in the OptionalHeader.
+        # The offset is the same in PE32 and PE32+.
         checksum_offset = self.OPTIONAL_HEADER.get_file_offset() + 0x40  # 64
 
         checksum = 0
-        # Verify the data is dword-aligned. Add padding if needed
-        #
+        # Ensure the data is dword-aligned. 
+        # Add padding if needed.
         remainder = len(self.__data__) % 4
         data_len = len(self.__data__) + ((4 - remainder) * (remainder != 0))
 
@@ -7800,11 +7781,10 @@ class PE:
                 checksum = (checksum & 0xFFFFFFFF) + (checksum >> 32)
 
         checksum = (checksum & 0xFFFF) + (checksum >> 16)
-        checksum = (checksum) + (checksum >> 16)
-        checksum = checksum & 0xFFFF
+        checksum += (checksum >> 16)
+        checksum &= 0xFFFF
 
-        # The length is the one of the original data, not the padded one
-        #
+        # The length is of the original data, not the padded one
         return checksum + len(self.__data__)
 
     def is_exe(self):
@@ -7820,7 +7800,7 @@ class PE:
         if (
             (not self.is_dll())
             and (not self.is_driver())
-            and (EXE_flag & self.FILE_HEADER.Characteristics) == EXE_flag
+            and (EXE_flag & self.FILE_HEADER.Characteristics)
         ):
             return True
 
@@ -7834,7 +7814,7 @@ class PE:
 
         DLL_flag = IMAGE_CHARACTERISTICS["IMAGE_FILE_DLL"]
 
-        if (DLL_flag & self.FILE_HEADER.Characteristics) == DLL_flag:
+        if DLL_flag & self.FILE_HEADER.Characteristics:
             return True
 
         return False
@@ -7956,7 +7936,7 @@ class PE:
         return None
 
     def trim(self):
-        """Return the just data defined by the PE headers, removing any overlaid data."""
+        """Return just the data defined by the PE headers, removing any overlaid data."""
 
         overlay_data_offset = self.get_overlay_data_start_offset()
 
@@ -7965,44 +7945,44 @@ class PE:
 
         return self.__data__[:]
 
-    # According to the document:
-    # [ Microsoft Portable Executable and Common Object File Format Specification ]
-    # "The alignment factor (in bytes) that is used to align the raw data of sections in
-    #  the image file. The value should be a power of 2 between 512 and 64 K, inclusive.
-    #  The default is 512. If the SectionAlignment is less than the architecture's page
-    #  size, then FileAlignment must match SectionAlignment."
     def adjust_PointerToRawData(self, val):
+        # "The alignment factor (in bytes) that is used to align the raw data of sections in
+        #  the image file. The value should be a power of 2 between 512 and 64 K, inclusive.
+        #  The default is 512. If the SectionAlignment is less than the architecture's page
+        #  size, then FileAlignment must match SectionAlignment."
+        # [Microsoft Portable Executable and Common Object File Format Specification]
+        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
         if self.OPTIONAL_HEADER.FileAlignment >= MIN_VALID_FILE_ALIGNMENT:
             # If it's not a power of two, report it:
-            if self.FileAlignment_Warning is False and not power_of_two(
-                self.OPTIONAL_HEADER.FileAlignment
+            if ( 
+                not power_of_two(self.OPTIONAL_HEADER.FileAlignment) 
+                and self.FileAlignment_Warning is False 
             ):
                 self.__warnings.append(
-                    "If FileAlignment > 0x200 it should be a power of 2. Value: %x"
-                    % (self.OPTIONAL_HEADER.FileAlignment)
+                    f"If FileAlignment > 0x200 it should be a power of 2. "
+                    f"Value: {self.OPTIONAL_HEADER.FileAlignment:#x}"
                 )
                 self.FileAlignment_Warning = True
 
         # (val / SECTOR_SIZE) * SECTOR_SIZE
         return val & ~0x1FF
 
-    # According to the document:
-    # [ Microsoft Portable Executable and Common Object File Format Specification ]
-    # "The alignment (in bytes) of sections when they are loaded into memory. It must be
-    #  greater than or equal to FileAlignment. The default is the page size for the
-    #  architecture."
-    #
     def adjust_SectionAlignment(self, val, section_alignment, file_alignment):
-        # If the SectionAlignment is less than the architecture's page size, then
-        # FileAlignment must match SectionAlignment.
+        # "The alignment (in bytes) of sections when they are loaded into memory. It must be
+        #  greater than or equal to FileAlignment. The default is the page size for the
+        #  architecture."
+        # [Microsoft Portable Executable and Common Object File Format Specification]
+        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
         if section_alignment < 0x1000:
+            # If the SectionAlignment is less than the architecture's page size, then
+            # FileAlignment must match SectionAlignment.
             if (
                 file_alignment != section_alignment
                 and self.SectionAlignment_Warning is False
             ):
                 self.__warnings.append(
-                    f"If SectionAlignment(0x{section_alignment:x}) < 0x1000 it should "
-                    f"equal FileAlignment(0x{file_alignment:x})"
+                    f"If SectionAlignment ({section_alignment:#x}) < 0x1000 it should "
+                    f"equal FileAlignment ({file_alignment:#x})"
                 )
                 self.SectionAlignment_Warning = True
 
@@ -8012,12 +7992,8 @@ class PE:
 def main():
     import sys
 
-    usage = """\
-pefile.py <filename>
-pefile.py exports <filename>"""
-
     if not sys.argv[1:]:
-        print(usage)
+        print('pefile.py <filename>', 'pefile.py exports <filename>', sep='\n')
     elif sys.argv[1] == "exports":
         if not sys.argv[2:]:
             sys.exit("error: <filename> required")

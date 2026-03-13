@@ -1,27 +1,28 @@
-# Files to ignore by git.
-
-.gitignore
-*.bak
-.coverage
-tests/test_files/*
-venv*
-
 # Back-up files
-*~
+*.bak
 *.swp
+*~
 
-# Generic auto-generated build files
+# Editors / IDEs
+.idea/*
+.vscode/*
+
+# Python compiled files
 *.pyc
-*.pyo
-
-# Specific auto-generated build files
-/.tox
 /__pycache__
+
+# Virtual environments
+.venv/
+venv/
+
+# Project specific and miscellaneous
+/.tox
 /build
 /dist
 /pefile.egg-info
 .DS_Store
-pefile.code-workspace
-.vscode/*
-pefile.ipynb
+.coverage
 .ipynb_checkpoints/*
+pefile.code-workspace
+pefile.ipynb
+tests/test_files/*
