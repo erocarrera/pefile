@@ -590,6 +590,7 @@ def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):
         if s_entropy > section_entropy:
             total_compressed_data += len(section.get_data())
 
+    has_significant_amount_of_compressed_data = False
     if (total_compressed_data / total_pe_data_length) > packed_threshold:
         has_significant_amount_of_compressed_data = True
 
