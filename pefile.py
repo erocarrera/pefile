@@ -1453,7 +1453,7 @@ class StructureWithBitfields(Structure):
         ) = set_bitfields_format(format)
         # create our own unpacked_data_elms to ensure they are not shared among
         # StructureWithBitfields instances with the same format string
-        self.__unpacked_data_elms__ = [None for i in range(self.__format_length__)]
+        self.__unpacked_data_elms__ = [None for _ in range(self.__format_length__)]
         self.__all_zeroes__ = False
         self.__file_offset__ = file_offset
         self.name = name if name != None else format[0]
@@ -4197,7 +4197,7 @@ class PE:
             rva += Structure(format).sizeof()
 
             override_rvas = []
-            for i in range(func_info.RvaSize // 4):
+            for _ in range(func_info.RvaSize // 4):
                 override_rvas.append(struct.unpack("<I", self.get_data(rva, 4))[0])
                 rva += 4
 
@@ -4228,7 +4228,7 @@ class PE:
             return func_relocs, bdd_relocs
         rva += Structure(format).sizeof()
 
-        for i in range(bdd_info.BDDSize // 8):
+        for _ in range(bdd_info.BDDSize // 8):
             format = self.__IMAGE_BDD_DYNAMIC_RELOCATION_format__
             bdd_reloc = self.__unpack_data__(
                 format,
