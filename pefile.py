@@ -2352,7 +2352,7 @@ class PE:
 
     Warnings will be raised during parsing if a section is larger and/or
     at a higher offset than the limit configured by the 'max_offset'
-    parameter, which defaults to '0x10000000'.
+    parameter, which defaults to '0x10000000' (256MiB).
 
     Basic headers information will be available in the attributes:
 
