@@ -3366,8 +3366,8 @@ class PE:
         """
 
         # Rich Header constants
-        DANS = 0x536E6144  # 'DanS' as dword
-        RICH = 0x68636952  # 'Rich' as dword
+        DanS = int.from_bytes(b'DanS', 'little')
+        Rich = int.from_bytes(b'Rich', 'little')
 
         rich_index = self.__data__.find(
             b"Rich", 0x80, self.OPTIONAL_HEADER.get_file_offset()
@@ -3385,13 +3385,13 @@ class PE:
             # truncated data that is not a multiple.
             rich_data = rich_data[: 4 * (len(rich_data) // 4)]
             data = list(struct.unpack("<{0}I".format(len(rich_data) // 4), rich_data))
-            if RICH not in data:
+            if Rich not in data:
                 return None
         except PEFormatError:
             return None
 
         # get key, raw_data and clear_data
-        key = struct.pack("<L", data[data.index(RICH) + 1])
+        key = struct.pack("<L", data[data.index(Rich) + 1])
         result = {"key": key}
 
         raw_data = rich_data[: rich_data.find(b"Rich")]
@@ -3409,7 +3409,7 @@ class PE:
         checksum = int.from_bytes(key, "little")
         # the checksum should be present 3 times after the DanS signature
         if (
-            data[0] != DANS ^ checksum
+            data[0] != DanS ^ checksum
             or data[1] != checksum
             or data[2] != checksum
             or data[3] != checksum
@@ -3425,7 +3425,7 @@ class PE:
         data = data[4:]
         for i in range(len(data) // 2):
             # Stop until the Rich footer signature is found
-            if data[2 * i] == RICH:
+            if data[2 * i] == Rich:
                 # it should be followed by the checksum
                 if data[2 * i + 1] != checksum:
                     self.__warnings.append("Rich Header is malformed")
