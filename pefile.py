@@ -3660,7 +3660,7 @@ class PE:
                 simultaneous_errors += 1
                 self.__warnings.append(
                     f"Suspicious value found parsing section {i}. VirtualAddress is "
-                    f"beyond {max_offset}."
+                    f"beyond {max_offset:#x}."
                 )
 
             if (
