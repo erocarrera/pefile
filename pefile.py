@@ -2928,6 +2928,7 @@ class PE:
         fast_load=None,
         max_symbol_exports=MAX_SYMBOL_EXPORT_COUNT,
         max_repeated_symbol=120,
+        *, # args after this are keyword-only
         max_offset=0x10000000,
     ):
         self.max_symbol_exports = max_symbol_exports
