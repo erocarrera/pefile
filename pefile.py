@@ -2277,31 +2277,31 @@ class PrologEpilogOpsFactory:
         )
 
 
-def format_bytes(bytes_value):
+def human_readable_size(value: int) -> str:
     """
     Convert bytes into a human readable string using binary prefixes (KiB, MiB, etc.).
 
-    bytes_value should be a positive integer representing the number of bytes.
+    value should be a positive integer representing the number of bytes.
     """
-    if bytes_value == 0:
+    if value == 0:
         return "0B"
     
     # Define the units for binary prefixes (powers of 1024)
     units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]
     
     # Calculate the unit index
-    i = min((bytes_value.bit_length() - 1) // 10, len(units) - 1)
-    value = bytes_value / (1 << (10 * i))
+    i = min((value.bit_length() - 1) // 10, len(units) - 1)
     
     # Calculate the value in the chosen unit, truncated to at most one decimal place
-    if value.is_integer():
+    display_value = value / (1 << (10 * i))
+    if display_value.is_integer():
         precision = 0
     else:
         precision = 1
-        value = math.floor(value * 10) / 10
+        display_value = math.floor(value * 10) / 10
     
     # Format the result with the correct precision and unit
-    return f"{value:.{precision}f}{units[i]}"
+    return f"{display_value:.{precision}f}{units[i]}"
 
 
 # Valid FAT32 8.3 short filename characters according to:
@@ -3646,7 +3646,7 @@ class PE:
                 simultaneous_errors += 1
                 self.__warnings.append(
                     f"Suspicious value found parsing section {i}. VirtualSize is "
-                    f"extremely large > {format_bytes(max_offset)}."
+                    f"extremely large > {human_readable_size(max_offset)}."
                 )
 
             if (
