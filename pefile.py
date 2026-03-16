@@ -1598,7 +1598,6 @@ class ImportData(DataContainer):
                         raise PEFormatError(
                             "The export name provided is longer than the existing one."
                         )
-                        pass
                     self.pe.set_bytes_at_offset(self.name_offset, val)
 
         self.__dict__[name] = val
