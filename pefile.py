@@ -6329,15 +6329,13 @@ class PE:
             for res_type in self.DIRECTORY_ENTRY_RESOURCE.entries:
                 if hasattr(res_type, "directory"):
                     for resource_id in res_type.directory.entries:
-                        if hasattr(resource_id, "directory"):
-                            if (
-                                hasattr(resource_id.directory, "strings")
-                                and resource_id.directory.strings
-                            ):
-                                for res_string in list(
-                                    resource_id.directory.strings.values()
-                                ):
-                                    resources_strings.append(res_string)
+                        if (
+                            hasattr(resource_id, "directory")
+                            and hasattr(resource_id.directory, "strings")
+                            and resource_id.directory.strings
+                        ):
+                            for res_string in resource_id.directory.strings.values():
+                                resources_strings.append(res_string)
 
         return resources_strings
 
