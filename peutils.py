@@ -2,15 +2,13 @@
 """peutils, Portable Executable utilities module
 
 
-Copyright (c) 2005-2023 Ero Carrera <ero.carrera@gmail.com>
+Copyright (c) 2005-2024 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 """
 import os
 import re
 import string
-import urllib.error
-import urllib.parse
 import urllib.request
 
 import pefile
@@ -59,11 +57,11 @@ class SignatureDatabase:
         # - A dictionary with a string as a key (packer name)
         #   and None as value to indicate a full signature
         #
-        self.signature_tree_eponly_true = dict()
+        self.signature_tree_eponly_true = {}
         self.signature_count_eponly_true = 0
-        self.signature_tree_eponly_false = dict()
+        self.signature_tree_eponly_false = {}
         self.signature_count_eponly_false = 0
-        self.signature_tree_section_start = dict()
+        self.signature_tree_section_start = {}
         self.signature_count_section_start = 0
 
         # The depth (length) of the longest signature
@@ -94,7 +92,7 @@ class SignatureDatabase:
                 name,
                 idx + 1,
                 len(pe.sections),
-                "".join([c for c in section.Name if c in string.printable]),
+                "".join(c for c in section.Name if c in string.printable),
             )
 
             section_signatures.append(
@@ -129,7 +127,7 @@ class SignatureDatabase:
 
         data = pe.__data__[offset : offset + sig_length]
 
-        signature_bytes = " ".join(["%02x" % ord(c) for c in data])
+        signature_bytes = " ".join(f"{ord(c):02x}" for c in data)
 
         if ep_only == True:
             ep_only = "true"
@@ -342,7 +340,7 @@ class SignatureDatabase:
             if None in list(match.values()):
                 # idx represent how deep we are in the tree
                 #
-                # names = [idx+depth]
+                # names = [idx + depth]
                 names = list()
 
                 # For each of the item pairs we check
@@ -500,9 +498,9 @@ def is_valid(pe):
 
 def is_suspicious(pe):
     """
-    unusual locations of import tables
-    non recognized section names
-    presence of long ASCII strings
+    Unusual locations of import tables
+    Non-recognized section names
+    Presence of long ASCII strings
     """
 
     relocations_overlap_entry_point = False
@@ -544,7 +542,7 @@ def is_suspicious(pe):
         warnings_while_parsing
 
     # If there are few or none (should come with a standard "density" of strings/kilobytes of data) longer (>8)
-    # ascii sequences that might indicate packed data, (this is similar to the entropy test in some ways but
+    # ASCII sequences that might indicate packed data, (this is similar to the entropy test in some ways but
     # might help to discard cases of legitimate installer or compressed data)
 
     # If compressed data (high entropy) and is_driver => uuuuhhh, nasty
@@ -552,13 +550,27 @@ def is_suspicious(pe):
     pass
 
 
-def is_probably_packed(pe):
-    """Returns True is there is a high likelihood that a file is packed or contains compressed data.
+def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):
+    """
+    The entropy of sections are analyzed to determine if they likely contain
+    compressed data (default > 7.4). The proportion of the total size of these
+    (probably) compressed sections to the total file size (excluding any
+    overlay) is calculated. If this proportion is greater than a threshold
+    (default > 0.2) the PE file is likely packed or compressed.
 
-    The sections of the PE file will be analyzed, if enough sections
-    look like containing compressed data and the data makes
-    up for more than 20% of the total file size, the function will
-    return True.
+    The section entropy default of 7.4 is empirical, based on looking at a few
+    files packed by different packers. This and the packed threshold can be user
+    specified.
+
+    Args:
+        pe: An instance of class PE.
+        section_entropy: Threshold of a section being considered packed / compressed.
+        packed_threshold: The proportion of the size of high-entropy sections to
+            total file size, above which it is assumed that it could be an installer
+            or a packed file.
+
+    Returns:
+        True if file is probably packed or contains compressed data, False otherwise.
     """
 
     # Calculate the length of the data up to the end of the last section in the
@@ -568,7 +580,6 @@ def is_probably_packed(pe):
     # Assume that the file is packed when no data is available
     if not total_pe_data_length:
         return True
-    has_significant_amount_of_compressed_data = False
 
     # If some of the sections have high entropy and they make for more than 20% of the file's size
     # it's assumed that it could be an installer or a packed file
@@ -576,13 +587,11 @@ def is_probably_packed(pe):
     total_compressed_data = 0
     for section in pe.sections:
         s_entropy = section.get_entropy()
-        s_length = len(section.get_data())
-        # The value of 7.4 is empirical, based on looking at a few files packed
-        # by different packers
-        if s_entropy > 7.4:
-            total_compressed_data += s_length
+        if s_entropy > section_entropy:
+            total_compressed_data += len(section.get_data())
 
-    if (total_compressed_data / total_pe_data_length) > 0.2:
+    has_significant_amount_of_compressed_data = False
+    if (total_compressed_data / total_pe_data_length) > packed_threshold:
         has_significant_amount_of_compressed_data = True
 
     return has_significant_amount_of_compressed_data
