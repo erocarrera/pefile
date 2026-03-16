@@ -33,7 +33,6 @@ import time
 import uuid
 from collections import Counter, defaultdict
 from hashlib import md5, sha1, sha256, sha512
-from typing import Union
 
 import ordlookup
 
@@ -2307,7 +2306,7 @@ allowed_function_name = (
 
 @lru_cache(maxsize=2048)
 def is_valid_function_name(
-    s: Union[str, bytes, bytearray], relax_allowed_characters: bool = False
+    s: str | bytes | bytearray, relax_allowed_characters: bool = False
 ) -> bool:
     allowed_extra = b"._?@$()<>"
     if relax_allowed_characters:
