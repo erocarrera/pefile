@@ -3245,8 +3245,7 @@ class PE:
         self.NT_HEADERS.FILE_HEADER = self.FILE_HEADER
         self.NT_HEADERS.OPTIONAL_HEADER = self.OPTIONAL_HEADER
 
-        # Detect artificially reduced values of NumberOfRvaAndSizes
-        #
+        # Detect artificially reduced values in the NumberOfRvaAndSizes field
         directory_delta = (self.FILE_HEADER.SizeOfOptionalHeader 
             - (self.OPTIONAL_HEADER.sizeof() + self.OPTIONAL_HEADER.NumberOfRvaAndSizes * 8)) // 8
         if directory_delta > 0:
