@@ -3252,7 +3252,6 @@ class PE:
         if directory_delta > 0:
             self.__warnings.append(
                 'SizeofOptionalHeader indicates that NumberOfRvaAndSizes is off by at least %d.' % directory_delta)
-            self.OPTIONAL_HEADER.NumberOfRvaAndSizes += directory_delta
 
         # Windows 8 specific check
         #
@@ -3276,7 +3275,7 @@ class PE:
             )
 
         MAX_ASSUMED_VALID_NUMBER_OF_RVA_AND_SIZES = 0x100
-        for i in range(int(0x7FFFFFFF & self.OPTIONAL_HEADER.NumberOfRvaAndSizes)):
+        for i in range(int(0x7FFFFFFF & (directory_delta + self.OPTIONAL_HEADER.NumberOfRvaAndSizes))):
             if len(self.__data__) - offset == 0:
                 break
 
