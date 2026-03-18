@@ -3251,7 +3251,7 @@ class PE:
             - (self.OPTIONAL_HEADER.sizeof() + self.OPTIONAL_HEADER.NumberOfRvaAndSizes * 8)) // 8
         if directory_delta > 0:
             self.__warnings.append(
-                'SizeofOptionalHeader indicates that NumberOfRvaAndSizes is off by at least %d.' % directory_delta)
+                f"SizeofOptionalHeader indicates that NumberOfRvaAndSizes is off by at least {directory_delta}")
 
         # Windows 8 specific check
         #
