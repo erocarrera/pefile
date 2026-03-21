@@ -3246,11 +3246,13 @@ class PE:
         self.NT_HEADERS.OPTIONAL_HEADER = self.OPTIONAL_HEADER
 
         # Detect artificially reduced values in the NumberOfRvaAndSizes field
+        directory_count = int(0x7FFFFFFF & self.OPTIONAL_HEADER.NumberOfRvaAndSizes)
         directory_delta = max(0, (self.FILE_HEADER.SizeOfOptionalHeader 
-            - (self.OPTIONAL_HEADER.sizeof() + self.OPTIONAL_HEADER.NumberOfRvaAndSizes * 8)) // 8)
-        if directory_delta > 0:
+            - (self.OPTIONAL_HEADER.sizeof() + directory_count * 8)) // 8)
+        if 0 < directory_delta <= 16 - directory_count:
             self.__warnings.append(
                 f"SizeofOptionalHeader indicates that NumberOfRvaAndSizes is off by at least {directory_delta}")
+            directory_count += directory_delta
 
         # Windows 8 specific check
         #
@@ -3274,7 +3276,7 @@ class PE:
             )
 
         MAX_ASSUMED_VALID_NUMBER_OF_RVA_AND_SIZES = 0x100
-        for i in range(int(0x7FFFFFFF & (directory_delta + self.OPTIONAL_HEADER.NumberOfRvaAndSizes))):
+        for i in range(directory_count):
             if len(self.__data__) - offset == 0:
                 break
 
