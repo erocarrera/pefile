@@ -1049,7 +1049,7 @@ class Structure:
             ord(i) for i in string.printable if i not in string.whitespace
         ]
 
-        # Refer to the __set_format__ method for an explanation
+        # Refer to the set_format method for an explanation
         # of the following construct.
         for keys in self.__keys__:
             for key in keys:
@@ -1099,7 +1099,7 @@ class Structure:
 
         dump_dict["Structure"] = self.name
 
-        # Refer to the __set_format__ method for an explanation
+        # Refer to the set_format method for an explanation
         # of the following construct.
         for keys in self.__keys__:
             for key in keys:
