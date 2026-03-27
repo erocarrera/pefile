@@ -3247,11 +3247,11 @@ class PE:
 
         # Detect artificially reduced values in the NumberOfRvaAndSizes field
         directory_count = int(0x7FFFFFFF & self.OPTIONAL_HEADER.NumberOfRvaAndSizes)
-        directory_delta = max(0, (self.FILE_HEADER.SizeOfOptionalHeader 
+        directory_delta = max(0, (self.FILE_HEADER.SizeOfOptionalHeader
             - (self.OPTIONAL_HEADER.sizeof() + directory_count * 8)) // 8)
         if 0 < directory_delta <= 16 - directory_count:
             self.__warnings.append(
-                f"SizeofOptionalHeader indicates that NumberOfRvaAndSizes is off by at least {directory_delta}.")
+                f"SizeOfOptionalHeader indicates that NumberOfRvaAndSizes is off by at least {directory_delta}.")
             directory_count += directory_delta
 
         # Windows 8 specific check
