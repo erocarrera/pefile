@@ -1,0 +1,12 @@
+abstract: "pefile is a Python module to read and work with PE (Portable Executable) files"
+authors:
+  - family-names: Carrera Ventura
+    given-names: Ero
+    orcid: "https://orcid.org/0000-0002-9549-9291"
+cff-version: 1.2.0
+date-released: "2024-08-26"
+license: MIT
+message: "If you use this software, please cite it using these metadata."
+repository-code: "https://github.com/erocarrera/pefile"
+title: "pefile"
+version: "2024.8.26"
