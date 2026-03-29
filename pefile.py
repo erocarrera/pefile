@@ -4931,7 +4931,7 @@ class PE:
         string_rvas = [s.get_rva() for s in strings_to_postprocess]
         string_rvas.sort()
 
-        for idx, s in enumerate(strings_to_postprocess):
+        for s in strings_to_postprocess:
             s.render_pascal_16()
 
         resource_directory_data = ResourceDirData(
@@ -5519,7 +5519,7 @@ class PE:
             # If the function's RVA points within the export directory
             # it will point to a string with the forwarded symbol's string
             # instead of pointing to the function start address.
-            if symbol_address >= rva and symbol_address < rva + size:
+            if rva <= symbol_address < rva + size:
                 forwarder_str = self.get_string_at_rva(symbol_address)
                 try:
                     forwarder_offset = self.get_offset_from_rva(symbol_address)
@@ -6580,7 +6580,7 @@ class PE:
         print(self.dump_info(encoding=encoding))
 
     def dump_info(self, dump=None, encoding="ascii"):
-        """Dump all the PE header information into human readable string."""
+        """Dump all the PE header information into a human readable string."""
 
         if dump is None:
             dump = Dump()
