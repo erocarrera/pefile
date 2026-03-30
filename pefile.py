@@ -1145,6 +1145,7 @@ class SectionStructure(Structure):
         self.VirtualAddress_adj = None
         self.section_min_addr = None
         self.section_max_addr = None
+        self.index_in_file = None
 
     def get_PointerToRawData_adj(self):
         if self.PointerToRawData_adj is None and self.PointerToRawData is not None:
@@ -3679,6 +3680,8 @@ class PE:
             # Set the section's flags according to the Characteristics member
             set_flags(section, section.Characteristics, section_flags)
 
+            # Set the section's original index as it may change after being sorted by VirtualAddress
+            section.index_in_file = i
             self.sections.append(section)
 
         # Sort the sections by their VirtualAddress and add a field to each of them
@@ -3703,7 +3706,7 @@ class PE:
                     pass
                 else:
                     self.__warnings.append(
-                        f"Suspicious flags set for section {i}. "
+                        f"Suspicious flags set for section {section.index_in_file}. "
                         "Both IMAGE_SCN_MEM_WRITE and IMAGE_SCN_MEM_EXECUTE are set. "
                         "This might indicate a packed executable."
                     )
