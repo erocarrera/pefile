@@ -3392,8 +3392,8 @@ class PE:
             self.full_load()
 
     def parse_rich_header(self):
-        """Parses the rich header
-        see https://www.ntcore.com/files/richsign.htm for more information
+        """Parses the Rich Header
+        https://www.ntcore.com/files/richsign.htm
 
         Structure:
         00 DanS ^ checksum, checksum, checksum, checksum
@@ -3412,11 +3412,20 @@ class PE:
         if rich_index == -1:
             return None
 
+        dans_index = self.__data__.find(
+            b"DanS" ^ self.__data__[rich_index + 4 : rich_index + 8],
+            0x80,
+            self.OPTIONAL_HEADER.get_file_offset()
+        )
+        if dans_index == -1:
+            # Common start index
+            dans_index = 0x80
+
         # Read a block of data
         try:
             # The end of the structure is 8 bytes after the start of the Rich
             # string (although there is padding after this).
-            rich_data = self.__data__[0x80 : rich_index + 8]
+            rich_data = self.__data__[dans_index : rich_index + 8]
             # Make the data have length a multiple of 4, otherwise the
             # subsequent parsing will fail. It's not impossible that we retrieve
             # truncated data that is not a multiple.
