@@ -1145,6 +1145,7 @@ class SectionStructure(Structure):
         self.VirtualAddress_adj = None
         self.section_min_addr = None
         self.section_max_addr = None
+        self.index_in_file = None
 
     def get_PointerToRawData_adj(self):
         if self.PointerToRawData_adj is None and self.PointerToRawData is not None:
@@ -3679,20 +3680,8 @@ class PE:
             # Set the section's flags according to the Characteristics member
             set_flags(section, section.Characteristics, section_flags)
 
-            if section.__dict__.get(
-                "IMAGE_SCN_MEM_WRITE", False
-            ) and section.__dict__.get("IMAGE_SCN_MEM_EXECUTE", False):
-                if section.Name.rstrip(b"\x00") == b"PAGE" and self.is_driver():
-                    # Drivers can have a PAGE section with those flags set without
-                    # implying that it is malicious
-                    pass
-                else:
-                    self.__warnings.append(
-                        f"Suspicious flags set for section {i}. "
-                        "Both IMAGE_SCN_MEM_WRITE and IMAGE_SCN_MEM_EXECUTE are set. "
-                        "This might indicate a packed executable."
-                    )
-
+            # Set the section's original index as it may change after being sorted by VirtualAddress
+            section.index_in_file = i
             self.sections.append(section)
 
         # Sort the sections by their VirtualAddress and add a field to each of them
@@ -3706,6 +3695,21 @@ class PE:
                 section.next_section_virtual_address = self.sections[
                     idx + 1
                 ].VirtualAddress
+
+        for section in self.sections:
+            if section.__dict__.get(
+                "IMAGE_SCN_MEM_WRITE", False
+            ) and section.__dict__.get("IMAGE_SCN_MEM_EXECUTE", False):
+                if section.Name.rstrip(b"\x00") == b"PAGE" and self.is_driver():
+                    # Drivers can have a PAGE section with those flags set without
+                    # implying that it is malicious
+                    pass
+                else:
+                    self.__warnings.append(
+                        f"Suspicious flags set for section {section.index_in_file}. "
+                        "Both IMAGE_SCN_MEM_WRITE and IMAGE_SCN_MEM_EXECUTE are set. "
+                        "This might indicate a packed executable."
+                    )
 
         if self.FILE_HEADER.NumberOfSections > 0 and self.sections:
             return (
