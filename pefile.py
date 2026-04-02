@@ -3817,7 +3817,7 @@ class PE:
         """Parses exception directory
 
         All the code related to handling exception directories is documented in
-        https://auscitte.github.io/systems%20blog/Exception-Directory-pefile#implementation-details
+        https://auscitte.github.io/posts/Exception-Directory-pefile#implementation-details
         """
 
         # "For x64 and Itanium platforms; the format is different for other platforms"
@@ -5834,7 +5834,7 @@ class PE:
 
         Creates a hash based on imported symbol names and their specific order within
         the executable:
-        https://www.mandiant.com/resources/blog/tracking-malware-import-hashing
+        https://cloud.google.com/blog/topics/threat-intelligence/tracking-malware-import-hashing/
 
         Returns:
             the hexdigest of the MD5 hash of the exported symbols.
