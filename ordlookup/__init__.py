@@ -1,16 +1,14 @@
-from . import ws2_32
-from . import oleaut32
+from . import oleaut32, ws2_32, wsock32
 
 """
-A small module for keeping a database of ordinal to symbol
-mappings for DLLs which frequently get linked without symbolic
-infoz.
+A small module containing a database of ordinal to symbol mappings for DLLs
+which frequently get linked without symbolic information.
 """
 
 ords = {
-    b"ws2_32.dll": ws2_32.ord_names,
-    b"wsock32.dll": ws2_32.ord_names,
     b"oleaut32.dll": oleaut32.ord_names,
+    b"ws2_32.dll": ws2_32.ord_names,
+    b"wsock32.dll": wsock32.ord_names,
 }
 
 
