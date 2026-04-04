@@ -3413,7 +3413,7 @@ class PE:
             return None
 
         dans_index = self.__data__.find(
-            b"DanS" ^ self.__data__[rich_index + 4 : rich_index + 8],
+            bytes(x ^ y for x, y in zip(b'DanS', self.__data__[rich_index + 4 : rich_index + 8]))
             0x80,
             self.OPTIONAL_HEADER.get_file_offset()
         )
