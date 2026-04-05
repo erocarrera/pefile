@@ -653,7 +653,6 @@ for sublang_name, sublang_value in sublang:
 
 
 # Resolve a sublang name given the main lang name
-#
 def get_sublang_name_for_lang(lang_value, sublang_value):
     lang_name = LANG.get(lang_value, "*unknown*")
     for sublang_name in SUBLANG.get(sublang_value, []):
@@ -666,7 +665,6 @@ def get_sublang_name_for_lang(lang_value, sublang_value):
 
 
 # Ange Albertini's code to process resources' strings
-#
 def parse_strings(data, counter, l):
     i = 0
     error_count = 0
@@ -1259,14 +1257,12 @@ class SectionStructure(Structure):
         # the whole PE file minus the start address of the section it could be
         # either truncated or the SizeOfRawData contains a misleading value.
         # In either of those cases we take the VirtualSize
-        #
         if len(self.pe.__data__) - self.get_PointerToRawData_adj() < self.SizeOfRawData:
             # PECOFF documentation v8 says:
             # VirtualSize: The total size of the section when loaded into memory.
             # If this value is greater than SizeOfRawData, the section is zero-padded.
             # This field is valid only for executable images and should be set to zero
             # for object files.
-            #
             size = self.Misc_VirtualSize
         else:
             size = max(self.SizeOfRawData, self.Misc_VirtualSize)
@@ -1551,10 +1547,8 @@ class ImportData(DataContainer):
     """
 
     def __setattr__(self, name, val):
-        # If the instance doesn't yet have an ordinal attribute
-        # it's not fully initialized so can't do any of the
-        # following
-        #
+        # If the instance doesn't yet have an ordinal attribute it's not fully
+        # initialized so can't do any of the following
         if (
             hasattr(self, "ordinal")
             and hasattr(self, "bound")
@@ -1622,10 +1616,8 @@ class ExportData(DataContainer):
     """
 
     def __setattr__(self, name, val):
-        # If the instance doesn't yet have an ordinal attribute
-        # it's not fully initialized so can't do any of the
-        # following
-        #
+        # If the instance doesn't yet have an ordinal attribute it's not fully
+        # initialized so can't do any of the following
         if (
             hasattr(self, "ordinal")
             and hasattr(self, "address")
@@ -1756,13 +1748,10 @@ class RelocationData(DataContainer):
     """
 
     def __setattr__(self, name, val):
-        # If the instance doesn't yet have a struct attribute
-        # it's not fully initialized so can't do any of the
-        # following
-        #
+        # If the instance doesn't yet have a struct attribute it's not fully
+        # initialized so can't do any of the following
         if hasattr(self, "struct"):
             # Get the word containing the type and data
-            #
             word = self.struct.Data
 
             if name == "type":
@@ -1772,7 +1761,6 @@ class RelocationData(DataContainer):
                 word = (word & 0xF000) | (offset & 0xFFF)
 
             # Store the modified data
-            #
             self.struct.Data = word
 
         self.__dict__[name] = val
@@ -3156,15 +3144,12 @@ class PE:
             file_offset=optional_header_offset,
         )
 
-        # According to solardesigner's findings for his
-        # Tiny PE project, the optional header does not
-        # need fields beyond "Subsystem" in order to be
-        # loadable by the Windows loader (given that zeros
-        # are acceptable values and the header is loaded
-        # in a zeroed memory page)
-        # If trying to parse a full Optional Header fails
-        # we try to parse it again with some 0 padding
-        #
+        # According to solardesigner's findings for his Tiny PE project, the
+        # optional header does not need fields beyond "Subsystem" in order to be
+        # loadable by the Windows loader (given that zeros are acceptable values
+        # and the header is loaded in a zeroed memory page).
+        # If trying to parse a full Optional Header fails we try to parse it
+        # again with some 0 padding.
         MINIMUM_VALID_OPTIONAL_HEADER_RAW_SIZE = 69
 
         if (
@@ -3175,11 +3160,9 @@ class PE:
             >= MINIMUM_VALID_OPTIONAL_HEADER_RAW_SIZE
         ):
             # Add enough zeros to make up for the unused fields
-            #
             padding_length = 128
 
             # Create padding
-            #
             padded_data = self.__data__[
                 optional_header_offset : optional_header_offset + 0x200
             ] + (b"\0" * padding_length)
@@ -3192,7 +3175,6 @@ class PE:
 
         # Check the Magic in the OPTIONAL_HEADER and set the PE file
         # type accordingly
-        #
         if self.OPTIONAL_HEADER is not None:
             if self.OPTIONAL_HEADER.Magic == OPTIONAL_HEADER_MAGIC_PE:
                 self.PE_TYPE = OPTIONAL_HEADER_MAGIC_PE
@@ -3208,11 +3190,9 @@ class PE:
                     file_offset=optional_header_offset,
                 )
 
-                # Again, as explained above, we try to parse
-                # a reduced form of the Optional Header which
-                # is still valid despite not including all
-                # structure members
-                #
+                # Again, as explained above, we try to parse a reduced form of
+                # the Optional Header which is still valid despite not including
+                # all structure members
                 MINIMUM_VALID_OPTIONAL_HEADER_RAW_SIZE = 69 + 4
 
                 if (
@@ -3275,7 +3255,6 @@ class PE:
             directory_count += directory_delta
 
         # Windows 8 specific check
-        #
         if (
             self.OPTIONAL_HEADER.AddressOfEntryPoint
             < self.OPTIONAL_HEADER.SizeOfHeaders
@@ -3286,8 +3265,7 @@ class PE:
             )
 
         # The NumberOfRvaAndSizes is sanitized to stay within
-        # reasonable limits so can be casted to an int
-        #
+        # reasonable limits so can be cast to an int
         if self.OPTIONAL_HEADER.NumberOfRvaAndSizes > 0x10:
             self.__warnings.append(
                 "Suspicious NumberOfRvaAndSizes in the Optional Header. "
@@ -3325,15 +3303,15 @@ class PE:
 
             self.OPTIONAL_HEADER.DATA_DIRECTORY.append(dir_entry)
 
-            # If the offset goes outside the optional header,
-            # the loop is broken, regardless of how many directories
-            # NumberOfRvaAndSizes says there are
+            # If the offset goes outside the optional header, the loop is
+            # broken, regardless of how many directories NumberOfRvaAndSizes
+            # says there are.
             #
-            # We assume a normally sized optional header, hence that we do
-            # a sizeof() instead of reading SizeOfOptionalHeader.
-            # Then we add a default number of directories times their size,
-            # if we go beyond that, we assume the number of directories
-            # is wrong and stop processing
+            # We assume a normal-sized optional header, hence that we do a
+            # sizeof() instead of reading SizeOfOptionalHeader. Then we add a
+            # default number of directories times their size, if we go beyond
+            # that, we assume the number of directories is wrong and stop
+            # processing.
             if offset >= (
                 optional_header_offset
                 + self.OPTIONAL_HEADER.sizeof()
@@ -3348,7 +3326,6 @@ class PE:
         # fc91013eb72529da005110a3403541b6 example
         # Should this throw an exception in the minimum header offset
         # can't be found?
-        #
         rawDataPointers = [
             self.adjust_PointerToRawData(s.PointerToRawData)
             for s in self.sections
@@ -3366,13 +3343,11 @@ class PE:
             self.header = self.__data__[:lowest_section_offset]
 
         # Check whether the entry point lies within a section
-        #
         if (
             self.get_section_by_rva(self.OPTIONAL_HEADER.AddressOfEntryPoint)
             is not None
         ):
             # Check whether the entry point lies within the file
-            #
             ep_offset = self.get_offset_from_rva(
                 self.OPTIONAL_HEADER.AddressOfEntryPoint
             )
@@ -3775,7 +3750,6 @@ class PE:
 
             # Only process all the directories if no individual ones have
             # been chosen
-            #
             if directories is None or directory_index in directories:
                 value = None
                 if dir_entry.VirtualAddress:
@@ -4305,7 +4279,6 @@ class PE:
         while rva < end:
             # Malware that has bad RVA entries will cause an error.
             # Just continue on after an exception
-            #
             try:
                 rlc = self.__unpack_data__(
                     self.__IMAGE_BASE_RELOCATION_format__,
@@ -4462,9 +4435,8 @@ class PE:
             if not dbg:
                 return None
 
-            # apply structure according to DEBUG_TYPE
+            # Apply structure according to DEBUG_TYPE
             # https://www.debuginfo.com/articles/debuginfomatch.html
-            #
             dbg_type = None
 
             if dbg.Type == 1:
@@ -4689,7 +4661,6 @@ class PE:
 
         # Get the resource directory structure, that is, the header
         # of the table preceding the actual entries
-        #
         resource_dir = self.__unpack_data__(
             self.__IMAGE_RESOURCE_DIRECTORY_format__,
             data,
@@ -4709,7 +4680,6 @@ class PE:
 
         # Advance the RVA to the position immediately following the directory
         # table header and pointing to the first entry in the table
-        #
         rva += resource_dir.sizeof()
 
         number_of_entries = (
@@ -4807,13 +4777,12 @@ class PE:
                     )
 
             if res.DataIsDirectory:
-                # One trick malware can do is to recursively reference
-                # the next directory. This causes hilarity to ensue when
-                # trying to parse everything correctly.
-                # If the original RVA given to this function is equal to
-                # the next one to parse, we assume that it's a trick.
-                # Instead of raising a PEFormatError this would skip some
-                # reasonable data so we just break.
+                # One trick malware can do is to recursively reference the next
+                # directory. This causes hilarity to ensue when trying to parse
+                # everything correctly. If the original RVA given to this
+                # function is equal to the next one to parse, we assume that
+                # it's a trick. Instead of raising a PEFormatError this would
+                # skip some reasonable data so we just break.
                 #
                 # 9ee4d0a0caf095314fd7041a3e4404dc is the offending sample
                 if base_rva + res.OffsetToDirectory in dirs:
@@ -4831,7 +4800,6 @@ class PE:
                     break
 
                 # Ange Albertini's code to process resources' strings
-                #
                 strings = None
                 if entry_id == RESOURCE_TYPE["RT_STRING"]:
                     strings = {}
@@ -4906,7 +4874,6 @@ class PE:
                     break
 
             # Check if this entry contains version information
-            #
             if level == 0 and res.Id == RESOURCE_TYPE["RT_VERSION"]:
                 if dir_entries:
                     last_entry = dir_entries[-1]
@@ -5024,7 +4991,6 @@ class PE:
         """
 
         # Retrieve the data for the version info resource
-        #
         try:
             start_offset = self.get_offset_from_rva(version_struct.OffsetToData)
         except PEFormatError:
@@ -5038,7 +5004,6 @@ class PE:
         raw_data = self.__data__[start_offset : start_offset + version_struct.Size]
 
         # Map the main structure and the subsequent string
-        #
         versioninfo_struct = self.__unpack_data__(
             self.__VS_VERSIONINFO_format__, raw_data, file_offset=start_offset
         )
@@ -6077,7 +6042,6 @@ class PE:
 
             if tbl_entry.AddressOfData:
                 # If imported by ordinal, we will append the ordinal number
-                #
                 if tbl_entry.AddressOfData & ordinal_flag:
                     import_by_ordinal = True
                     imp_ord = tbl_entry.AddressOfData & 0xFFFF
@@ -6130,7 +6094,6 @@ class PE:
             # parse. It also leads to extreme memory consumption.
             # To prevent similar cases, if invalid entries are found in the middle of a
             # table the parsing will be aborted
-            #
             if imp_ord is None and imp_name is None:
                 raise PEFormatError("Invalid entries, aborting parsing.")
 
@@ -6402,15 +6365,13 @@ class PE:
             if rva < len(self.header):
                 return self.header[rva:end]
 
-            # Before we give up we check whether the file might
-            # contain the data anyway. There are cases of PE files
-            # without sections that rely on windows loading the first
-            # 8291 bytes into memory and assume the data will be
-            # there
+            # Before we give up we check whether the file might contain the data
+            # anyway. There are cases of PE files without sections that rely on
+            # windows loading the first 8291 bytes into memory and assume the
+            # data will be there.
             # A functional file with these characteristics is:
             # MD5: 0008892cdfbc3bda5ce047c565e52295
             # SHA-1: c7116b9ff950f86af256defb95b5d4859d4752a9
-            #
             if rva < len(self.__data__):
                 return self.__data__[rva:end]
 
@@ -7553,7 +7514,6 @@ class PE:
                     # We iterate with an index because if the relocation is of type
                     # IMAGE_REL_BASED_HIGHADJ we need to also process the next entry
                     # at once and skip it for the next iteration
-                    #
                     entry_idx = 0
                     while entry_idx < len(reloc.entries):
                         entry = reloc.entries[entry_idx]
@@ -7568,7 +7528,6 @@ class PE:
                             #
                             # Add high 16-bits of relocation_difference to the
                             # 16-bit value at RVA=entry.rva
-
                             self.set_word_at_rva(
                                 entry.rva,
                                 (
@@ -7584,7 +7543,6 @@ class PE:
                             #
                             # Add low 16 bits of relocation_difference to the 16-bit
                             # value at RVA=entry.rva
-
                             self.set_word_at_rva(
                                 entry.rva,
                                 (
@@ -7598,7 +7556,6 @@ class PE:
                             # Handle all high and low parts of a 32-bit relocation
                             #
                             # Add relocation_difference to the value at RVA=entry.rva
-
                             self.set_dword_at_rva(
                                 entry.rva,
                                 self.get_dword_at_rva(entry.rva)
