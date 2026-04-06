@@ -1,4 +1,3 @@
-
 """peutils, Portable Executable utilities module
 
 
@@ -139,7 +138,7 @@ class SignatureDatabase:
         else:
             section_start_only = "false"
 
-        signature = "[%s]\nsignature = %s\nep_only = %s\nsection_start_only = %s\n" % (
+        signature = "[{}]\nsignature = {}\nep_only = {}\nsection_start_only = {}\n".format(
             name,
             signature_bytes,
             ep_only,
@@ -405,7 +404,7 @@ class SignatureDatabase:
                 # Get the data for a file
                 #
                 try:
-                    sig_f = open(filename, "rt")
+                    sig_f = open(filename)
                     sig_data = sig_f.read()
                     sig_f.close()
                 except OSError:
