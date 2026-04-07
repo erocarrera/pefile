@@ -3409,7 +3409,7 @@ class PE:
 
         rich_index = self.__data__.find(
             b"Rich",
-            0x44,  # The null DOS stub plus four bytes
+            0x50,  # The null DOS stub plus sixteen bytes
             self.OPTIONAL_HEADER.get_file_offset()
         )
         if rich_index == -1:
