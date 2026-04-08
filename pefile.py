@@ -5808,6 +5808,7 @@ class PE:
                         funcname = ordlookup.ordLookup(dll.lower(), symbol.ordinal)
                         if funcname:
                             symbol.name = funcname
+                            symbol.name_from_ordinal = True
                 import_descs.append(
                     ImportDescData(struct=import_desc, imports=import_data, dll=dll)
                 )
@@ -5857,8 +5858,16 @@ class PE:
             entry_dll_lower = entry.dll.lower()
             for imp in entry.imports:
                 funcname = None
-                if not imp.name:
-                    funcname = ordlookup.ordLookup(
+                if not imp.name or getattr(imp, "name_from_ordinal", False):
+                    # Use the imphash-specific ordinal lookup whose tables are
+                    # frozen to the state prior to the August 2024 change so
+                    # that imphash values remain compatible with YARA, YARA-X,
+                    # and other tools based on the original pefile
+                    # implementation.  name_from_ordinal is set when
+                    # parse_import_directory resolved the name at load time
+                    # using the general (non-imphash) ordlookup, which may have
+                    # different mappings than the frozen imphash table.
+                    funcname = ordlookup.ordLookupForImphash(
                         entry_dll_lower, imp.ordinal, make_name=True
                     )
                     if not funcname:
@@ -5978,6 +5987,7 @@ class PE:
                         funcname = ordlookup.ordLookup(dll.lower(), symbol.ordinal)
                         if funcname:
                             symbol.name = funcname
+                            symbol.name_from_ordinal = True
                 import_descs.append(
                     ImportDescData(struct=import_desc, imports=import_data, dll=dll)
                 )
