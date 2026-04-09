@@ -5805,7 +5805,7 @@ class PE:
             if dll:
                 for symbol in import_data:
                     if symbol.name is None:
-                        funcname = ordlookup.ordLookup(dll.lower(), symbol.ordinal)
+                        funcname = ordlookup.ordinal_lookup(dll.lower(), symbol.ordinal)
                         if funcname:
                             symbol.name = funcname
                 import_descs.append(
@@ -5858,7 +5858,7 @@ class PE:
             for imp in entry.imports:
                 funcname = None
                 if not imp.name:
-                    funcname = ordlookup.ordLookup(
+                    funcname = ordlookup.ordinal_lookup(
                         entry_dll_lower, imp.ordinal, make_name=True
                     )
                     if not funcname:
@@ -5975,7 +5975,7 @@ class PE:
             if dll:
                 for symbol in import_data:
                     if symbol.name is None:
-                        funcname = ordlookup.ordLookup(dll.lower(), symbol.ordinal)
+                        funcname = ordlookup.ordinal_lookup(dll.lower(), symbol.ordinal)
                         if funcname:
                             symbol.name = funcname
                 import_descs.append(
