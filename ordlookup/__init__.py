@@ -12,21 +12,20 @@ ords = {
 }
 
 
-def formatOrdString(ord_val):
-    return "ord{}".format(ord_val).encode()
+def format_ordinal(ord_val):
+    return f"ord{ord_val}".encode()
 
 
-def ordLookup(libname, ord_val, make_name=False):
+def ordinal_lookup(libname, ord_val, make_name=False):
     """
-    Lookup a name for the given ordinal if it's in our
-    database.
+    Lookup a name for the given ordinal if it's in our database.
     """
     names = ords.get(libname.lower())
     if names is None:
         if make_name is True:
-            return formatOrdString(ord_val)
+            return format_ordinal(ord_val)
         return None
     name = names.get(ord_val)
     if name is None:
-        return formatOrdString(ord_val)
+        return format_ordinal(ord_val)
     return name
