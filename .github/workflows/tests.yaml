@@ -103,7 +103,7 @@ jobs:
 
       - name: "Make badge"
         if: github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository == 'erocarrera/pefile'
-        uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483 # v1.7.0
+        uses: schneegans/dynamic-badges-action@0e50b8bad39e7e1afd3e4e9c2b7dd145fad07501 # v1.8.0
         with:
           # GIST_TOKEN is a GitHub personal access token with scope "gist".
           auth: ${{ secrets.GIST_TOKEN }}
