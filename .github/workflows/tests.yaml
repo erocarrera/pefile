@@ -65,6 +65,7 @@ jobs:
         with:
           name: covdata
           path: .coverage.*
+          include-hidden-files: true
 
   coverage:
     name: Coverage
