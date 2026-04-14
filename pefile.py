@@ -1319,10 +1319,10 @@ class SectionStructure(Structure):
         if not data:
             return 0.0
 
-        occurences = Counter(bytearray(data))
+        occurrences = Counter(bytearray(data))
 
         entropy = 0
-        for x in occurences.values():
+        for x in occurrences.values():
             p_x = x / len(data)
             entropy -= p_x * math.log2(p_x)
 
@@ -7600,7 +7600,7 @@ class PE:
 
             self.OPTIONAL_HEADER.ImageBase = new_ImageBase
 
-            # correct VAs(virtual addresses) occurrences in directory information
+            # correct VA (virtual address) occurrences in directory information
             if hasattr(self, "DIRECTORY_ENTRY_IMPORT"):
                 for dll in self.DIRECTORY_ENTRY_IMPORT:
                     for func in dll.imports:
