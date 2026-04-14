@@ -2324,10 +2324,8 @@ def is_valid_function_name(
 
     "_" is also used in mangled names
     "<>" C++ templates, e.g. functions in wincorlib.dll
-
-    allowed_extra = watcom + microsoft + borland + "_" + "<>"
     """
-    allowed_extra = b"$%&().:<>?@[]_"
+    allowed_extra = b"$%&().:<>?@[]_"  # watcom + microsoft + borland + "_" + "<>"
     if relax_allowed_characters:
         allowed_extra = string.punctuation.encode()  # superset of allowed_extra
     return (
