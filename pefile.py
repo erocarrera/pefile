@@ -7603,7 +7603,7 @@ class PE:
         self.OPTIONAL_HEADER.ImageBase = new_ImageBase
 
         # correct VAs(virtual addresses) occurrences in directory information
-        def _increment(obj, attributes, delta):
+        def _adjust(obj, attributes, delta):
             for attr in attributes:
                 if hasattr(obj, attr):
                     current_value = getattr(obj, attr)
@@ -7659,7 +7659,7 @@ class PE:
                 "VolatileMetadataPointer",
             )
 
-            _increment(load_config, fields, relocation_difference)
+            _adjust(load_config, fields, relocation_difference)
 
     def verify_checksum(self):
         return self.OPTIONAL_HEADER.CheckSum == self.generate_checksum()
