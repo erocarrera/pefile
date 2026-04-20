@@ -7611,7 +7611,6 @@ class PE:
         self.OPTIONAL_HEADER.ImageBase = new_ImageBase
 
         # correct VA (virtual address) occurrences in directory information
-        correct VAs(virtual addresses) occurrences in directory information
         def _adjust(obj, attributes, delta):
             for attr in attributes:
                 if hasattr(obj, attr):
