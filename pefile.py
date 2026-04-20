@@ -3676,8 +3676,8 @@ class PE:
             if section.__dict__.get(
                 "IMAGE_SCN_MEM_WRITE", False
             ) and section.__dict__.get("IMAGE_SCN_MEM_EXECUTE", False):
-                if section.Name.rstrip(b"\x00") == b"PAGE" and self.is_driver():
-                    # Drivers can have a PAGE section with those flags set without
+                if section.Name.rstrip(b"\x00") in (b"PAGE", b"INIT") and self.is_driver():
+                    # Drivers can have a PAGE/INIT section with those flags set without
                     # implying that it is malicious
                     pass
                 else:
