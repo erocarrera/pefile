@@ -90,8 +90,8 @@ MAX_STRING_LENGTH = 0x100000  # 2^20
 MAX_IMPORT_SYMBOLS = 0x2000
 
 # Limit maximum length for specific string types separately
-MAX_IMPORT_NAME_LENGTH = 0x200
 MAX_DLL_LENGTH = 0x200
+MAX_IMPORT_NAME_LENGTH = 0x200
 MAX_SYMBOL_NAME_LENGTH = 0x200
 
 # Limit maximum number of sections before processing of sections will stop
@@ -106,14 +106,18 @@ MAX_RESOURCE_DEPTH = 32
 # Limit number of exported symbols
 MAX_SYMBOL_EXPORT_COUNT = 0x2000
 
+MIN_VALID_FILE_ALIGNMENT = 0x200
+SECTOR_SIZE = 0x200
+
 IMAGE_DOS_SIGNATURE = 0x5A4D
 IMAGE_DOSZM_SIGNATURE = 0x4D5A
+
+IMAGE_NT_SIGNATURE = 0x00004550
 IMAGE_NE_SIGNATURE = 0x454E
 IMAGE_LE_SIGNATURE = 0x454C
 IMAGE_LX_SIGNATURE = 0x584C
 IMAGE_TE_SIGNATURE = 0x5A56  # Terse Executables have a 'VZ' signature
 
-IMAGE_NT_SIGNATURE = 0x00004550
 IMAGE_NUMBEROF_DIRECTORY_ENTRIES = 16
 IMAGE_ORDINAL_FLAG = 0x80000000
 IMAGE_ORDINAL_FLAG64 = 0x8000000000000000
@@ -356,9 +360,6 @@ ex_dll_characteristics = [
 ]
 
 EX_DLL_CHARACTERISTICS = two_way_dict(ex_dll_characteristics)
-
-MIN_VALID_FILE_ALIGNMENT = 0x200
-SECTOR_SIZE = 0x200
 
 
 # Unwind info-related enums
@@ -1319,10 +1320,10 @@ class SectionStructure(Structure):
         if not data:
             return 0.0
 
-        occurences = Counter(bytearray(data))
+        occurrences = Counter(bytearray(data))
 
         entropy = 0
-        for x in occurences.values():
+        for x in occurrences.values():
             p_x = x / len(data)
             entropy -= p_x * math.log2(p_x)
 
@@ -3706,12 +3707,14 @@ class PE:
 
         For export / import only:
 
-          directories = [ 0, 1 ]
+        directories = [ 0, 1 ]
 
         or (more verbosely):
 
-          directories = [ DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT'],
-            DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'] ]
+        directories = [
+            DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_EXPORT'],
+            DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_IMPORT']
+        ]
 
         If 'directories' is a list, the ones that are processed will be removed,
         leaving only the ones that are not present in the image.
@@ -3724,22 +3727,28 @@ class PE:
         attribute will not have a `symbols` attribute.
         """
 
+        if directories is not None:
+            if not isinstance(directories, (tuple, list)):
+                directories = [directories]
+
         directory_parsing = (
             ("IMAGE_DIRECTORY_ENTRY_EXPORT", self.parse_export_directory),
             ("IMAGE_DIRECTORY_ENTRY_IMPORT", self.parse_import_directory),
             ("IMAGE_DIRECTORY_ENTRY_RESOURCE", self.parse_resources_directory),
             ("IMAGE_DIRECTORY_ENTRY_EXCEPTION", self.parse_exceptions_directory),
+            # IMAGE_DIRECTORY_ENTRY_SECURITY not processed
             ("IMAGE_DIRECTORY_ENTRY_BASERELOC", self.parse_relocations_directory),
             ("IMAGE_DIRECTORY_ENTRY_DEBUG", self.parse_debug_directory),
+            # IMAGE_DIRECTORY_ENTRY_COPYRIGHT not processed
+            # IMAGE_DIRECTORY_ENTRY_GLOBALPTR not processed
             ("IMAGE_DIRECTORY_ENTRY_TLS", self.parse_directory_tls),
             ("IMAGE_DIRECTORY_ENTRY_LOAD_CONFIG", self.parse_directory_load_config),
             ("IMAGE_DIRECTORY_ENTRY_BOUND_IMPORT", self.parse_directory_bound_imports),
+            # IMAGE_DIRECTORY_ENTRY_IAT not processed
             ("IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT", self.parse_delay_import_directory),
+            # IMAGE_DIRECTORY_ENTRY_COM_DESCRIPTOR not processed
+            # IMAGE_DIRECTORY_ENTRY_RESERVED not processed
         )
-
-        if directories is not None:
-            if not isinstance(directories, (tuple, list)):
-                directories = [directories]
 
         for entry in directory_parsing:
             try:
@@ -3748,8 +3757,7 @@ class PE:
             except IndexError:
                 break
 
-            # Only process all the directories if no individual ones have
-            # been chosen
+            # Only process all the directories if individual ones not chosen
             if directories is None or directory_index in directories:
                 value = None
                 if dir_entry.VirtualAddress:
@@ -3769,7 +3777,6 @@ class PE:
                         value = entry[1](
                             dir_entry.VirtualAddress, dir_entry.Size, dllnames_only=True
                         )
-
                     else:
                         try:
                             value = entry[1](dir_entry.VirtualAddress, dir_entry.Size)
@@ -3777,11 +3784,12 @@ class PE:
                             self.__warnings.append(
                                 f'Failed to process directory "{entry[0]}": {excp}'
                             )
+
                     if value:
                         setattr(self, entry[0][6:], value)
 
             if (
-                (directories is not None)
+                directories is not None
                 and isinstance(directories, list)
                 and (entry[0] in directories)
             ):
@@ -7602,7 +7610,8 @@ class PE:
 
         self.OPTIONAL_HEADER.ImageBase = new_ImageBase
 
-        # correct VAs(virtual addresses) occurrences in directory information
+        # correct VA (virtual address) occurrences in directory information
+        correct VAs(virtual addresses) occurrences in directory information
         def _adjust(obj, attributes, delta):
             for attr in attributes:
                 if hasattr(obj, attr):
