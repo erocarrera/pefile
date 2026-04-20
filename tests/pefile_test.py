@@ -151,7 +151,7 @@ class Test_pefile(unittest.TestCase):
             sys.stdout.write("[%d]" % (len(self.test_files) - idx))
             sys.stdout.flush()
         if failed:
-            raise AssertionError("One or more errors occured")
+            raise AssertionError("One or more errors occurred")
 
     def test_get_rich_header_hash(self):
         """Verify the RICH_HEADER hashes."""
