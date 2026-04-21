@@ -1601,7 +1601,8 @@ class ExportDirData(DataContainer):
     """Holds export directory information.
 
     struct:     IMAGE_EXPORT_DIRECTORY structure
-    symbols:    list of exported symbols (ExportData instances)"""
+    symbols:    list of exported symbols (ExportData instances)
+    name:       name of the export DLL"""
 
 
 class ExportData(DataContainer):
