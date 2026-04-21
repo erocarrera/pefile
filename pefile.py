@@ -5782,6 +5782,7 @@ class PE:
                         funcname = ordlookup.ordinal_lookup(dll.lower(), symbol.ordinal)
                         if funcname:
                             symbol.name = funcname
+                            symbol.name_from_ordinal = True
                 import_descs.append(
                     ImportDescData(struct=import_desc, imports=import_data, dll=dll)
                 )
@@ -5831,8 +5832,15 @@ class PE:
             entry_dll_lower = entry.dll.lower()
             for imp in entry.imports:
                 funcname = None
-                if not imp.name:
-                    funcname = ordlookup.ordinal_lookup(
+                if not imp.name or getattr(imp, "name_from_ordinal", False):
+                    # Must use imphash-specific ordinal lookup whose tables are
+                    # frozen to the state when the imphash algorithm was first
+                    # implemented in pefile, so that imphash values remain compatible
+                    # with YARA, YARA-X, and other tools based on the original pefile
+                    # implementation. name_from_ordinal is set when parse_import_directory
+                    # resolved the name at load time using the non-imphash-specific ordinal
+                    # lookup, which has different mappings than the frozen imphash table.
+                    funcname = ordlookup.imphash_ordinal_lookup(
                         entry_dll_lower, imp.ordinal, make_name=True
                     )
                     if not funcname:
@@ -5952,6 +5960,7 @@ class PE:
                         funcname = ordlookup.ordinal_lookup(dll.lower(), symbol.ordinal)
                         if funcname:
                             symbol.name = funcname
+                            symbol.name_from_ordinal = True
                 import_descs.append(
                     ImportDescData(struct=import_desc, imports=import_data, dll=dll)
                 )
@@ -6127,6 +6136,7 @@ class PE:
                         hint=imp_hint,
                         name=imp_name,
                         name_offset=name_offset,
+                        name_from_ordinal=False,
                         bound=imp_bound,
                         address=imp_address,
                         hint_name_table_rva=hint_name_table_rva,
