@@ -1566,33 +1566,30 @@ class ImportData(DataContainer):
                 self.struct_table.AddressOfData = self.struct_table.Ordinal
                 self.struct_table.Function = self.struct_table.Ordinal
                 self.struct_table.ForwarderString = self.struct_table.Ordinal
-            elif name == "bound":
-                if self.struct_iat is not None:
-                    self.struct_iat.AddressOfData = val
-                    self.struct_iat.AddressOfData = self.struct_iat.AddressOfData
-                    self.struct_iat.Function = self.struct_iat.AddressOfData
-                    self.struct_iat.ForwarderString = self.struct_iat.AddressOfData
+            elif name == "bound" and self.struct_iat is not None:
+                self.struct_iat.AddressOfData = val
+                self.struct_iat.Function = self.struct_iat.AddressOfData
+                self.struct_iat.ForwarderString = self.struct_iat.AddressOfData
             elif name == "address":
                 self.struct_table.AddressOfData = val
                 self.struct_table.Ordinal = self.struct_table.AddressOfData
                 self.struct_table.Function = self.struct_table.AddressOfData
                 self.struct_table.ForwarderString = self.struct_table.AddressOfData
-            elif name == "name":
+            elif name == "name" and self.name_offset:
                 # Make sure we reset the entry in case the import had been set to
                 # import by ordinal
-                if self.name_offset:
-                    name_rva = self.pe.get_rva_from_offset(self.name_offset)
-                    self.pe.set_dword_at_offset(
-                        self.ordinal_offset, (0 << 31) | name_rva
-                    )
+                name_rva = self.pe.get_rva_from_offset(self.name_offset)
+                self.pe.set_dword_at_offset(
+                    self.ordinal_offset, (0 << 31) | name_rva
+                )
 
-                    # Complain if the length of the new name is longer than the
-                    # existing one
-                    if len(val) > len(self.name):
-                        raise PEFormatError(
-                            "The export name provided is longer than the existing one."
-                        )
-                    self.pe.set_bytes_at_offset(self.name_offset, val)
+                # Complain if the length of the new name is longer than the
+                # existing one
+                if len(val) > len(self.name):
+                    raise PEFormatError(
+                        "The export name provided is longer than the existing one."
+                    )
+                self.pe.set_bytes_at_offset(self.name_offset, val)
 
         self.__dict__[name] = val
 
