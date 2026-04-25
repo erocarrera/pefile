@@ -7503,254 +7503,180 @@ class PE:
         This method will apply the relocation information to the image. Given the new
         base, all the relocations will be processed and both the raw data and the
         section's data will be fixed accordingly.
-        The resulting image can be retrieved as well through the method:
 
-            get_memory_mapped_image()
+        The resulting image can be retrieved through the method
+        get_memory_mapped_image().
 
         In order to get something that would more closely match what could be found in
         memory once the Windows loader finished its work.
         """
 
+        if (
+            len(self.OPTIONAL_HEADER.DATA_DIRECTORY) < 6
+            or not self.OPTIONAL_HEADER.DATA_DIRECTORY[5].Size
+        ):
+            return
+
         relocation_difference = new_ImageBase - self.OPTIONAL_HEADER.ImageBase
 
-        if (
-            len(self.OPTIONAL_HEADER.DATA_DIRECTORY) >= 6
-            and self.OPTIONAL_HEADER.DATA_DIRECTORY[5].Size
-        ):
-            if not hasattr(self, "DIRECTORY_ENTRY_BASERELOC"):
-                self.parse_data_directories(
-                    directories=[DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_BASERELOC"]]
-                )
-            if not hasattr(self, "DIRECTORY_ENTRY_BASERELOC"):
-                self.__warnings.append(
-                    "Relocating image but PE does not have (or pefile cannot "
-                    "parse) a DIRECTORY_ENTRY_BASERELOC"
-                )
-            else:
-                for reloc in self.DIRECTORY_ENTRY_BASERELOC:
-                    # We iterate with an index because if the relocation is of type
-                    # IMAGE_REL_BASED_HIGHADJ we need to also process the next entry
-                    # at once and skip it for the next iteration
-                    entry_idx = 0
-                    while entry_idx < len(reloc.entries):
-                        entry = reloc.entries[entry_idx]
+        if not hasattr(self, "DIRECTORY_ENTRY_BASERELOC"):
+            self.parse_data_directories(
+                directories=[DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_BASERELOC"]]
+            )
+        if not hasattr(self, "DIRECTORY_ENTRY_BASERELOC"):
+            self.__warnings.append(
+                "Relocating image but PE does not have (or pefile cannot "
+                "parse) a DIRECTORY_ENTRY_BASERELOC"
+            )
+        else:
+            for reloc in self.DIRECTORY_ENTRY_BASERELOC:
+                # We iterate with an index because if the relocation is of type
+                # IMAGE_REL_BASED_HIGHADJ we need to also process the next entry
+                # at once and skip it for the next iteration
+                entry_idx = 0
+                while entry_idx < len(reloc.entries):
+                    entry = reloc.entries[entry_idx]
+                    entry_idx += 1
+
+                    if entry.type == RELOCATION_TYPE["IMAGE_REL_BASED_ABSOLUTE"]:
+                        # Nothing to do for this type of relocation
+                        pass
+
+                    elif entry.type == RELOCATION_TYPE["IMAGE_REL_BASED_HIGH"]:
+                        # Fix the high 16-bits of a relocation
+                        #
+                        # Add high 16-bits of relocation_difference to the
+                        # 16-bit value at RVA=entry.rva
+                        self.set_word_at_rva(
+                            entry.rva,
+                            (
+                                self.get_word_at_rva(entry.rva)
+                                + relocation_difference
+                                >> 16
+                            )
+                            & 0xFFFF,
+                        )
+
+                    elif entry.type == RELOCATION_TYPE["IMAGE_REL_BASED_LOW"]:
+                        # Fix the low 16-bits of a relocation
+                        #
+                        # Add low 16 bits of relocation_difference to the 16-bit
+                        # value at RVA=entry.rva
+                        self.set_word_at_rva(
+                            entry.rva,
+                            (
+                                self.get_word_at_rva(entry.rva)
+                                + relocation_difference
+                            )
+                            & 0xFFFF,
+                        )
+
+                    elif entry.type == RELOCATION_TYPE["IMAGE_REL_BASED_HIGHLOW"]:
+                        # Handle all high and low parts of a 32-bit relocation
+                        #
+                        # Add relocation_difference to the value at RVA=entry.rva
+                        self.set_dword_at_rva(
+                            entry.rva,
+                            self.get_dword_at_rva(entry.rva)
+                            + relocation_difference,
+                        )
+
+                    elif entry.type == RELOCATION_TYPE["IMAGE_REL_BASED_HIGHADJ"]:
+                        # Fix the high 16-bits of a relocation and adjust
+                        #
+                        # Add high 16-bits of relocation_difference to the 32-bit
+                        # value composed from the (16-bit value at
+                        # RVA=entry.rva)<<16 plus the 16-bit value at the next
+                        # relocation entry.
+
+                        # If the next entry is beyond the array's limits,
+                        # abort... the table is corrupt
+                        if entry_idx == len(reloc.entries):
+                            break
+
+                        next_entry = reloc.entries[entry_idx]
                         entry_idx += 1
-
-                        if entry.type == RELOCATION_TYPE["IMAGE_REL_BASED_ABSOLUTE"]:
-                            # Nothing to do for this type of relocation
-                            pass
-
-                        elif entry.type == RELOCATION_TYPE["IMAGE_REL_BASED_HIGH"]:
-                            # Fix the high 16-bits of a relocation
-                            #
-                            # Add high 16-bits of relocation_difference to the
-                            # 16-bit value at RVA=entry.rva
-                            self.set_word_at_rva(
-                                entry.rva,
-                                (
-                                    self.get_word_at_rva(entry.rva)
-                                    + relocation_difference
-                                    >> 16
-                                )
-                                & 0xFFFF,
+                        self.set_word_at_rva(
+                            entry.rva,
+                            (
+                                (self.get_word_at_rva(entry.rva) << 16)
+                                + next_entry.rva
+                                + relocation_difference
+                                & 0xFFFF0000
                             )
+                            >> 16,
+                        )
 
-                        elif entry.type == RELOCATION_TYPE["IMAGE_REL_BASED_LOW"]:
-                            # Fix the low 16-bits of a relocation
-                            #
-                            # Add low 16 bits of relocation_difference to the 16-bit
-                            # value at RVA=entry.rva
-                            self.set_word_at_rva(
-                                entry.rva,
-                                (
-                                    self.get_word_at_rva(entry.rva)
-                                    + relocation_difference
-                                )
-                                & 0xFFFF,
-                            )
+                    elif entry.type == RELOCATION_TYPE["IMAGE_REL_BASED_DIR64"]:
+                        # Apply the difference to the 64-bit value at the offset
+                        # RVA=entry.rva
 
-                        elif entry.type == RELOCATION_TYPE["IMAGE_REL_BASED_HIGHLOW"]:
-                            # Handle all high and low parts of a 32-bit relocation
-                            #
-                            # Add relocation_difference to the value at RVA=entry.rva
-                            self.set_dword_at_rva(
-                                entry.rva,
-                                self.get_dword_at_rva(entry.rva)
-                                + relocation_difference,
-                            )
+                        self.set_qword_at_rva(
+                            entry.rva,
+                            self.get_qword_at_rva(entry.rva)
+                            + relocation_difference,
+                        )
 
-                        elif entry.type == RELOCATION_TYPE["IMAGE_REL_BASED_HIGHADJ"]:
-                            # Fix the high 16-bits of a relocation and adjust
-                            #
-                            # Add high 16-bits of relocation_difference to the 32-bit
-                            # value composed from the (16-bit value at
-                            # RVA=entry.rva)<<16 plus the 16-bit value at the next
-                            # relocation entry.
+        self.OPTIONAL_HEADER.ImageBase = new_ImageBase
 
-                            # If the next entry is beyond the array's limits,
-                            # abort... the table is corrupt
-                            if entry_idx == len(reloc.entries):
-                                break
+        # correct VA (virtual address) occurrences in directory information
+        def _adjust(obj, attributes, delta):
+            for attr in attributes:
+                if hasattr(obj, attr):
+                    current_value = getattr(obj, attr)
+                    if current_value:
+                        setattr(obj, attr, current_value + delta)
 
-                            next_entry = reloc.entries[entry_idx]
-                            entry_idx += 1
-                            self.set_word_at_rva(
-                                entry.rva,
-                                (
-                                    (self.get_word_at_rva(entry.rva) << 16)
-                                    + next_entry.rva
-                                    + relocation_difference
-                                    & 0xFFFF0000
-                                )
-                                >> 16,
-                            )
+        if hasattr(self, "DIRECTORY_ENTRY_IMPORT"):
+            for dll in self.DIRECTORY_ENTRY_IMPORT:
+                for func in dll.imports:
+                    func.address += relocation_difference
+        if hasattr(self, "DIRECTORY_ENTRY_TLS"):
+            self.DIRECTORY_ENTRY_TLS.struct.StartAddressOfRawData += (
+                relocation_difference
+            )
+            self.DIRECTORY_ENTRY_TLS.struct.EndAddressOfRawData += (
+                relocation_difference
+            )
+            self.DIRECTORY_ENTRY_TLS.struct.AddressOfIndex += relocation_difference
+            self.DIRECTORY_ENTRY_TLS.struct.AddressOfCallBacks += (
+                relocation_difference
+            )
+        if hasattr(self, "DIRECTORY_ENTRY_LOAD_CONFIG"):
+            load_config = self.DIRECTORY_ENTRY_LOAD_CONFIG.struct
 
-                        elif entry.type == RELOCATION_TYPE["IMAGE_REL_BASED_DIR64"]:
-                            # Apply the difference to the 64-bit value at the offset
-                            # RVA=entry.rva
+            if (
+                self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS
+                and hasattr(load_config, "CHPEMetadataPointer")
+                and load_config.CHPEMetadataPointer
+            ):
+                load_config.CHPEMetadataPointer += relocation_difference
 
-                            self.set_qword_at_rva(
-                                entry.rva,
-                                self.get_qword_at_rva(entry.rva)
-                                + relocation_difference,
-                            )
+            fields = (
+                "CastGuardOsDeterminedFailureMode",
+                "DynamicValueRelocTable",
+                "EditList",
+                "EnclaveConfigurationPointer",
+                "GuardAddressTakenIatEntryTable",
+                "GuardCFCheckFunctionPointer",
+                "GuardCFDispatchFunctionPointer",
+                "GuardCFFunctionTable",
+                "GuardEHContinuationTable",
+                "GuardLongJumpTargetTable",
+                "GuardMemcpyFunctionPointer",
+                "GuardRFFailureRoutine",
+                "GuardRFFailureRoutineFunctionPointer",
+                "GuardRFVerifyStackPointerFunctionPointer",
+                "GuardXFGCheckFunctionPointer",
+                "GuardXFGDispatchFunctionPointer",
+                "GuardXFGTableDispatchFunctionPointer",
+                "LockPrefixTable",
+                "SEHandlerTable",
+                "SecurityCookie",
+                "VolatileMetadataPointer",
+            )
 
-            self.OPTIONAL_HEADER.ImageBase = new_ImageBase
-
-            # correct VA (virtual address) occurrences in directory information
-            if hasattr(self, "DIRECTORY_ENTRY_IMPORT"):
-                for dll in self.DIRECTORY_ENTRY_IMPORT:
-                    for func in dll.imports:
-                        func.address += relocation_difference
-            if hasattr(self, "DIRECTORY_ENTRY_TLS"):
-                self.DIRECTORY_ENTRY_TLS.struct.StartAddressOfRawData += (
-                    relocation_difference
-                )
-                self.DIRECTORY_ENTRY_TLS.struct.EndAddressOfRawData += (
-                    relocation_difference
-                )
-                self.DIRECTORY_ENTRY_TLS.struct.AddressOfIndex += relocation_difference
-                self.DIRECTORY_ENTRY_TLS.struct.AddressOfCallBacks += (
-                    relocation_difference
-                )
-            if hasattr(self, "DIRECTORY_ENTRY_LOAD_CONFIG"):
-                load_config = self.DIRECTORY_ENTRY_LOAD_CONFIG.struct
-                if (
-                    hasattr(load_config, "LockPrefixTable")
-                    and load_config.LockPrefixTable
-                ):
-                    load_config.LockPrefixTable += relocation_difference
-                if hasattr(load_config, "EditList") and load_config.EditList:
-                    load_config.EditList += relocation_difference
-                if (
-                    hasattr(load_config, "SecurityCookie")
-                    and load_config.SecurityCookie
-                ):
-                    load_config.SecurityCookie += relocation_difference
-                if (
-                    hasattr(load_config, "SEHandlerTable")
-                    and load_config.SEHandlerTable
-                ):
-                    load_config.SEHandlerTable += relocation_difference
-                if (
-                    hasattr(load_config, "GuardCFCheckFunctionPointer")
-                    and load_config.GuardCFCheckFunctionPointer
-                ):
-                    load_config.GuardCFCheckFunctionPointer += relocation_difference
-                if (
-                    hasattr(load_config, "GuardCFDispatchFunctionPointer")
-                    and load_config.GuardCFDispatchFunctionPointer
-                ):
-                    load_config.GuardCFDispatchFunctionPointer += relocation_difference
-                if (
-                    hasattr(load_config, "GuardCFFunctionTable")
-                    and load_config.GuardCFFunctionTable
-                ):
-                    load_config.GuardCFFunctionTable += relocation_difference
-                if (
-                    hasattr(load_config, "GuardAddressTakenIatEntryTable")
-                    and load_config.GuardAddressTakenIatEntryTable
-                ):
-                    load_config.GuardAddressTakenIatEntryTable += relocation_difference
-                if (
-                    hasattr(load_config, "GuardLongJumpTargetTable")
-                    and load_config.GuardLongJumpTargetTable
-                ):
-                    load_config.GuardLongJumpTargetTable += relocation_difference
-                if (
-                    hasattr(load_config, "DynamicValueRelocTable")
-                    and load_config.DynamicValueRelocTable
-                ):
-                    load_config.DynamicValueRelocTable += relocation_difference
-                if (
-                    self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS
-                    and hasattr(load_config, "CHPEMetadataPointer")
-                    and load_config.CHPEMetadataPointer
-                ):
-                    load_config.CHPEMetadataPointer += relocation_difference
-                if (
-                    hasattr(load_config, "GuardRFFailureRoutine")
-                    and load_config.GuardRFFailureRoutine
-                ):
-                    load_config.GuardRFFailureRoutine += relocation_difference
-                if (
-                    hasattr(load_config, "GuardRFFailureRoutineFunctionPointer")
-                    and load_config.GuardRFFailureRoutineFunctionPointer
-                ):
-                    load_config.GuardRFVerifyStackPointerFunctionPointer += (
-                        relocation_difference
-                    )
-                if (
-                    hasattr(load_config, "GuardRFVerifyStackPointerFunctionPointer")
-                    and load_config.GuardRFVerifyStackPointerFunctionPointer
-                ):
-                    load_config.GuardRFVerifyStackPointerFunctionPointer += (
-                        relocation_difference
-                    )
-                if (
-                    hasattr(load_config, "EnclaveConfigurationPointer")
-                    and load_config.EnclaveConfigurationPointer
-                ):
-                    load_config.EnclaveConfigurationPointer += relocation_difference
-                if (
-                    hasattr(load_config, "VolatileMetadataPointer")
-                    and load_config.VolatileMetadataPointer
-                ):
-                    load_config.VolatileMetadataPointer += relocation_difference
-                if (
-                    hasattr(load_config, "GuardEHContinuationTable")
-                    and load_config.GuardEHContinuationTable
-                ):
-                    load_config.GuardEHContinuationTable += relocation_difference
-                if (
-                    hasattr(load_config, "GuardXFGCheckFunctionPointer")
-                    and load_config.GuardXFGCheckFunctionPointer
-                ):
-                    load_config.GuardXFGCheckFunctionPointer += relocation_difference
-                if (
-                    hasattr(load_config, "GuardXFGDispatchFunctionPointer")
-                    and load_config.GuardXFGDispatchFunctionPointer
-                ):
-                    load_config.GuardXFGDispatchFunctionPointer += relocation_difference
-                if (
-                    hasattr(load_config, "GuardXFGTableDispatchFunctionPointer")
-                    and load_config.GuardXFGTableDispatchFunctionPointer
-                ):
-                    load_config.GuardXFGTableDispatchFunctionPointer += (
-                        relocation_difference
-                    )
-                if (
-                    hasattr(load_config, "CastGuardOsDeterminedFailureMode")
-                    and load_config.CastGuardOsDeterminedFailureMode
-                ):
-                    load_config.CastGuardOsDeterminedFailureMode += (
-                        relocation_difference
-                    )
-                if (
-                    hasattr(load_config, "GuardMemcpyFunctionPointer")
-                    and load_config.GuardMemcpyFunctionPointer
-                ):
-                    load_config.GuardMemcpyFunctionPointer += relocation_difference
+            _adjust(load_config, fields, relocation_difference)
 
     def verify_checksum(self):
         return self.OPTIONAL_HEADER.CheckSum == self.generate_checksum()
