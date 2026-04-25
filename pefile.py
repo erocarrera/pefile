@@ -7883,9 +7883,8 @@ class PE:
         ):
             return True
 
-        driver_like_section_names = {b"page", b"paged"}
-        if driver_like_section_names.intersection(
-            {section.Name.lower().rstrip(b"\x00") for section in self.sections}
+        if any(
+            {section.Name.lower().startswith(b"page") for section in self.sections}
         ) and (
             self.OPTIONAL_HEADER.Subsystem
             in (
