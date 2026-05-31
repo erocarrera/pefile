@@ -44,11 +44,11 @@ codecs.register_error("backslashreplace_", codecs.lookup_error("backslashreplace
 # https://stackoverflow.com/questions/54909357
 def lru_cache_copy(maxsize=128, typed=False):
     def decorator(f):
-        cached_funcion = lru_cache(maxsize, typed)(f)
+        cached_function = lru_cache(maxsize, typed)(f)
 
         @wraps(f)
         def wrapper(*args, **kwargs):
-            return copy.copy(cached_funcion(*args, **kwargs))
+            return copy.copy(cached_function(*args, **kwargs))
         return wrapper
 
     return decorator
