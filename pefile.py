@@ -21,8 +21,7 @@ __version__ = "2024.8.26"
 __contact__ = "ero.carrera@gmail.com"
 
 import codecs
-import copy as copymod
-import functools
+import copy
 import math
 import mmap
 import os
@@ -31,6 +30,7 @@ import struct
 import time
 import uuid
 from collections import Counter, defaultdict
+from functools import lru_cache, wraps
 from hashlib import md5, sha1, sha256, sha512
 
 import ordlookup
@@ -38,22 +38,17 @@ import ordlookup
 codecs.register_error("backslashreplace_", codecs.lookup_error("backslashreplace"))
 
 
-# lru_cache with a shallow copy of the objects returned (list, dicts, ..)
-# we don't use deepcopy as it's _really_ slow and the data we retrieved using
-# this is enough with copy.copy taken from
+# lru_cache with a shallow copy of the objects returned (list, dict, ...).
+# We don't use copy.deepcopy as it's _really_ slow, and for the data we retrieve
+# copy.copy is sufficient.
 # https://stackoverflow.com/questions/54909357
-def lru_cache(maxsize=128, typed=False, copy=False):
-    if not copy:
-        return functools.lru_cache(maxsize, typed)
-
+def lru_cache_copy(maxsize=128, typed=False):
     def decorator(f):
-        cached_func = functools.lru_cache(maxsize, typed)(f)
+        cached_funcion = lru_cache(maxsize, typed)(f)
 
-        @functools.wraps(f)
+        @wraps(f)
         def wrapper(*args, **kwargs):
-            # return copymod.deepcopy(cached_func(*args, **kwargs))
-            return copymod.copy(cached_func(*args, **kwargs))
-
+            return copy.copy(cached_funcion(*args, **kwargs))
         return wrapper
 
     return decorator
@@ -891,7 +886,7 @@ def sizeof_type(t):
     return STRUCT_SIZEOF_TYPES[_t] * count
 
 
-@lru_cache(maxsize=2048, copy=True)
+@lru_cache_copy(maxsize=2048)
 def set_format(format):
     __format_str__ = "<"
     __unpacked_data_elms__ = []
@@ -1330,7 +1325,7 @@ class SectionStructure(Structure):
         return entropy
 
 
-@lru_cache(maxsize=2048, copy=False)
+@lru_cache(maxsize=2048)
 def set_bitfields_format(format):
     class Accumulator:
         def __init__(self, fmt, comp_fields):
