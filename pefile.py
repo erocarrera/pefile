@@ -38,42 +38,6 @@ import ordlookup
 codecs.register_error("backslashreplace_", codecs.lookup_error("backslashreplace"))
 
 
-# lru_cache with a shallow copy of the objects returned (list, dict, ...).
-# We don't use copy.deepcopy as it's _really_ slow, and for the data we retrieve
-# copy.copy is sufficient.
-# https://stackoverflow.com/questions/54909357
-def lru_cache_copy(maxsize=128, typed=False):
-    def decorator(f):
-        cached_function = lru_cache(maxsize, typed)(f)
-
-        @wraps(f)
-        def wrapper(*args, **kwargs):
-            return copy.copy(cached_function(*args, **kwargs))
-        return wrapper
-
-    return decorator
-
-
-@lru_cache(maxsize=2048)
-def cache_adjust_SectionAlignment(val, section_alignment, file_alignment):
-    if section_alignment < 0x1000:  # page size
-        section_alignment = file_alignment
-
-    # 0x200 is the minimum valid FileAlignment according to the documentation
-    # although ntoskrnl.exe has an alignment of 0x80 in some Windows versions
-    #
-    # elif section_alignment < 0x80:
-    #    section_alignment = 0x80
-
-    if section_alignment and val % section_alignment:
-        return section_alignment * (val // section_alignment)
-    return val
-
-
-def count_zeroes(data):
-    return data.count(0)
-
-
 fast_load = False
 
 # This will set a maximum length of a string to be retrieved from the file.
@@ -711,6 +675,26 @@ def set_flags(obj, flag_field, flags):
             obj.__dict__[flag] = False
 
 
+# lru_cache with a shallow copy of the objects returned (list, dict, ...).
+# We don't use copy.deepcopy as it's _really_ slow, and for the data we retrieve
+# copy.copy is sufficient.
+# https://stackoverflow.com/questions/54909357
+def lru_cache_copy(maxsize=128, typed=False):
+    def decorator(f):
+        cached_function = lru_cache(maxsize, typed)(f)
+
+        @wraps(f)
+        def wrapper(*args, **kwargs):
+            return copy.copy(cached_function(*args, **kwargs))
+        return wrapper
+
+    return decorator
+
+
+def count_zeroes(data):
+    return data.count(0)
+
+
 def power_of_two(val):
     return val != 0 and (val & (val - 1)) == 0
 
@@ -867,9 +851,9 @@ STRUCT_SIZEOF_TYPES = {
     "I": 4,
     "l": 4,
     "L": 4,
-    "f": 4,
     "q": 8,
     "Q": 8,
+    "f": 4,
     "d": 8,
     "s": 1,
 }
@@ -2325,6 +2309,22 @@ def is_valid_function_name(
         and isinstance(s, (str, bytes, bytearray))
         and all((c in allowed_function_name or c in allowed_extra) for c in set(s))
     )
+
+
+@lru_cache(maxsize=2048)
+def cache_adjust_SectionAlignment(val, section_alignment, file_alignment):
+    if section_alignment < 0x1000:  # page size
+        section_alignment = file_alignment
+
+    # 0x200 is the minimum valid FileAlignment according to the documentation
+    # although ntoskrnl.exe has an alignment of 0x80 in some Windows versions
+    #
+    # elif section_alignment < 0x80:
+    #    section_alignment = 0x80
+
+    if section_alignment and val % section_alignment:
+        return section_alignment * (val // section_alignment)
+    return val
 
 
 class PE:
@@ -7284,61 +7284,11 @@ class PE:
             return None
 
     ##
-    # Double-Word get / set
-    ##
-
-    def get_data_from_dword(self, dword):
-        """Return a four byte string representing the double word value (little endian)."""
-        return struct.pack("<L", dword & 0xFFFFFFFF)
-
-    def get_dword_from_data(self, data, offset):
-        """Convert four bytes of data to a double word (little endian)
-
-        'offset' is assumed to index into a dword array. So setting it to
-        N will return a dword out of the data starting at offset N*4.
-
-        Returns None if the data can't be turned into a double word.
-        """
-
-        if (offset + 1) * 4 > len(data):
-            return None
-
-        return struct.unpack("<I", data[offset * 4 : (offset + 1) * 4])[0]
-
-    def get_dword_at_rva(self, rva):
-        """Return the double word value at the given RVA.
-
-        Returns None if the value can't be read, i.e. the RVA can't be mapped
-        to a file offset.
-        """
-
-        try:
-            return self.get_dword_from_data(self.get_data(rva, 4), 0)
-        except PEFormatError:
-            return None
-
-    def get_dword_from_offset(self, offset):
-        """Return the double word value at the given file offset. (little endian)"""
-
-        if offset + 4 > len(self.__data__):
-            return None
-
-        return self.get_dword_from_data(self.__data__[offset : offset + 4], 0)
-
-    def set_dword_at_rva(self, rva, dword):
-        """Set the double word value at the file offset corresponding to the given RVA."""
-        return self.set_bytes_at_rva(rva, self.get_data_from_dword(dword))
-
-    def set_dword_at_offset(self, offset, dword):
-        """Set the double word value at the given file offset."""
-        return self.set_bytes_at_offset(offset, self.get_data_from_dword(dword))
-
-    ##
     # Word get / set
     ##
 
     def get_data_from_word(self, word):
-        """Return a two byte string representing the word value. (little endian)."""
+        """Return a two byte string representing the word value (little endian)."""
         return struct.pack("<H", word)
 
     def get_word_from_data(self, data, offset):
@@ -7384,6 +7334,56 @@ class PE:
         return self.set_bytes_at_offset(offset, self.get_data_from_word(word))
 
     ##
+    # Double-Word get / set
+    ##
+
+    def get_data_from_dword(self, dword):
+        """Return a four byte string representing the double word value (little endian)."""
+        return struct.pack("<L", dword & 0xFFFFFFFF)
+
+    def get_dword_from_data(self, data, offset):
+        """Convert four bytes of data to a double word (little endian)
+
+        'offset' is assumed to index into a dword array. So setting it to
+        N will return a dword out of the data starting at offset N*4.
+
+        Returns None if the data can't be turned into a double word.
+        """
+
+        if (offset + 1) * 4 > len(data):
+            return None
+
+        return struct.unpack("<I", data[offset * 4 : (offset + 1) * 4])[0]
+
+    def get_dword_at_rva(self, rva):
+        """Return the double word value at the given RVA.
+
+        Returns None if the value can't be read, i.e. the RVA can't be mapped
+        to a file offset.
+        """
+
+        try:
+            return self.get_dword_from_data(self.get_data(rva, 4), 0)
+        except PEFormatError:
+            return None
+
+    def get_dword_from_offset(self, offset):
+        """Return the double word value at the given file offset (little endian)."""
+
+        if offset + 4 > len(self.__data__):
+            return None
+
+        return self.get_dword_from_data(self.__data__[offset : offset + 4], 0)
+
+    def set_dword_at_rva(self, rva, dword):
+        """Set the double word value at the file offset corresponding to the given RVA."""
+        return self.set_bytes_at_rva(rva, self.get_data_from_dword(dword))
+
+    def set_dword_at_offset(self, offset, dword):
+        """Set the double word value at the given file offset."""
+        return self.set_bytes_at_offset(offset, self.get_data_from_dword(dword))
+
+    ##
     # Quad-Word get / set
     ##
 
@@ -7418,7 +7418,7 @@ class PE:
             return None
 
     def get_qword_from_offset(self, offset):
-        """Return the quad-word value at the given file offset. (little endian)"""
+        """Return the quad-word value at the given file offset. (little endian)."""
 
         if offset + 8 > len(self.__data__):
             return None
