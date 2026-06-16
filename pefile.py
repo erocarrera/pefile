@@ -3551,6 +3551,9 @@ class PE:
 
         self.sections = []
         MAX_SIMULTANEOUS_ERRORS = 3
+        # Currently pefile deviates from the specification by starting from zero and not one.
+        # Entries in the section table are numbered starting from one (1).
+        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#section-table-section-headers
         for i in range(self.FILE_HEADER.NumberOfSections):
             if i >= MAX_SECTIONS:
                 self.__warnings.append(
@@ -7942,12 +7945,11 @@ class PE:
         return self.__data__[:]
 
     def adjust_PointerToRawData(self, val):
-        # "The alignment factor (in bytes) that is used to align the raw data of sections in
-        #  the image file. The value should be a power of 2 between 512 and 64 K, inclusive.
-        #  The default is 512. If the SectionAlignment is less than the architecture's page
-        #  size, then FileAlignment must match SectionAlignment."
-        # [Microsoft Portable Executable and Common Object File Format Specification]
-        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
+        # The alignment factor (in bytes) that is used to align the raw data of sections in
+        # the image file. The value should be a power of 2 between 512 and 64 K, inclusive.
+        # The default is 512. If the SectionAlignment is less than the architecture's page
+        # size, then FileAlignment must match SectionAlignment.
+        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#optional-header-windows-specific-fields-image-only
         if self.OPTIONAL_HEADER.FileAlignment >= MIN_VALID_FILE_ALIGNMENT:
             # If it's not a power of two, report it:
             if ( 
@@ -7964,11 +7966,10 @@ class PE:
         return val & ~0x1FF
 
     def adjust_SectionAlignment(self, val, section_alignment, file_alignment):
-        # "The alignment (in bytes) of sections when they are loaded into memory. It must be
-        #  greater than or equal to FileAlignment. The default is the page size for the
-        #  architecture."
-        # [Microsoft Portable Executable and Common Object File Format Specification]
-        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
+        # The alignment (in bytes) of sections when they are loaded into memory.
+        # It must be greater than or equal to FileAlignment. The default is the
+        # page size for the architecture.
+        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#optional-header-windows-specific-fields-image-only
         if section_alignment < 0x1000:
             # If the SectionAlignment is less than the architecture's page size, then
             # FileAlignment must match SectionAlignment.
