@@ -9,7 +9,7 @@ import pefile
 REGRESSION_TESTS_DIR = "tests/test_files"
 
 
-class Test_pefile(unittest.TestCase):
+class TestPEFile(unittest.TestCase):
     maxDiff = None
 
     def setUp(self):
@@ -555,7 +555,7 @@ class Test_pefile(unittest.TestCase):
         pe = pefile.PE(control_file_pe)
 
         # Ensure the overlay data is correct (should not be any in this case).
-        self.assertEqual(pe.get_overlay(), None)
+        self.assertIsNone(pe.get_overlay())
 
         trimmed_data = pe.trim()
 
@@ -568,7 +568,7 @@ class Test_pefile(unittest.TestCase):
         pe = pefile.PE(control_file_pe)
 
         # Ensure the overlay data is correct (should not be any in this case).
-        self.assertEqual(pe.get_overlay(), None)
+        self.assertIsNone(pe.get_overlay())
 
     def test_unable_to_read_file(self):
         """Attempting to open a file without read permission for the user
@@ -599,7 +599,7 @@ class Test_pefile(unittest.TestCase):
         )
 
         pe = pefile.PE(control_file_pe, fast_load=False)
-        self.assertEqual(pe.is_driver(), True)
+        self.assertTrue(pe.is_driver())
 
     def test_rebased_image(self):
         """Test correctness of rebased images"""
@@ -629,14 +629,14 @@ class Test_pefile(unittest.TestCase):
 
         # verify_checksum() generates a checksum from the image's data and
         # compares it against the checksum field in the optional header.
-        self.assertEqual(pe.verify_checksum(), True)
+        self.assertTrue(pe.verify_checksum())
 
         control_file = os.path.join(
             REGRESSION_TESTS_DIR,
             "checksum/0031709440C539B47E34B524AF3900248DD35274_bad_checksum",
         )
         pe = pefile.PE(control_file)
-        self.assertEqual(pe.verify_checksum(), False)
+        self.assertFalse(pe.verify_checksum())
         self.assertEqual(pe.generate_checksum(), 0x16C39)
 
         control_file = os.path.join(
@@ -644,17 +644,17 @@ class Test_pefile(unittest.TestCase):
             "checksum/009763E904C053C1803B26EC0D817AF497DA1BB2_bad_checksum",
         )
         pe = pefile.PE(control_file)
-        self.assertEqual(pe.verify_checksum(), False)
+        self.assertFalse(pe.verify_checksum())
         self.assertEqual(pe.generate_checksum(), 0x249F7)
 
         control_file = os.path.join(
             REGRESSION_TESTS_DIR, "checksum/00499E3A70A324160A3FE935F10BFB699ACB0954"
         )
         pe = pefile.PE(control_file)
-        self.assertEqual(pe.verify_checksum(), True)
+        self.assertTrue(pe.verify_checksum())
 
         control_file = os.path.join(
             REGRESSION_TESTS_DIR, "checksum/0011FEECD53D06A6C68C531E0DA7A61C692E76BF"
         )
         pe = pefile.PE(control_file)
-        self.assertEqual(pe.verify_checksum(), True)
+        self.assertTrue(pe.verify_checksum())
