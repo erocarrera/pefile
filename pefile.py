@@ -6325,7 +6325,19 @@ class PE:
             elif padding_length < 0:
                 mapped_data = mapped_data[:padding_length]
 
-            mapped_data += section.get_data()
+            section_data = section.get_data()
+            virtual_size = section.Misc_VirtualSize
+            if virtual_size and len(section_data) != virtual_size:
+                # Only Misc_VirtualSize bytes belong in the mapped view.
+                if len(section_data) > virtual_size:
+                    # VirtualSize < SizeOfRawData: the extra disk bytes are
+                    # file-alignment padding the OS loader discards.
+                    section_data = section_data[:virtual_size]
+                else:
+                    # VirtualSize > SizeOfRawData: the gap is BSS and must be
+                    # zero-padded in the mapped view.
+                    section_data += b"\0" * (virtual_size - len(section_data))
+            mapped_data += section_data
 
         # If the image was rebased, restore it to its original form
         if ImageBase is not None:
