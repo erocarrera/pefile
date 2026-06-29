@@ -776,7 +776,7 @@ def _create_pe(virtual_size, size_of_raw_data):
     headers = headers.ljust(pointer_to_raw_data, b"\x00")
 
     # Fill raw section data with a sentinel byte so leakage is obvious
-    section_data = b"\xcc" * size_of_raw_data
+    section_data = b"\xCC" * size_of_raw_data
     return bytes(headers) + section_data
 
 
@@ -797,7 +797,7 @@ class Test_memory_mapped_image(unittest.TestCase):
         # Section content up to VirtualSize must be present.
         self.assertEqual(
             image[va : va + vsize],
-            b"\xcc" * vsize,
+            b"\xCC" * vsize,
             "section content must be preserved up to VirtualSize",
         )
         # The image must not extend past VirtualAddress + VirtualSize; raw
@@ -811,7 +811,7 @@ class Test_memory_mapped_image(unittest.TestCase):
     def test_virtual_size_greater_than_raw_size(self):
         """Uninitialized BSS region must be zero-padded in the memory-mapped image.
 
-        When VirtualSize > SizeOfRawData the bytes from SizeOfRawData up to
+        When SizeOfRawData < VirtualSize the bytes from SizeOfRawData up to
         VirtualSize represent BSS and must be zero in the mapped view.
         """
         vsize = 0x1500
@@ -822,7 +822,7 @@ class Test_memory_mapped_image(unittest.TestCase):
         va = pe.sections[0].VirtualAddress
         self.assertEqual(
             image[va : va + raw_size],
-            b"\xcc" * raw_size,
+            b"\xCC" * raw_size,
             "raw section content must be preserved",
         )
         self.assertEqual(
