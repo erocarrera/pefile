@@ -62,11 +62,11 @@ def cache_adjust_SectionAlignment(val, section_alignment, file_alignment):
     # 0x200 is the minimum valid FileAlignment according to the documentation
     # although ntoskrnl.exe has an alignment of 0x80 in some Windows versions
     #
-    # elif section_alignment < 0x80:
+    # if section_alignment < 0x80:
     #    section_alignment = 0x80
 
     if section_alignment and val % section_alignment:
-        return section_alignment * (val // section_alignment)
+        return (val // section_alignment) * section_alignment
     return val
 
 
