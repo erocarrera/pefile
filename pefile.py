@@ -4955,7 +4955,7 @@ class PE:
         if resource is None:
             return None
 
-        # resource.NameIsString = (resource.Name & 0x80000000L) >> 31
+        # resource.NameIsString = (resource.Name & 0x80000000) >> 31
         resource.NameOffset = resource.Name & 0x7FFFFFFF
 
         resource.__pad = resource.Name & 0xFFFF0000
@@ -7966,7 +7966,7 @@ class PE:
                 )
                 self.FileAlignment_Warning = True
 
-        # (val / SECTOR_SIZE) * SECTOR_SIZE
+        # (val // SECTOR_SIZE) * SECTOR_SIZE
         return val & ~0x1FF
 
     def adjust_SectionAlignment(self, val, section_alignment, file_alignment):
