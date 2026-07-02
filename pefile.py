@@ -7309,7 +7309,7 @@ class PE:
             return None
 
     def get_word_from_offset(self, offset):
-        """Return the word value at the given file offset. (little endian)"""
+        """Return the word value at the given file offset (little endian)"""
 
         if offset + 2 > len(self.__data__):
             return None
@@ -7409,7 +7409,7 @@ class PE:
             return None
 
     def get_qword_from_offset(self, offset):
-        """Return the quad-word value at the given file offset. (little endian)."""
+        """Return the quad-word value at the given file offset (little endian)."""
 
         if offset + 8 > len(self.__data__):
             return None
