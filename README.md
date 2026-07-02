@@ -81,6 +81,7 @@ The following links provide detailed information about the PE format and its str
   * [corkami's treasure trove of PE weirdness](https://github.com/corkami/pocs/tree/master/PE)
   * [An In-Depth Look into the Win32 Portable Executable File Format](https://learn.microsoft.com/en-us/archive/msdn-magazine/2002/february/inside-windows-win32-portable-executable-file-format-in-detail)
   * [An In-Depth Look into the Win32 Portable Executable File Format, Part 2](https://learn.microsoft.com/en-us/archive/msdn-magazine/2002/march/inside-windows-an-in-depth-look-into-the-win32-portable-executable-file-format-part-2)
+  * [Microsoft Portable Executable and Common Object File Format Specification](https://learn.microsoft.com/en-us/windows/win32/debug/pe-format)
   * [The Portable Executable File Format](https://web.archive.org/web/20220804184037/http://www.csn.ul.ie/~caolan/publink/winresdump/winresdump/doc/pefile.html) (archive)
   * [Get icons from Exe or DLL the PE way](https://web.archive.org/web/20250819092225/https://www.codeproject.com/Articles/9303/Get-icons-from-Exe-or-DLL-the-PE-way) (archive)
   * Solar Eclipse's Tiny PE page at "http://www.phreedom.org/solar/code/tinype/" is no longer available ([html-only archive](https://web.archive.org/web/20111001045025/http://www.phreedom.org/solar/code/tinype/)), corkami's TinyPE is available [here](https://github.com/corkami/pocs/blob/master/PE/tiny.asm) (Code only)

@@ -967,12 +967,10 @@ class Structure:
 
     def all_zeroes(self):
         """Returns true if the unpacked data is all zeros."""
-
         return self.__all_zeroes__
 
     def sizeof(self):
         """Return size of the structure."""
-
         return self.__format_length__
 
     def __unpack__(self, data):
@@ -1073,9 +1071,7 @@ class Structure:
     def dump_dict(self):
         """Returns a dictionary representation of the structure."""
 
-        dump_dict = {}
-
-        dump_dict["Structure"] = self.name
+        dump_dict = {"Structure": self.name}
 
         # Refer to the set_format method for an explanation
         # of the following construct.
@@ -1252,8 +1248,7 @@ class SectionStructure(Structure):
         # to fit in the range up to where the next section starts.
         if (
             self.next_section_virtual_address is not None
-            and self.next_section_virtual_address > self.VirtualAddress
-            and VirtualAddress_adj + size > self.next_section_virtual_address
+            and self.VirtualAddress < self.next_section_virtual_address < VirtualAddress_adj + size
         ):
             size = self.next_section_virtual_address - VirtualAddress_adj
 
@@ -1266,36 +1261,30 @@ class SectionStructure(Structure):
 
     def get_entropy(self):
         """Calculate and return the entropy for the section."""
-
         return self.entropy_H(self.get_data())
 
     def get_hash_md5(self):
         """Get the MD5 hex-digest of the section's data."""
-
         if md5 is not None:
             return md5(self.get_data()).hexdigest()
 
     def get_hash_sha1(self):
         """Get the SHA-1 hex-digest of the section's data."""
-
         if sha1 is not None:
             return sha1(self.get_data()).hexdigest()
 
     def get_hash_sha256(self):
         """Get the SHA-256 hex-digest of the section's data."""
-
         if sha256 is not None:
             return sha256(self.get_data()).hexdigest()
 
     def get_hash_sha512(self):
         """Get the SHA-512 hex-digest of the section's data."""
-
         if sha512 is not None:
             return sha512(self.get_data()).hexdigest()
 
     def entropy_H(self, data):
         """Calculate the entropy of a chunk of data."""
-
         if not data:
             return 0.0
 
@@ -2291,7 +2280,7 @@ def is_valid_dos_filename(s):
 # charset we will assume the name is invalid.
 # The dot "." character comes from: https://github.com/erocarrera/pefile/pull/346
 # All other symbols can be inserted by adding a name with that symbol to a .def file,
-# and passing it to link.exe (See export_test.py)
+# and passing it to link.exe, see export_test.py.
 allowed_function_name = (
     string.ascii_lowercase + string.ascii_uppercase + string.digits
 ).encode()
@@ -2301,13 +2290,22 @@ allowed_function_name = (
 def is_valid_function_name(
     s: str | bytes | bytearray, relax_allowed_characters: bool = False
 ) -> bool:
-    allowed_extra = b"._?@$()<>"
+    """
+    MangleChars = "$:?([.)]"        // watcom
+                  "@$%?"            // microsoft
+                  "@$%&";           // borland
+    Source: ida.cfg
+
+    "_" is also used in mangled names
+    "<>" C++ templates, e.g. functions in wincorlib.dll
+    """
+    allowed_extra = b"$%&().:<>?@[]_"  # watcom + microsoft + borland + "_" + "<>"
     if relax_allowed_characters:
-        allowed_extra = b"!\"#$%&'()*+,-./:<>?[\\]^_`{|}~@"
+        allowed_extra = string.punctuation.encode()  # superset of allowed_extra
     return (
         s is not None
         and isinstance(s, (str, bytes, bytearray))
-        and all((c in allowed_function_name or c in allowed_extra) for c in set(s))
+        and all(c in (allowed_function_name + allowed_extra) for c in set(s))
     )
 
 
@@ -3560,6 +3558,9 @@ class PE:
 
         self.sections = []
         MAX_SIMULTANEOUS_ERRORS = 3
+        # Currently pefile deviates from the specification by starting from zero and not one.
+        # Entries in the section table are numbered starting from one (1).
+        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#section-table-section-headers
         for i in range(self.FILE_HEADER.NumberOfSections):
             if i >= MAX_SECTIONS:
                 self.__warnings.append(
@@ -4270,7 +4271,6 @@ class PE:
 
     def parse_relocations_directory(self, rva, size):
         """"""
-
         return self.parse_image_base_relocation_list(rva, size)
 
     def parse_image_base_relocation_list(self, rva, size, fmt=None):
@@ -4472,11 +4472,11 @@ class PE:
                         dbg_type_size - Structure(__CV_INFO_PDB70_format__).sizeof()
                     )
 
-                    # pdbFileName_size can be negative here, as seen in the malware
-                    # sample with hash
-                    # MD5: 7c297600870d026c014d42596bb9b5fd
-                    # SHA256:
-                    #   83f4e63681fcba8a9d7bbb1688c71981b1837446514a1773597e0192bba9fac3
+                    # pdbFileName_size can be negative,
+                    # as seen in the malware sample with
+                    #
+                    # SHA-256: 83f4e63681fcba8a9d7bbb1688c71981b1837446514a1773597e0192bba9fac3
+                    #
                     # Checking for positive size here to ensure proper parsing.
                     if pdbFileName_size > 0:
                         __CV_INFO_PDB70_format__[1].append(
@@ -4555,10 +4555,10 @@ class PE:
                 )
 
                 # Need to check that dbg_type_partial contains a correctly unpacked data
-                # structure, as the malware sample with the following hash
-                # MD5:    5e7d6707d693108de5a303045c17d95b
-                # SHA256:
-                #  5dd94a95025f3b6e3dd440d52f7c6d2964fdd1aa119e0ee92e38c7bf83829e5c
+                # structure, as the malware sample with
+                #
+                # SHA-256: 5dd94a95025f3b6e3dd440d52f7c6d2964fdd1aa119e0ee92e38c7bf83829e5c
+                #
                 # contains a value of None for dbg_type_partial after unpacking,
                 # presumably due to a malformed DEBUG entry.
                 if dbg_type_partial:
@@ -4751,8 +4751,7 @@ class PE:
                     # is past the current's beginning, assume the overlap indicates a
                     # corrupt name.
                     if last_name_begin_end and (
-                        last_name_begin_end[0] < ustr_offset
-                        and last_name_begin_end[1] >= ustr_offset
+                        last_name_begin_end[0] < ustr_offset <= last_name_begin_end[1]
                     ):
                         # Remove the previous overlapping entry as it's likely to be
                         # already corrupt data.
@@ -4915,7 +4914,6 @@ class PE:
 
     def parse_resource_data_entry(self, rva):
         """Parse a data entry from the resources directory."""
-
         try:
             # If the RVA is invalid all would blow up. Some EXEs seem to be
             # specially nasty and have an invalid RVA.
@@ -4957,7 +4955,7 @@ class PE:
         if resource is None:
             return None
 
-        # resource.NameIsString = (resource.Name & 0x80000000L) >> 31
+        # resource.NameIsString = (resource.Name & 0x80000000) >> 31
         resource.NameOffset = resource.Name & 0x7FFFFFFF
 
         resource.__pad = resource.Name & 0xFFFF0000
@@ -5604,11 +5602,10 @@ class PE:
                 if symbol_address == 0:
                     continue
 
-                # Checking for forwarder again.
+                # Checking for forwarder again
                 if (
                     symbol_address is not None
-                    and symbol_address >= rva
-                    and symbol_address < rva + size
+                    and rva <= symbol_address < rva + size
                 ):
                     forwarder_str = self.get_string_at_rva(symbol_address)
                 else:
@@ -5674,7 +5671,6 @@ class PE:
 
     def parse_delay_import_directory(self, rva, size):
         """Walk and parse the delay import directory."""
-
         import_descs = []
         error_count = 0
         while True:
@@ -5879,7 +5875,6 @@ class PE:
 
     def parse_import_directory(self, rva, size, dllnames_only=False):
         """Walk and parse the import directory."""
-
         import_descs = []
         error_count = 0
         image_import_descriptor_size = Structure(
@@ -6095,10 +6090,9 @@ class PE:
             except IndexError:
                 imp_bound = None
 
-            # The file with hashes:
+            # The file with 
             #
-            # MD5: bfe97192e8107d52dd7b4010d12b2924
-            # SHA256: 3d22f8b001423cb460811ab4f4789f277b35838d45c62ec0454c877e7c82c7f5
+            # SHA-256: 3d22f8b001423cb460811ab4f4789f277b35838d45c62ec0454c877e7c82c7f5
             #
             # has an invalid table built in a way that it's parseable but contains
             # invalid entries that lead pefile to take extremely long amounts of time to
@@ -6223,8 +6217,9 @@ class PE:
             # Check if the AddressOfData lies within the range of RVAs that it's
             # being scanned, abort if that is the case, as it is very unlikely
             # to be legitimate data.
-            # Seen in PE with SHA256:
-            # 5945bb6f0ac879ddf61b1c284f3b8d20c06b228e75ae4f571fa87f5b9512902c
+            #
+            # Seen in PE with 
+            # SHA-256: 5945bb6f0ac879ddf61b1c284f3b8d20c06b228e75ae4f571fa87f5b9512902c
             if (
                 thunk_data
                 and start_rva <= thunk_data.AddressOfData <= rva
@@ -6377,13 +6372,13 @@ class PE:
             if rva < len(self.header):
                 return self.header[rva:end]
 
-            # Before we give up we check whether the file might contain the data
-            # anyway. There are cases of PE files without sections that rely on
-            # windows loading the first 8291 bytes into memory and assume the
-            # data will be there.
-            # A functional file with these characteristics is:
-            # MD5: 0008892cdfbc3bda5ce047c565e52295
-            # SHA-1: c7116b9ff950f86af256defb95b5d4859d4752a9
+            # Before we give up we check whether the file might
+            # contain the data anyway. There are cases of PE files
+            # without sections that rely on windows loading the first
+            # 8291 bytes into memory and assume the data will be there.
+            #
+            # A functional file with these characteristics has
+            # SHA-256: 879adc27caa31bd27b08c4d3a363028dcfa859c1094de27e2a54d3cf53d2adef
             if rva < len(self.__data__):
                 return self.__data__[rva:end]
 
@@ -6393,7 +6388,6 @@ class PE:
 
     def get_rva_from_offset(self, offset):
         """Get the RVA corresponding to this file offset."""
-
         s = self.get_section_by_offset(offset)
         if not s:
             if self.sections:
@@ -7201,20 +7195,17 @@ class PE:
 
                             for resource_lang in resource_id.directory.entries:
                                 if hasattr(resource_lang, "data"):
-                                    resource_lang_dict = {}
-                                    resource_lang_dict["LANG"] = resource_lang.data.lang
-                                    resource_lang_dict[
-                                        "SUBLANG"
-                                    ] = resource_lang.data.sublang
-                                    resource_lang_dict["LANG_NAME"] = LANG.get(
-                                        resource_lang.data.lang, "*unknown*"
-                                    )
-                                    resource_lang_dict[
-                                        "SUBLANG_NAME"
-                                    ] = get_sublang_name_for_lang(
-                                        resource_lang.data.lang,
-                                        resource_lang.data.sublang,
-                                    )
+                                    resource_lang_dict = {
+                                        "LANG": resource_lang.data.lang,
+                                        "SUBLANG": resource_lang.data.sublang,
+                                        "LANG_NAME": LANG.get(
+                                            resource_lang.data.lang, "*unknown*"
+                                        ),
+                                        "SUBLANG_NAME": get_sublang_name_for_lang(
+                                            resource_lang.data.lang,
+                                            resource_lang.data.sublang,
+                                        ),
+                                    }
                                     resource_lang_dict.update(
                                         resource_lang.struct.dump_dict()
                                     )
@@ -7958,12 +7949,11 @@ class PE:
         return self.__data__[:]
 
     def adjust_PointerToRawData(self, val):
-        # "The alignment factor (in bytes) that is used to align the raw data of sections in
-        #  the image file. The value should be a power of 2 between 512 and 64 K, inclusive.
-        #  The default is 512. If the SectionAlignment is less than the architecture's page
-        #  size, then FileAlignment must match SectionAlignment."
-        # [Microsoft Portable Executable and Common Object File Format Specification]
-        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
+        # The alignment factor (in bytes) that is used to align the raw data of sections in
+        # the image file. The value should be a power of 2 between 512 and 64 K, inclusive.
+        # The default is 512. If the SectionAlignment is less than the architecture's page
+        # size, then FileAlignment must match SectionAlignment.
+        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#optional-header-windows-specific-fields-image-only
         if self.OPTIONAL_HEADER.FileAlignment >= MIN_VALID_FILE_ALIGNMENT:
             # If it's not a power of two, report it:
             if ( 
@@ -7976,15 +7966,14 @@ class PE:
                 )
                 self.FileAlignment_Warning = True
 
-        # (val / SECTOR_SIZE) * SECTOR_SIZE
+        # (val // SECTOR_SIZE) * SECTOR_SIZE
         return val & ~0x1FF
 
     def adjust_SectionAlignment(self, val, section_alignment, file_alignment):
-        # "The alignment (in bytes) of sections when they are loaded into memory. It must be
-        #  greater than or equal to FileAlignment. The default is the page size for the
-        #  architecture."
-        # [Microsoft Portable Executable and Common Object File Format Specification]
-        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format
+        # The alignment (in bytes) of sections when they are loaded into memory.
+        # It must be greater than or equal to FileAlignment. The default is the
+        # page size for the architecture.
+        # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#optional-header-windows-specific-fields-image-only
         if section_alignment < 0x1000:
             # If the SectionAlignment is less than the architecture's page size, then
             # FileAlignment must match SectionAlignment.
