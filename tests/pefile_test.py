@@ -344,6 +344,56 @@ class TestPEFile(unittest.TestCase):
         control_file = os.path.join(REGRESSION_TESTS_DIR, "empty_file")
         self.assertRaises(pefile.PEFormatError, pefile.PE, control_file)
 
+    def test_virtual_size_less_than_raw_size(self):
+        """File-alignment padding must not bleed into the memory-mapped image.
+
+        When VirtualSize < SizeOfRawData the bytes beyond VirtualSize are
+        disk padding that the OS loader never maps.  The memory-mapped image
+        must end at VirtualAddress + VirtualSize, not VirtualAddress + SizeOfRawData.
+        """
+        vsize = 0x800
+        raw_size = 0x1000
+        pe = pefile.PE(data=_create_pe(vsize, raw_size))
+        image = pe.get_memory_mapped_image()
+
+        va = pe.sections[0].VirtualAddress
+        # Section content up to VirtualSize must be present.
+        self.assertEqual(
+            image[va : va + vsize],
+            b"\xCC" * vsize,
+            "section content must be preserved up to VirtualSize",
+        )
+        # The image must not extend past VirtualAddress + VirtualSize; raw
+        # file-padding bytes (0xCC beyond the boundary) must not be included.
+        self.assertEqual(
+            len(image),
+            va + vsize,
+            "mapped image must not include raw file-padding past VirtualSize",
+        )
+
+    def test_virtual_size_greater_than_raw_size(self):
+        """Uninitialized BSS region must be zero-padded in the memory-mapped image.
+
+        When SizeOfRawData < VirtualSize the bytes from SizeOfRawData up to
+        VirtualSize represent BSS and must be zero in the mapped view.
+        """
+        vsize = 0x1500
+        raw_size = 0x1000
+        pe = pefile.PE(data=_create_pe(vsize, raw_size))
+        image = pe.get_memory_mapped_image()
+
+        va = pe.sections[0].VirtualAddress
+        self.assertEqual(
+            image[va : va + raw_size],
+            b"\xCC" * raw_size,
+            "raw section content must be preserved",
+        )
+        self.assertEqual(
+            image[va + raw_size : va + vsize],
+            b"\x00" * (vsize - raw_size),
+            "BSS region (VirtualSize - SizeOfRawData) must be zero-padded",
+        )
+
     def test_relocated_memory_mapped_image(self):
         """Test different rebasing methods produce the same image"""
 
@@ -749,7 +799,7 @@ def _create_pe(virtual_size, size_of_raw_data):
         + struct.pack("<HHHHHH", 6, 0, 0, 0, 6, 0)  # OS/Image/Subsystem versions
         + struct.pack("<I", 0)  # Win32VersionValue
         + struct.pack("<I", size_of_image)  # SizeOfImage
-        + struct.pack("<I", pointer_to_raw_data)  # SizeOfHeaders
+        + struct.pack("<I", 0x200)  # SizeOfHeaders (headers rounded up to FileAlignment)
         + struct.pack("<I", 0)  # CheckSum
         + struct.pack("<H", 2)  # Subsystem GUI
         + struct.pack("<H", 0x8100)  # DllCharacteristics
@@ -778,55 +828,3 @@ def _create_pe(virtual_size, size_of_raw_data):
     # Fill raw section data with a sentinel byte so leakage is obvious
     section_data = b"\xCC" * size_of_raw_data
     return bytes(headers) + section_data
-
-
-class Test_memory_mapped_image(unittest.TestCase):
-    def test_virtual_size_less_than_raw_size(self):
-        """File-alignment padding must not bleed into the memory-mapped image.
-
-        When VirtualSize < SizeOfRawData the bytes beyond VirtualSize are
-        disk padding that the OS loader never maps.  The memory-mapped image
-        must end at VirtualAddress + VirtualSize, not VirtualAddress + SizeOfRawData.
-        """
-        vsize = 0x800
-        raw_size = 0x1000
-        pe = pefile.PE(data=_create_pe(vsize, raw_size))
-        image = pe.get_memory_mapped_image()
-
-        va = pe.sections[0].VirtualAddress
-        # Section content up to VirtualSize must be present.
-        self.assertEqual(
-            image[va : va + vsize],
-            b"\xCC" * vsize,
-            "section content must be preserved up to VirtualSize",
-        )
-        # The image must not extend past VirtualAddress + VirtualSize; raw
-        # file-padding bytes (0xCC beyond the boundary) must not be included.
-        self.assertEqual(
-            len(image),
-            va + vsize,
-            "mapped image must not include raw file-padding past VirtualSize",
-        )
-
-    def test_virtual_size_greater_than_raw_size(self):
-        """Uninitialized BSS region must be zero-padded in the memory-mapped image.
-
-        When SizeOfRawData < VirtualSize the bytes from SizeOfRawData up to
-        VirtualSize represent BSS and must be zero in the mapped view.
-        """
-        vsize = 0x1500
-        raw_size = 0x1000
-        pe = pefile.PE(data=_create_pe(vsize, raw_size))
-        image = pe.get_memory_mapped_image()
-
-        va = pe.sections[0].VirtualAddress
-        self.assertEqual(
-            image[va : va + raw_size],
-            b"\xCC" * raw_size,
-            "raw section content must be preserved",
-        )
-        self.assertEqual(
-            image[va + raw_size : va + vsize],
-            b"\x00" * (vsize - raw_size),
-            "BSS region (VirtualSize - SizeOfRawData) must be zero-padded",
-        )
