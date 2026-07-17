@@ -10,44 +10,6 @@ import pefile
 REGRESSION_TESTS_DIR = "tests/test_files"
 
 
-def _low_alignment_resource_pe():
-    """Minimal PE32 with SectionAlignment == FileAlignment == 0x10 and a single
-    .rsrc section whose PointerToRawData (0x160) differs from its VirtualAddress
-    (0x1a0), mirroring the resource-only DLL reported in issue #465."""
-    va, ptr_raw = 0x1A0, 0x160
-
-    # resource tree, offsets relative to the start of .rsrc (RVA 0x1a0)
-    res = b""
-    res += struct.pack("<IIHHHH", 0, 0, 0, 0, 0, 1)  # type dir, one id entry
-    res += struct.pack("<II", 3, 0x80000000 | 0x18)  # type 3 -> name dir
-    res += struct.pack("<IIHHHH", 0, 0, 0, 0, 0, 1)  # name dir
-    res += struct.pack("<II", 1, 0x80000000 | 0x30)  # name 1 -> lang dir
-    res += struct.pack("<IIHHHH", 0, 0, 0, 0, 0, 1)  # lang dir
-    res += struct.pack("<II", 0x409, 0x48)           # lang -> data entry
-    res += struct.pack("<IIII", va + 0x58, 4, 0, 0)  # data entry
-    res += b"TEST"
-
-    dos = b"MZ" + b"\x00" * 0x3A + struct.pack("<I", 0x40)
-    coff = struct.pack("<HHIIIHH", 0x14C, 1, 0, 0, 0, 0xE0, 0x2102)
-    size_of_image = (va + len(res) + 0xF) & ~0xF
-    opt = struct.pack("<HBBIIIIII", 0x10B, 0, 0, 0, 0, 0, 0, 0, 0)
-    opt += struct.pack("<III", 0x400000, 0x10, 0x10)
-    opt += struct.pack("<HHHHHH", 4, 0, 0, 0, 4, 0)
-    opt += struct.pack("<I", 0)
-    opt += struct.pack("<II", size_of_image, ptr_raw)
-    opt += struct.pack("<IHH", 0, 2, 0)
-    opt += struct.pack("<IIII", 0, 0, 0, 0)
-    opt += struct.pack("<II", 0, 16)
-    dirs = [(0, 0)] * 16
-    dirs[2] = (va, len(res))  # resource directory
-    for rva, sz in dirs:
-        opt += struct.pack("<II", rva, sz)
-    section = struct.pack(
-        "<8sIIIIIIHHI", b".rsrc\x00\x00\x00", len(res), va, len(res), ptr_raw, 0, 0, 0, 0, 0x40000040
-    )
-    return dos + b"PE\x00\x00" + coff + opt + section + res
-
-
 class TestPEFile(unittest.TestCase):
     maxDiff = None
 
@@ -708,3 +670,41 @@ class TestPEFile(unittest.TestCase):
         )
         pe = pefile.PE(control_file)
         self.assertTrue(pe.verify_checksum())
+
+
+def _low_alignment_resource_pe():
+    """Minimal PE32 with SectionAlignment == FileAlignment == 0x10 and a single
+    .rsrc section whose PointerToRawData (0x160) differs from its VirtualAddress
+    (0x1a0), mirroring the resource-only DLL reported in issue #465."""
+    va, ptr_raw = 0x1A0, 0x160
+
+    # resource tree, offsets relative to the start of .rsrc (RVA 0x1a0)
+    res = b""
+    res += struct.pack("<IIHHHH", 0, 0, 0, 0, 0, 1)  # type dir, one id entry
+    res += struct.pack("<II", 3, 0x80000000 | 0x18)  # type 3 -> name dir
+    res += struct.pack("<IIHHHH", 0, 0, 0, 0, 0, 1)  # name dir
+    res += struct.pack("<II", 1, 0x80000000 | 0x30)  # name 1 -> lang dir
+    res += struct.pack("<IIHHHH", 0, 0, 0, 0, 0, 1)  # lang dir
+    res += struct.pack("<II", 0x409, 0x48)           # lang -> data entry
+    res += struct.pack("<IIII", va + 0x58, 4, 0, 0)  # data entry
+    res += b"TEST"
+
+    dos = b"MZ" + b"\x00" * 0x3A + struct.pack("<I", 0x40)
+    coff = struct.pack("<HHIIIHH", 0x14C, 1, 0, 0, 0, 0xE0, 0x2102)
+    size_of_image = (va + len(res) + 0xF) & ~0xF
+    opt = struct.pack("<HBBIIIIII", 0x10B, 0, 0, 0, 0, 0, 0, 0, 0)
+    opt += struct.pack("<III", 0x400000, 0x10, 0x10)
+    opt += struct.pack("<HHHHHH", 4, 0, 0, 0, 4, 0)
+    opt += struct.pack("<I", 0)
+    opt += struct.pack("<II", size_of_image, ptr_raw)
+    opt += struct.pack("<IHH", 0, 2, 0)
+    opt += struct.pack("<IIII", 0, 0, 0, 0)
+    opt += struct.pack("<II", 0, 16)
+    dirs = [(0, 0)] * 16
+    dirs[2] = (va, len(res))  # resource directory
+    for rva, sz in dirs:
+        opt += struct.pack("<II", rva, sz)
+    section = struct.pack(
+        "<8sIIIIIIHHI", b".rsrc\x00\x00\x00", len(res), va, len(res), ptr_raw, 0, 0, 0, 0, 0x40000040
+    )
+    return dos + b"PE\x00\x00" + coff + opt + section + res
