@@ -690,8 +690,8 @@ def retrieve_flags(flag_dict, flag_filter):
     """
 
     return [
-        (flag, flag_dict[flag])
-        for flag in flag_dict.keys()
+        (flag, value)
+        for flag, value in flag_dict.items()
         if isinstance(flag, (str, bytes)) and flag.startswith(flag_filter)
     ]
 
@@ -1127,12 +1127,13 @@ class SectionStructure(Structure):
             del kwargs["pe"]
 
         super().__init__(*args, **kwargs)
-        self.PointerToRawData = None
+        self.Misc_VirtualSize = None
         self.VirtualAddress = None
         self.SizeOfRawData = None
-        self.Misc_VirtualSize = None
-        self.PointerToRawData_adj = None
+        self.PointerToRawData = None
+
         self.VirtualAddress_adj = None
+        self.PointerToRawData_adj = None
         self.section_min_addr = None
         self.section_max_addr = None
         self.index_in_file = None
