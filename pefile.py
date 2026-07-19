@@ -6687,7 +6687,7 @@ class PE:
                                     )
                                 )
                                 dump.add_newline()
-                                for str_entry in sorted(list(st_entry.entries.items())):
+                                for str_entry in sorted(st_entry.entries.items()):
                                     # try:
                                     dump.add_line(
                                         "    {0}: {1}".format(
@@ -7062,7 +7062,7 @@ class PE:
                             for st_entry in entry.StringTable:
                                 fileinfo_list.extend(st_entry.dump_dict())
                                 stringtable_dict["LangID"] = st_entry.LangID
-                                for str_entry in list(st_entry.entries.items()):
+                                for str_entry in st_entry.entries.items():
                                     stringtable_dict[str_entry[0]] = str_entry[1]
                             fileinfo_list.append(stringtable_dict)
 
@@ -7219,9 +7219,7 @@ class PE:
                                 hasattr(resource_id.directory, "strings")
                                 and resource_id.directory.strings
                             ):
-                                for idx, res_string in list(
-                                    resource_id.directory.strings.items()
-                                ):
+                                for idx, res_string in resource_id.directory.strings.items():
                                     resource_id_list.append(
                                         res_string.encode(
                                             "unicode-escape", "backslashreplace"
