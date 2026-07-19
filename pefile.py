@@ -1139,7 +1139,6 @@ class SectionStructure(Structure):
 
     def get_PointerToRawData_adj(self):
         if self.PointerToRawData_adj is None and self.PointerToRawData is not None:
-            ptrd = self.pe.adjust_PointerToRawData(self.PointerToRawData)
             # When the SectionAlignment is smaller than the native page-size the
             # loader reads a section's data straight from PointerToRawData without
             # rounding it down to a sector boundary (LdrpWx86FormatVirtualImage).
@@ -1149,6 +1148,8 @@ class SectionStructure(Structure):
             # resource directory RVA->offset lookup into the MZ header.
             if self.pe.OPTIONAL_HEADER.SectionAlignment < 0x1000:
                 ptrd = self.PointerToRawData
+            else:
+                ptrd = self.pe.adjust_PointerToRawData(self.PointerToRawData)
             self.PointerToRawData_adj = ptrd
         return self.PointerToRawData_adj
 
