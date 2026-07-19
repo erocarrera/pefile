@@ -654,8 +654,8 @@ def retrieve_flags(flag_dict, flag_filter):
     """
 
     return [
-        (flag, flag_dict[flag])
-        for flag in flag_dict.keys()
+        (flag, value)
+        for flag, value in flag_dict.items()
         if isinstance(flag, (str, bytes)) and flag.startswith(flag_filter)
     ]
 
@@ -1111,12 +1111,13 @@ class SectionStructure(Structure):
             del kwargs["pe"]
 
         super().__init__(*args, **kwargs)
-        self.PointerToRawData = None
+        self.Misc_VirtualSize = None
         self.VirtualAddress = None
         self.SizeOfRawData = None
-        self.Misc_VirtualSize = None
-        self.PointerToRawData_adj = None
+        self.PointerToRawData = None
+
         self.VirtualAddress_adj = None
+        self.PointerToRawData_adj = None
         self.section_min_addr = None
         self.section_max_addr = None
         self.index_in_file = None
@@ -1135,13 +1136,12 @@ class SectionStructure(Structure):
         return self.PointerToRawData_adj
 
     def get_VirtualAddress_adj(self):
-        if self.VirtualAddress_adj is None:
-            if self.VirtualAddress is not None:
-                self.VirtualAddress_adj = self.pe.adjust_SectionAlignment(
-                    self.VirtualAddress,
-                    self.pe.OPTIONAL_HEADER.SectionAlignment,
-                    self.pe.OPTIONAL_HEADER.FileAlignment,
-                )
+        if self.VirtualAddress_adj is None and self.VirtualAddress is not None:
+            self.VirtualAddress_adj = self.pe.adjust_SectionAlignment(
+                self.VirtualAddress,
+                self.pe.OPTIONAL_HEADER.SectionAlignment,
+                self.pe.OPTIONAL_HEADER.FileAlignment,
+            )
         return self.VirtualAddress_adj
 
     def get_data(self, start=None, length=None, ignore_padding=False):
@@ -1283,7 +1283,8 @@ class SectionStructure(Structure):
         if sha512 is not None:
             return sha512(self.get_data()).hexdigest()
 
-    def entropy_H(self, data):
+    @staticmethod
+    def entropy_H(data):
         """Calculate the entropy of a chunk of data."""
         if not data:
             return 0.0
@@ -2944,7 +2945,7 @@ class PE:
         fast_load = fast_load if fast_load is not None else globals()["fast_load"]
         try:
             self.__parse__(name, data, fast_load, max_offset)
-        except:
+        except Exception:
             self.close()
             raise
 
@@ -3116,12 +3117,12 @@ class PE:
             self.__data__[nt_headers_offset + 4 : nt_headers_offset + 4 + 32],
             file_offset=nt_headers_offset + 4,
         )
-        image_flags = retrieve_flags(IMAGE_CHARACTERISTICS, "IMAGE_FILE_")
 
         if not self.FILE_HEADER:
             raise PEFormatError("File Header missing")
 
         # Set the image's flags according to the Characteristics member
+        image_flags = retrieve_flags(IMAGE_CHARACTERISTICS, "IMAGE_FILE_")
         set_flags(self.FILE_HEADER, self.FILE_HEADER.Characteristics, image_flags)
 
         optional_header_offset = nt_headers_offset + 4 + self.FILE_HEADER.sizeof()
@@ -3131,7 +3132,7 @@ class PE:
 
         self.OPTIONAL_HEADER = self.__unpack_data__(
             self.__IMAGE_OPTIONAL_HEADER_format__,
-            # Read up to 256 bytes to allow creating a copy of too much data
+            # Read up to 256 bytes to avoid copying too much data
             self.__data__[optional_header_offset : optional_header_offset + 256],
             file_offset=optional_header_offset,
         )
@@ -3153,8 +3154,6 @@ class PE:
         ):
             # Add enough zeros to make up for the unused fields
             padding_length = 128
-
-            # Create padding
             padded_data = self.__data__[
                 optional_header_offset : optional_header_offset + 0x200
             ] + (b"\0" * padding_length)
@@ -3200,6 +3199,7 @@ class PE:
                     padded_data = self.__data__[
                         optional_header_offset : optional_header_offset + 0x200
                     ] + (b"\0" * padding_length)
+
                     self.OPTIONAL_HEADER = self.__unpack_data__(
                         self.__IMAGE_OPTIONAL_HEADER64_format__,
                         padded_data,
@@ -4881,7 +4881,7 @@ class PE:
 
                 try:
                     version_entries = last_entry.directory.entries[0].directory.entries
-                except:
+                except (AttributeError, IndexError):
                     # Maybe a malformed directory structure...?
                     # Let's ignore it
                     pass
@@ -4890,7 +4890,7 @@ class PE:
                         rt_version_struct = None
                         try:
                             rt_version_struct = version_entry.data.struct
-                        except:
+                        except (AttributeError, IndexError):
                             # Maybe a malformed directory structure...?
                             # Let's ignore it
                             pass
@@ -6447,7 +6447,8 @@ class PE:
             return self.get_string_from_data(0, self.__data__[rva : rva + max_length])
         return self.get_string_from_data(0, s.get_data(rva, length=max_length))
 
-    def get_bytes_from_data(self, offset, data):
+    @staticmethod
+    def get_bytes_from_data(offset, data):
         """."""
         if offset > len(data):
             return b""
@@ -6685,7 +6686,7 @@ class PE:
                                     )
                                 )
                                 dump.add_newline()
-                                for str_entry in sorted(list(st_entry.entries.items())):
+                                for str_entry in sorted(st_entry.entries.items()):
                                     # try:
                                     dump.add_line(
                                         "    {0}: {1}".format(
@@ -7060,7 +7061,7 @@ class PE:
                             for st_entry in entry.StringTable:
                                 fileinfo_list.extend(st_entry.dump_dict())
                                 stringtable_dict["LangID"] = st_entry.LangID
-                                for str_entry in list(st_entry.entries.items()):
+                                for str_entry in st_entry.entries.items():
                                     stringtable_dict[str_entry[0]] = str_entry[1]
                             fileinfo_list.append(stringtable_dict)
 
@@ -7217,9 +7218,7 @@ class PE:
                                 hasattr(resource_id.directory, "strings")
                                 and resource_id.directory.strings
                             ):
-                                for idx, res_string in list(
-                                    resource_id.directory.strings.items()
-                                ):
+                                for idx, res_string in resource_id.directory.strings.items():
                                     resource_id_list.append(
                                         res_string.encode(
                                             "unicode-escape", "backslashreplace"
@@ -7278,11 +7277,13 @@ class PE:
     # Word get / set
     ##
 
-    def get_data_from_word(self, word):
+    @staticmethod
+    def get_data_from_word(word):
         """Return a two byte string representing the word value (little endian)."""
         return struct.pack("<H", word)
 
-    def get_word_from_data(self, data, offset):
+    @staticmethod
+    def get_word_from_data(data, offset):
         """Convert two bytes of data to a word (little endian)
 
         'offset' is assumed to index into a word array. So setting it to
@@ -7328,11 +7329,13 @@ class PE:
     # Double-Word get / set
     ##
 
-    def get_data_from_dword(self, dword):
+    @staticmethod
+    def get_data_from_dword(dword):
         """Return a four byte string representing the double word value (little endian)."""
         return struct.pack("<L", dword & 0xFFFFFFFF)
 
-    def get_dword_from_data(self, data, offset):
+    @staticmethod
+    def get_dword_from_data(data, offset):
         """Convert four bytes of data to a double word (little endian)
 
         'offset' is assumed to index into a dword array. So setting it to
@@ -7378,11 +7381,13 @@ class PE:
     # Quad-Word get / set
     ##
 
-    def get_data_from_qword(self, word):
+    @staticmethod
+    def get_data_from_qword(word):
         """Return an eight byte string representing the quad-word value (little endian)."""
         return struct.pack("<Q", word)
 
-    def get_qword_from_data(self, data, offset):
+    @staticmethod
+    def get_qword_from_data(data, offset):
         """Convert eight bytes of data to a word (little endian)
 
         'offset' is assumed to index into a word array. So setting it to
