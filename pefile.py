@@ -1147,10 +1147,11 @@ class SectionStructure(Structure):
             # 0x160 / VirtualAddress 0x1a0, and rounding that down to 0 sends the
             # resource directory RVA->offset lookup into the MZ header.
             if self.pe.OPTIONAL_HEADER.SectionAlignment < 0x1000:
-                ptrd = self.PointerToRawData
+                self.PointerToRawData_adj = self.PointerToRawData
             else:
-                ptrd = self.pe.adjust_PointerToRawData(self.PointerToRawData)
-            self.PointerToRawData_adj = ptrd
+                self.PointerToRawData_adj = self.pe.adjust_PointerToRawData(
+                    self.PointerToRawData
+                )
         return self.PointerToRawData_adj
 
     def get_VirtualAddress_adj(self):
