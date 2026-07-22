@@ -7747,18 +7747,12 @@ class PE:
         return self.OPTIONAL_HEADER.CheckSum == self.generate_checksum()
 
     def generate_checksum(self):
-        # This will ensure that the data representing the PE image
-        # is updated with any changes that might have been made by
-        # assigning values to header fields as those are not automatically
-        # updated upon assignment.
-        #
-        # data = self.write()
-        # print(f'len(data)')
-        # for idx, b in enumerate(data):
-        #     if b != ord(self.__data__[idx]) or (1244440 < idx < 1244460):
-        #         print('Idx: {0} G {1:02x} {3} B {2:02x}'.format(
-        #             idx, ord(self.__data__[idx]), b,
-        #             self.__data__[idx], chr(b)))
+        """This will ensure that the data representing the PE image
+        is updated with any changes that might have been made by
+        assigning values to header fields as those are not automatically
+        updated upon assignment.
+        """
+
         new_data = self.write()
         self._close_data()
         self.__data__ = new_data
