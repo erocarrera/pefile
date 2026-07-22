@@ -160,7 +160,7 @@ class SignatureDatabase:
         # The last match (the most precise) from the
         # list of matches (if any) is returned
         if matches:
-            if ep_only == False:
+            if not ep_only:
                 # Get the most exact match for each list of matches
                 # at a given offset
                 return [(match[0], match[1][-1]) for match in matches]
@@ -175,7 +175,7 @@ class SignatureDatabase:
         matches = self.__match(pe, ep_only, section_start_only)
 
         if matches:
-            if ep_only == False:
+            if not ep_only:
                 # Get the most exact match for each list of matches
                 # at a given offset
                 return matches
@@ -257,14 +257,14 @@ class SignatureDatabase:
         # Load the corresponding set of signatures
         # Either the one for ep_only equal to True or
         # to False
-        if section_start_only is True:
+        if section_start_only:
 
             # Load the corresponding tree of signatures
             signatures = self.signature_tree_section_start
 
             # Set the starting address to start scanning from
 
-        elif ep_only is True:
+        elif ep_only:
 
             # Load the corresponding tree of signatures
             signatures = self.signature_tree_eponly_true
@@ -281,7 +281,7 @@ class SignatureDatabase:
         # Return only the matched items found at the entry point if
         # ep_only is True (matches will have only one element in that
         # case)
-        if ep_only is True:
+        if ep_only:
             if matches:
                 return matches[0]
 
@@ -425,13 +425,13 @@ class SignatureDatabase:
 
             depth = 0
 
-            if section_start_only is True:
+            if section_start_only:
 
                 tree = self.signature_tree_section_start
                 self.signature_count_section_start += 1
 
             else:
-                if ep_only is True:
+                if ep_only:
                     tree = self.signature_tree_eponly_true
                     self.signature_count_eponly_true += 1
                 else:
