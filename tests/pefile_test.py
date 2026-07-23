@@ -1,5 +1,6 @@
 import difflib
 import os
+import struct
 import sys
 import unittest
 from hashlib import sha256
@@ -497,6 +498,17 @@ class TestPEFile(unittest.TestCase):
             pe.__data__[0:10],
         )
 
+    def test_low_alignment_section_pointer_to_raw_data(self):
+        # Issue #465: for low-alignment images (SectionAlignment < 0x1000) a
+        # section's PointerToRawData must not be rounded down to a sector
+        # boundary. Resource-only DLLs can have e.g. PointerToRawData 0x160 with
+        # VirtualAddress 0x1a0; rounding 0x160 down to 0 sent RVA->offset lookups
+        # into the MZ header, so the resource directory failed to parse.
+        pe = pefile.PE(data=_low_alignment_resource_pe())
+        self.assertEqual(pe.get_offset_from_rva(0x1A0), 0x160)
+        self.assertTrue(hasattr(pe, "DIRECTORY_ENTRY_RESOURCE"))
+        self.assertEqual([e.id for e in pe.DIRECTORY_ENTRY_RESOURCE.entries], [3])
+
     def test_VS_VERSIONINFO_dword_aligment(self):
         # Fixed a bug in pefile < 1.2.10-96. Fixed in revision 96:
         # http://code.google.com/p/pefile/source/detail?r=96
@@ -658,3 +670,41 @@ class TestPEFile(unittest.TestCase):
         )
         pe = pefile.PE(control_file)
         self.assertTrue(pe.verify_checksum())
+
+
+def _low_alignment_resource_pe():
+    """Minimal PE32 with SectionAlignment == FileAlignment == 0x10 and a single
+    .rsrc section whose PointerToRawData (0x160) differs from its VirtualAddress
+    (0x1a0), mirroring the resource-only DLL reported in issue #465."""
+    va, ptr_raw = 0x1A0, 0x160
+
+    # resource tree, offsets relative to the start of .rsrc (RVA 0x1a0)
+    res = b""
+    res += struct.pack("<IIHHHH", 0, 0, 0, 0, 0, 1)  # type dir, one id entry
+    res += struct.pack("<II", 3, 0x80000000 | 0x18)  # type 3 -> name dir
+    res += struct.pack("<IIHHHH", 0, 0, 0, 0, 0, 1)  # name dir
+    res += struct.pack("<II", 1, 0x80000000 | 0x30)  # name 1 -> lang dir
+    res += struct.pack("<IIHHHH", 0, 0, 0, 0, 0, 1)  # lang dir
+    res += struct.pack("<II", 0x409, 0x48)           # lang -> data entry
+    res += struct.pack("<IIII", va + 0x58, 4, 0, 0)  # data entry
+    res += b"TEST"
+
+    dos = b"MZ" + b"\x00" * 0x3A + struct.pack("<I", 0x40)
+    coff = struct.pack("<HHIIIHH", 0x14C, 1, 0, 0, 0, 0xE0, 0x2102)
+    size_of_image = (va + len(res) + 0xF) & ~0xF
+    opt = struct.pack("<HBBIIIIII", 0x10B, 0, 0, 0, 0, 0, 0, 0, 0)
+    opt += struct.pack("<III", 0x400000, 0x10, 0x10)
+    opt += struct.pack("<HHHHHH", 4, 0, 0, 0, 4, 0)
+    opt += struct.pack("<I", 0)
+    opt += struct.pack("<II", size_of_image, ptr_raw)
+    opt += struct.pack("<IHH", 0, 2, 0)
+    opt += struct.pack("<IIII", 0, 0, 0, 0)
+    opt += struct.pack("<II", 0, 16)
+    dirs = [(0, 0)] * 16
+    dirs[2] = (va, len(res))  # resource directory
+    for rva, sz in dirs:
+        opt += struct.pack("<II", rva, sz)
+    section = struct.pack(
+        "<8sIIIIIIHHI", b".rsrc\x00\x00\x00", len(res), va, len(res), ptr_raw, 0, 0, 0, 0, 0x40000040
+    )
+    return dos + b"PE\x00\x00" + coff + opt + section + res
