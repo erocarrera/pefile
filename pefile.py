@@ -7048,38 +7048,37 @@ class PE:
         if hasattr(self, "VS_VERSIONINFO"):
             dump_dict["Version Information"] = []
             for idx, vs_vinfo in enumerate(self.VS_VERSIONINFO):
-                version_info_list = []
-                version_info_list.append(vs_vinfo.dump_dict())
+                version_info = [vs_vinfo.dump_dict()]
 
                 if hasattr(self, "VS_FIXEDFILEINFO"):
-                    version_info_list.append(self.VS_FIXEDFILEINFO[idx].dump_dict())
+                    version_info.append(self.VS_FIXEDFILEINFO[idx].dump_dict())
 
                 if hasattr(self, "FileInfo") and len(self.FileInfo) > idx:
-                    fileinfo_list = []
-                    version_info_list.append(fileinfo_list)
+                    file_info = []
+                    version_info.append(file_info)
                     for entry in self.FileInfo[idx]:
-                        fileinfo_list.append(entry.dump_dict())
+                        file_info.append(entry.dump_dict())
 
                         if hasattr(entry, "StringTable"):
                             stringtable_dict = {}
                             for st_entry in entry.StringTable:
-                                fileinfo_list.extend(st_entry.dump_dict())
+                                file_info.extend(st_entry.dump_dict())
                                 stringtable_dict["LangID"] = st_entry.LangID
                                 for str_entry in st_entry.entries.items():
                                     stringtable_dict[str_entry[0]] = str_entry[1]
-                            fileinfo_list.append(stringtable_dict)
+                            file_info.append(stringtable_dict)
 
                         elif hasattr(entry, "Var"):
                             for var_entry in entry.Var:
                                 var_dict = {}
                                 if hasattr(var_entry, "entry"):
-                                    fileinfo_list.extend(var_entry.dump_dict())
+                                    file_info.extend(var_entry.dump_dict())
                                     var_dict[list(var_entry.entry.keys())[0]] = list(
                                         var_entry.entry.values()
                                     )[0]
-                                    fileinfo_list.append(var_dict)
+                                    file_info.append(var_dict)
 
-                dump_dict["Version Information"].append(version_info_list)
+                dump_dict["Version Information"].append(version_info)
 
         if hasattr(self, "DIRECTORY_ENTRY_EXPORT"):
             dump_dict["Exported symbols"] = []
@@ -7176,8 +7175,7 @@ class PE:
                 dump_dict["Resource directory"].append(resource_type_dict)
 
                 if hasattr(res_type, "directory"):
-                    directory_list = []
-                    directory_list.append(res_type.directory.struct.dump_dict())
+                    directory_list = [res_type.directory.struct.dump_dict()]
                     dump_dict["Resource directory"].append(directory_list)
 
                     for resource_id in res_type.directory.entries:
@@ -7192,10 +7190,7 @@ class PE:
                         directory_list.append(resource_id_dict)
 
                         if hasattr(resource_id, "directory"):
-                            resource_id_list = []
-                            resource_id_list.append(
-                                resource_id.directory.struct.dump_dict()
-                            )
+                            resource_id_list = [resource_id.directory.struct.dump_dict()]
                             directory_list.append(resource_id_list)
 
                             for resource_lang in resource_id.directory.entries:
