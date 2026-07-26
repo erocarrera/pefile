@@ -119,20 +119,21 @@ class SignatureDatabase:
             pe, offset, name, ep_only=True, sig_length=sig_length
         )
 
+    @staticmethod
     def __generate_signature(
-        self, pe, offset, name, ep_only=False, section_start_only=False, sig_length=512
+        pe, offset, name, ep_only=False, section_start_only=False, sig_length=512
     ):
 
         data = pe.__data__[offset : offset + sig_length]
 
         signature_bytes = " ".join(f"{ord(c):02x}" for c in data)
 
-        if ep_only == True:
+        if ep_only:
             ep_only = "true"
         else:
             ep_only = "false"
 
-        if section_start_only == True:
+        if section_start_only:
             section_start_only = "true"
         else:
             section_start_only = "false"
