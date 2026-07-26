@@ -7062,7 +7062,7 @@ class PE:
                         if hasattr(entry, "StringTable"):
                             stringtable_dict = {}
                             for st_entry in entry.StringTable:
-                                file_info.extend(st_entry.dump_dict())
+                                file_info.append(st_entry.dump_dict())
                                 stringtable_dict["LangID"] = st_entry.LangID
                                 for str_entry in st_entry.entries.items():
                                     stringtable_dict[str_entry[0]] = str_entry[1]
@@ -7072,7 +7072,7 @@ class PE:
                             for var_entry in entry.Var:
                                 var_dict = {}
                                 if hasattr(var_entry, "entry"):
-                                    file_info.extend(var_entry.dump_dict())
+                                    file_info.append(var_entry.dump_dict())
                                     var_dict[list(var_entry.entry.keys())[0]] = list(
                                         var_entry.entry.values()
                                     )[0]
