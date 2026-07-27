@@ -3067,8 +3067,8 @@ class PE:
                 ):
                     self.__warnings.append(
                         (
-                            "Byte 0x{0:02x} makes up {1:.4f}% of the file's contents."
-                            " This may indicate truncation / malformation."
+                            "Byte 0x{0:02x} makes up {1:.4f}% of the file's contents. "
+                            "This may indicate truncation / malformation."
                         ).format(byte, 100.0 * byte_count / len(self.__data__))
                     )
 
@@ -3105,13 +3105,13 @@ class PE:
         if not self.NT_HEADERS or not self.NT_HEADERS.Signature:
             raise PEFormatError("NT Headers not found.")
 
-        if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_NE_SIGNATURE:
+        if self.NT_HEADERS.Signature & 0xFFFF == IMAGE_NE_SIGNATURE:
             raise PEFormatError("Invalid NT Headers signature. Probably a NE file")
-        if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_LE_SIGNATURE:
+        if self.NT_HEADERS.Signature & 0xFFFF == IMAGE_LE_SIGNATURE:
             raise PEFormatError("Invalid NT Headers signature. Probably a LE file")
-        if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_LX_SIGNATURE:
+        if self.NT_HEADERS.Signature & 0xFFFF == IMAGE_LX_SIGNATURE:
             raise PEFormatError("Invalid NT Headers signature. Probably a LX file")
-        if (0xFFFF & self.NT_HEADERS.Signature) == IMAGE_TE_SIGNATURE:
+        if self.NT_HEADERS.Signature & 0xFFFF == IMAGE_TE_SIGNATURE:
             raise PEFormatError("Invalid NT Headers signature. Probably a TE file")
         if self.NT_HEADERS.Signature != IMAGE_NT_SIGNATURE:
             raise PEFormatError("Invalid NT Headers signature.")
@@ -3242,7 +3242,7 @@ class PE:
         self.NT_HEADERS.OPTIONAL_HEADER = self.OPTIONAL_HEADER
 
         # Detect artificially reduced values in the NumberOfRvaAndSizes field
-        directory_count = int(0x7FFFFFFF & self.OPTIONAL_HEADER.NumberOfRvaAndSizes)
+        directory_count = int(self.OPTIONAL_HEADER.NumberOfRvaAndSizes & 0x7FFFFFFF)
         directory_delta = max(0, (self.FILE_HEADER.SizeOfOptionalHeader
             - (self.OPTIONAL_HEADER.sizeof() + directory_count * 8)) // 8)
         if 0 < directory_delta <= 16 - directory_count:
@@ -3251,10 +3251,7 @@ class PE:
             directory_count += directory_delta
 
         # Windows 8 specific check
-        if (
-            self.OPTIONAL_HEADER.AddressOfEntryPoint
-            < self.OPTIONAL_HEADER.SizeOfHeaders
-        ):
+        if self.OPTIONAL_HEADER.AddressOfEntryPoint < self.OPTIONAL_HEADER.SizeOfHeaders:
             self.__warnings.append(
                 "SizeOfHeaders is smaller than AddressOfEntryPoint: this file "
                 "cannot run under Windows 8."
@@ -3349,8 +3346,8 @@ class PE:
             )
             if ep_offset > len(self.__data__):
                 self.__warnings.append(
-                    "Possibly corrupt file. AddressOfEntryPoint lies outside the"
-                    " file. AddressOfEntryPoint: 0x%x"
+                    "Possibly corrupt file. AddressOfEntryPoint lies outside the "
+                    "file. AddressOfEntryPoint: 0x%x"
                     % self.OPTIONAL_HEADER.AddressOfEntryPoint
                 )
 
