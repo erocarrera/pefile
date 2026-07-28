@@ -4,6 +4,7 @@ import struct
 import sys
 import unittest
 from hashlib import sha256
+import struct
 
 import pefile
 
@@ -342,6 +343,56 @@ class TestPEFile(unittest.TestCase):
         # Take a known good file
         control_file = os.path.join(REGRESSION_TESTS_DIR, "empty_file")
         self.assertRaises(pefile.PEFormatError, pefile.PE, control_file)
+
+    def test_virtual_size_less_than_raw_size(self):
+        """File-alignment padding must not bleed into the memory-mapped image.
+
+        When VirtualSize < SizeOfRawData the bytes beyond VirtualSize are
+        disk padding that the OS loader never maps.  The memory-mapped image
+        must end at VirtualAddress + VirtualSize, not VirtualAddress + SizeOfRawData.
+        """
+        vsize = 0x800
+        raw_size = 0x1000
+        pe = pefile.PE(data=_create_pe(vsize, raw_size))
+        image = pe.get_memory_mapped_image()
+
+        va = pe.sections[0].VirtualAddress
+        # Section content up to VirtualSize must be present.
+        self.assertEqual(
+            image[va : va + vsize],
+            b"\xCC" * vsize,
+            "section content must be preserved up to VirtualSize",
+        )
+        # The image must not extend past VirtualAddress + VirtualSize; raw
+        # file-padding bytes (0xCC beyond the boundary) must not be included.
+        self.assertEqual(
+            len(image),
+            va + vsize,
+            "mapped image must not include raw file-padding past VirtualSize",
+        )
+
+    def test_virtual_size_greater_than_raw_size(self):
+        """Uninitialized BSS region must be zero-padded in the memory-mapped image.
+
+        When SizeOfRawData < VirtualSize the bytes from SizeOfRawData up to
+        VirtualSize represent BSS and must be zero in the mapped view.
+        """
+        vsize = 0x1500
+        raw_size = 0x1000
+        pe = pefile.PE(data=_create_pe(vsize, raw_size))
+        image = pe.get_memory_mapped_image()
+
+        va = pe.sections[0].VirtualAddress
+        self.assertEqual(
+            image[va : va + raw_size],
+            b"\xCC" * raw_size,
+            "raw section content must be preserved",
+        )
+        self.assertEqual(
+            image[va + raw_size : va + vsize],
+            b"\x00" * (vsize - raw_size),
+            "BSS region (VirtualSize - SizeOfRawData) must be zero-padded",
+        )
 
     def test_relocated_memory_mapped_image(self):
         """Test different rebasing methods produce the same image"""
@@ -708,3 +759,72 @@ def _low_alignment_resource_pe():
         "<8sIIIIIIHHI", b".rsrc\x00\x00\x00", len(res), va, len(res), ptr_raw, 0, 0, 0, 0, 0x40000040
     )
     return dos + b"PE\x00\x00" + coff + opt + section + res
+
+
+def _create_pe(virtual_size, size_of_raw_data):
+    """Build a minimal PE32 with one section whose VirtualSize and SizeOfRawData differ.
+
+    Reused by the memory-mapped-image tests below.
+    """
+
+    dos_header = bytearray(64)
+    dos_header[0:2] = b"MZ"
+    dos_header[60:64] = struct.pack("<I", 64)
+
+    file_header = (
+        struct.pack("<H", 0x014C)  # Machine = I386
+        + struct.pack("<H", 1)  # NumberOfSections
+        + struct.pack("<I", 0)  # TimeDateStamp
+        + struct.pack("<I", 0)  # PointerToSymbolTable
+        + struct.pack("<I", 0)  # NumberOfSymbols
+        + struct.pack("<H", 0xE0)  # SizeOfOptionalHeader
+        + struct.pack("<H", 0x0102)  # Characteristics
+    )
+
+    section_alignment = 0x1000
+    pointer_to_raw_data = 0x400  # section data starts at file offset 0x400
+    va = 0x1000  # section virtual address
+    size_of_image = va + max(virtual_size, size_of_raw_data)
+    size_of_image = (size_of_image + section_alignment - 1) & ~(section_alignment - 1)
+
+    opt_header = (
+        struct.pack("<H", 0x010B)  # Magic PE32
+        + struct.pack("<BB", 14, 0)  # LinkerVersion
+        + struct.pack("<I", size_of_raw_data)  # SizeOfCode
+        + struct.pack("<II", 0, 0)  # SizeOfInitializedData, SizeOfUninitializedData
+        + struct.pack("<I", va)  # AddressOfEntryPoint
+        + struct.pack("<II", va, 0)  # BaseOfCode, BaseOfData
+        + struct.pack("<I", 0x400000)  # ImageBase
+        + struct.pack("<II", section_alignment, 0x200)  # FileAlignment
+        + struct.pack("<HHHHHH", 6, 0, 0, 0, 6, 0)  # OS/Image/Subsystem versions
+        + struct.pack("<I", 0)  # Win32VersionValue
+        + struct.pack("<I", size_of_image)  # SizeOfImage
+        + struct.pack("<I", 0x200)  # SizeOfHeaders (headers rounded up to FileAlignment)
+        + struct.pack("<I", 0)  # CheckSum
+        + struct.pack("<H", 2)  # Subsystem GUI
+        + struct.pack("<H", 0x8100)  # DllCharacteristics
+        + struct.pack("<IIII", 0x100000, 0x1000, 0x100000, 0x1000)
+        + struct.pack("<II", 0, 16)  # LoaderFlags, NumberOfRvaAndSizes
+        + b"\x00" * 128  # DataDirectory (16 entries, all zero)
+    )
+    assert len(opt_header) == 0xE0
+
+    section_header = (
+        b".text\x00\x00\x00"  # Name
+        + struct.pack("<I", virtual_size)  # VirtualSize
+        + struct.pack("<I", va)  # VirtualAddress
+        + struct.pack("<I", size_of_raw_data)  # SizeOfRawData
+        + struct.pack("<I", pointer_to_raw_data)  # PointerToRawData
+        + struct.pack("<IIHHI", 0, 0, 0, 0, 0x60000020)
+        # PointerToRelocations, PointerToLinenumbers,
+        # NumberOfRelocations, NumberOfLinenumbers, Characteristics
+    )
+
+    headers = (
+        bytes(dos_header) + b"PE\x00\x00" + file_header + opt_header + section_header
+    )
+    headers = headers.ljust(pointer_to_raw_data, b"\x00")
+
+    # Fill raw section data with a sentinel byte so leakage is obvious
+    section_data = b"\xCC" * size_of_raw_data
+    return bytes(headers) + section_data
