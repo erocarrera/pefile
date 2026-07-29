@@ -1441,7 +1441,7 @@ class StructureWithBitfields(Structure):
         self.__unpacked_data_elms__ = [None for _ in range(self.__format_length__)]
         self.__all_zeroes__ = False
         self.__file_offset__ = file_offset
-        self.name = name if name != None else format[0]
+        self.name = name if name is not None else format[0]
 
     def __unpack__(self, data):
         # calling the original routine to deal with special cases/spurious data
@@ -1885,7 +1885,7 @@ class UnwindInfo(StructureWithBitfields):
         if self.UNW_FLAG_CHAININFO:
             self._opt_field_name = "FunctionEntry"
 
-        if self._opt_field_name != None:
+        if self._opt_field_name is not None:
             setattr(
                 self,
                 self._opt_field_name,
@@ -1904,7 +1904,7 @@ class UnwindInfo(StructureWithBitfields):
         # each time.
         # It saves space (as compared to keeping a copy self.__keys_ext__ per
         # UnwindInfo instance), but makes our dump() implementation thread-unsafe.
-        if self._opt_field_name != None:
+        if self._opt_field_name is not None:
             self.__field_offsets__[self._opt_field_name] = (
                 self._full_size - STRUCT_SIZEOF_TYPES["I"]
             )
@@ -1912,7 +1912,7 @@ class UnwindInfo(StructureWithBitfields):
         try:
             dump = super().dump(indentation)
         finally:
-            if self._opt_field_name != None:
+            if self._opt_field_name is not None:
                 self.__keys_ext__.pop()
 
         dump.append(
@@ -1926,7 +1926,7 @@ class UnwindInfo(StructureWithBitfields):
         return dump
 
     def dump_dict(self):
-        if self._opt_field_name != None:
+        if self._opt_field_name is not None:
             self.__field_offsets__[self._opt_field_name] = (
                 self._full_size - STRUCT_SIZEOF_TYPES["I"]
             )
@@ -1934,7 +1934,7 @@ class UnwindInfo(StructureWithBitfields):
         try:
             ret = super().dump_dict()
         finally:
-            if self._opt_field_name != None:
+            if self._opt_field_name is not None:
                 self.__keys_ext__.pop()
         return ret
 
@@ -1962,7 +1962,7 @@ class UnwindInfo(StructureWithBitfields):
             data[cur_offset : cur_offset + uc.struct.sizeof()] = uc.struct.__pack__()
             cur_offset += uc.struct.sizeof()
 
-        if self._opt_field_name != None:
+        if self._opt_field_name is not None:
             data[
                 self._full_size - STRUCT_SIZEOF_TYPES["I"] : self._full_size
             ] = struct.pack("<I", getattr(self, self._opt_field_name))
@@ -1973,7 +1973,7 @@ class UnwindInfo(StructureWithBitfields):
         return self._chained_entry
 
     def set_chained_function_entry(self, entry):
-        if self._chained_entry != None:
+        if self._chained_entry is not None:
             raise PEFormatError("Chained function entry cannot be changed")
         self._chained_entry = entry
 
@@ -3836,11 +3836,11 @@ class PE:
                     rva2infos[rf.UnwindData] = ui
 
                 ws = ui.unpack_in_stages(self.get_data(rf.UnwindData, ui.sizeof()))
-                if ws != None:
+                if ws is not None:
                     self.__warnings.append(ws)
                     break
                 ws = ui.unpack_in_stages(self.get_data(rf.UnwindData, ui.sizeof()))
-                if ws != None:
+                if ws is not None:
                     self.__warnings.append(ws)
                     break
 
