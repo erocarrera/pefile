@@ -3506,11 +3506,11 @@ class PE:
             file_data[offset : offset + len(struct_data)] = struct_data
 
         if hasattr(self, "VS_VERSIONINFO") and hasattr(self, "FileInfo"):
-            for finfo in self.FileInfo:
-                for entry in finfo:
+            for file_info in self.FileInfo:
+                for entry in file_info:
                     if hasattr(entry, "StringTable"):
                         for st_entry in entry.StringTable:
-                            for key, entry in st_entry.entries.items():
+                            for key, value in st_entry.entries.items():
                                 # Offsets and lengths of the keys and values.
                                 # Each value in the dictionary is a tuple:
                                 #  (key length, value length)
@@ -3518,13 +3518,13 @@ class PE:
                                 offsets = st_entry.entries_offsets[key]
                                 lengths = st_entry.entries_lengths[key]
 
-                                if len(entry) > lengths[1]:
-                                    l = entry.decode("utf-8").encode("utf-16le")
+                                if len(value) > lengths[1]:
+                                    l = value.decode("utf-8").encode("utf-16le")
                                     file_data[
                                         offsets[1] : offsets[1] + lengths[1] * 2
                                     ] = l[: lengths[1] * 2]
                                 else:
-                                    encoded_data = entry.decode("utf-8").encode(
+                                    encoded_data = value.decode("utf-8").encode(
                                         "utf-16le"
                                     )
                                     file_data[
