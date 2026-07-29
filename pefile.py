@@ -6479,21 +6479,22 @@ class PE:
         return s
 
     def get_string_u_at_rva(self, rva, max_length=2**16, encoding=None):
-        """Get an Unicode string located at the given address."""
+        """Get a Unicode string located at the given address."""
 
         if max_length == 0:
             return b""
 
-        # If the RVA is invalid let the exception reach the callers. All
-        # call-sites of get_string_u_at_rva() will handle it.
-        data = self.get_data(rva, 2)
-        # max_length is the maximum count of 16bit characters needs to be
-        # doubled to get size in bytes
+        # If the RVA is invalid let the exception reach the callers.
+        # All call-sites of get_string_u_at_rva() will handle it.
+        _ = self.get_data(rva, 2)
+
+        # max_length is the maximum count of 16-bit characters.
+        # It needs to be doubled to get the size in bytes.
         max_length <<= 1
 
         requested = min(max_length, 256)
         data = self.get_data(rva, requested)
-        # try to find null-termination
+        # Search for null-termination
         null_index = -1
         while True:
             null_index = data.find(b"\x00\x00", null_index + 1)
@@ -6512,7 +6513,7 @@ class PE:
                 null_index >>= 1
                 break
 
-        # convert selected part of the string to unicode
+        # Convert selected part of the string to Unicode
         uchrs = struct.unpack("<{:d}H".format(null_index), data[: null_index * 2])
         s = "".join(map(chr, uchrs))
 
