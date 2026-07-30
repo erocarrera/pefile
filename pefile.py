@@ -1398,7 +1398,7 @@ def set_bitfields_format(format):
         for n in bf_names:
             field_offsets[n[0]] = field_offsets[val[0]]
 
-    return (format_str, format_length, field_offsets, keys, extended_keys, comp_fields)
+    return format_str, format_length, field_offsets, keys, extended_keys, comp_fields
 
 
 class StructureWithBitfields(Structure):
@@ -2000,14 +2000,14 @@ class PrologEpilogOp:
         return True
 
     def _get_format(self, unw_code):
-        return ("UNWIND_CODE", ("B,CodeOffset", "B:4,UnwindOp", "B:4,OpInfo"))
+        return "UNWIND_CODE", ("B,CodeOffset", "B:4,UnwindOp", "B:4,OpInfo")
 
 
 class PrologEpilogOpPushReg(PrologEpilogOp):
     """UWOP_PUSH_NONVOL"""
 
     def _get_format(self, unw_code):
-        return ("UNWIND_CODE_PUSH_NONVOL", ("B,CodeOffset", "B:4,UnwindOp", "B:4,Reg"))
+        return "UNWIND_CODE_PUSH_NONVOL", ("B,CodeOffset", "B:4,UnwindOp", "B:4,Reg")
 
     def __str__(self):
         return ".PUSHREG " + REGISTERS[self.struct.Reg]
@@ -4759,7 +4759,7 @@ class PE:
                         self.__warnings.append(
                             "Error parsing the resources directory, "
                             "attempting to read entry name. "
-                            "Entry names overlap 0x%x" % (ustr_offset)
+                            "Entry names overlap 0x%x" % ustr_offset
                         )
                         break
 
@@ -4774,7 +4774,7 @@ class PE:
                     self.__warnings.append(
                         "Error parsing the resources directory, "
                         "attempting to read entry name. "
-                        "Can't read unicode string at offset 0x%x" % (ustr_offset)
+                        "Can't read unicode string at offset 0x%x" % ustr_offset
                     )
 
             if res.DataIsDirectory:
@@ -4922,7 +4922,7 @@ class PE:
         except PEFormatError:
             self.__warnings.append(
                 "Error parsing a resource directory data entry, "
-                "the RVA is invalid: 0x%x" % (rva)
+                "the RVA is invalid: 0x%x" % rva
             )
             return None
 
@@ -5036,7 +5036,7 @@ class PE:
             self.__warnings.append(
                 "Error parsing the version information, "
                 "attempting to read VS_VERSION_INFO string. Can't "
-                "read unicode string at offset 0x%x" % (ustr_offset)
+                "read unicode string at offset 0x%x" % ustr_offset
             )
 
         if versioninfo_string is None:
@@ -5411,7 +5411,7 @@ class PE:
             )
         except PEFormatError:
             self.__warnings.append(
-                "Error parsing export directory at RVA: 0x%x" % (rva)
+                "Error parsing export directory at RVA: 0x%x" % rva
             )
             return
 
@@ -5448,7 +5448,7 @@ class PE:
             )
         except PEFormatError:
             self.__warnings.append(
-                "Error parsing export directory at RVA: 0x%x" % (rva)
+                "Error parsing export directory at RVA: 0x%x" % rva
             )
             return
 
@@ -5682,7 +5682,7 @@ class PE:
                 )
             except PEFormatError:
                 self.__warnings.append(
-                    "Error parsing the Delay import directory at RVA: 0x%x" % (rva)
+                    "Error parsing the Delay import directory at RVA: 0x%x" % rva
                 )
                 break
 
@@ -6004,7 +6004,7 @@ class PE:
         # bound.
         iat = self.get_import_table(first_thunk, max_length, contains_addresses)
 
-        if (not iat) and (not ilt):
+        if not iat and not ilt:
             self.__warnings.append(
                 "Damaged Import Table information. "
                 "ILT and/or IAT appear to be broken. "
