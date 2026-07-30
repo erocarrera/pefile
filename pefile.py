@@ -4094,7 +4094,6 @@ class PE:
 
         section = self.sections[dynamic_value_reloc_table_section - 1]
         rva = section.VirtualAddress + dynamic_value_reloc_table_offset
-        image_dynamic_reloc_table_struct = None
         reloc_table_size = Structure(
             self.__IMAGE_DYNAMIC_RELOCATION_TABLE_format__
         ).sizeof()
@@ -4802,7 +4801,6 @@ class PE:
                     break
 
                 # Ange Albertini's code to process resources' strings
-                strings = None
                 if entry_id == RESOURCE_TYPE["RT_STRING"]:
                     strings = {}
                     for resource_id in entry_directory.entries:
@@ -5821,7 +5819,6 @@ class PE:
 
             entry_dll_lower = entry.dll.lower()
             for imp in entry.imports:
-                funcname = None
                 if not imp.name or getattr(imp, "name_from_ordinal", False):
                     # Must use imphash-specific ordinal lookup whose tables are
                     # frozen to the state when the imphash algorithm was first
@@ -6016,7 +6013,6 @@ class PE:
             )
             return []
 
-        table = None
         if ilt:
             table = ilt
         elif iat:
