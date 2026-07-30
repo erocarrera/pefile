@@ -5654,7 +5654,8 @@ class PE:
             name=self.get_string_at_rva(export_dir.Name),
         )
 
-    def dword_align(self, offset, base):
+    @staticmethod
+    def dword_align(offset, base):
         return ((offset + base + 3) & 0xFFFFFFFC) - (base & 0xFFFFFFFC)
 
     def normalize_import_va(self, va):
