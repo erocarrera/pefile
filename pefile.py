@@ -994,8 +994,8 @@ class Structure:
             data = data[: self.__format_length__]
 
         # Some malware have incorrect header lengths.
-        # Fail gracefully if this occurs
-        # Buggy malware: a29b0118af8b7408444df81701ad5a7f
+        # Fail gracefully if this occurs. Buggy malware:
+        # b220301fd3640ff736e1fbc8ff1fa46bf4aff07eccca1a69663af574bfdffb69
         elif len(data) < self.__format_length__:
             raise PEFormatError("Data length less than expected header length.")
 
@@ -3286,7 +3286,7 @@ class PE:
                 break
 
             # Would fail if missing an entry
-            # 1d4937b2fa4d84ad1bce0309857e70ca offending sample
+            # a33a8c04e54fabca0c484fcfd703445b5a88fa7716bb0c9e009a088741a01bcb 
             try:
                 dir_entry.name = DIRECTORY_ENTRY[i]
             except (KeyError, AttributeError):
@@ -4472,10 +4472,8 @@ class PE:
                         dbg_type_size - Structure(__CV_INFO_PDB70_format__).sizeof()
                     )
 
-                    # pdbFileName_size can be negative,
-                    # as seen in the malware sample with
-                    #
-                    # SHA-256: 83f4e63681fcba8a9d7bbb1688c71981b1837446514a1773597e0192bba9fac3
+                    # pdbFileName_size can be negative, as seen in the malware sample:
+                    # 83f4e63681fcba8a9d7bbb1688c71981b1837446514a1773597e0192bba9fac3
                     #
                     # Checking for positive size here to ensure proper parsing.
                     if pdbFileName_size > 0:
@@ -4555,9 +4553,8 @@ class PE:
                 )
 
                 # Need to check that dbg_type_partial contains a correctly unpacked data
-                # structure, as the malware sample with
-                #
-                # SHA-256: 5dd94a95025f3b6e3dd440d52f7c6d2964fdd1aa119e0ee92e38c7bf83829e5c
+                # structure, as the malware sample:
+                # 5dd94a95025f3b6e3dd440d52f7c6d2964fdd1aa119e0ee92e38c7bf83829e5c
                 #
                 # contains a value of None for dbg_type_partial after unpacking,
                 # presumably due to a malformed DEBUG entry.
@@ -4784,8 +4781,7 @@ class PE:
                 # function is equal to the next one to parse, we assume that
                 # it's a trick. Instead of raising a PEFormatError this would
                 # skip some reasonable data so we just break.
-                #
-                # 9ee4d0a0caf095314fd7041a3e4404dc is the offending sample
+                # 675d00d4c798678e336e9dd5ddfb08daff5ede19c03f4eb6ad8533ca083f81fc
                 if base_rva + res.OffsetToDirectory in dirs:
                     break
 
@@ -5528,9 +5524,9 @@ class PE:
                         break
                     continue
 
-            # File 0b1d3d3664915577ab9a32188d29bbf3542b86c7b9ce333e245496c3018819f1
-            # was being parsed as potentially containing millions of exports.
+            # chrome.dll was being parsed as potentially containing millions of exports.
             # Checking for duplicates addresses the issue.
+            # 0b1d3d3664915577ab9a32188d29bbf3542b86c7b9ce333e245496c3018819f1
             symbol_counts[(symbol_name, symbol_address)] += 1
             if symbol_counts[(symbol_name, symbol_address)] > 10:
                 self.__warnings.append(
@@ -5610,9 +5606,9 @@ class PE:
                 else:
                     forwarder_str = None
 
-                # File 0b1d3d3664915577ab9a32188d29bbf3542b86c7b9ce333e245496c3018819f1
-                # was being parsed as potentially containing millions of exports.
+                # chrome.dll was being parsed as potentially containing millions of exports.
                 # Checking for duplicates addresses the issue.
+                # 0b1d3d3664915577ab9a32188d29bbf3542b86c7b9ce333e245496c3018819f1
                 symbol_counts[symbol_address] += 1
                 if symbol_counts[symbol_address] > self.max_repeated_symbol:
                     # if most_common and most_common[0][1] > 10:
@@ -5704,7 +5700,7 @@ class PE:
             # (pre 6.0)
             # Can only be present in 32-bit binaries (no 64-bit compiler existed at the
             # time)
-            # Sample: e8d3bff0c1a9a6955993f7a441121a2692261421e82fdfadaaded45d3bea9980
+            # e8d3bff0c1a9a6955993f7a441121a2692261421e82fdfadaaded45d3bea9980
             if (
                 import_desc.grAttrs == 0
                 and self.FILE_HEADER.Machine == MACHINE_TYPE["IMAGE_FILE_MACHINE_I386"]
@@ -6090,7 +6086,7 @@ class PE:
 
             # The file with 
             #
-            # SHA-256: 3d22f8b001423cb460811ab4f4789f277b35838d45c62ec0454c877e7c82c7f5
+            # 3d22f8b001423cb460811ab4f4789f277b35838d45c62ec0454c877e7c82c7f5
             #
             # has an invalid table built in a way that it's parseable but contains
             # invalid entries that lead pefile to take extremely long amounts of time to
@@ -6217,7 +6213,7 @@ class PE:
             # to be legitimate data.
             #
             # Seen in PE with 
-            # SHA-256: 5945bb6f0ac879ddf61b1c284f3b8d20c06b228e75ae4f571fa87f5b9512902c
+            # 5945bb6f0ac879ddf61b1c284f3b8d20c06b228e75ae4f571fa87f5b9512902c
             if (
                 thunk_data
                 and start_rva <= thunk_data.AddressOfData <= rva
@@ -6388,7 +6384,7 @@ class PE:
             # 8291 bytes into memory and assume the data will be there.
             #
             # A functional file with these characteristics has
-            # SHA-256: 879adc27caa31bd27b08c4d3a363028dcfa859c1094de27e2a54d3cf53d2adef
+            # 879adc27caa31bd27b08c4d3a363028dcfa859c1094de27e2a54d3cf53d2adef
             if rva < len(self.__data__):
                 return self.__data__[rva:end]
 
