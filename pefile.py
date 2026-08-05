@@ -6521,8 +6521,7 @@ class PE:
                 break
 
         # Convert selected part of the string to Unicode
-        uchrs = struct.unpack("<{:d}H".format(null_index), data[: null_index * 2])
-        s = "".join(map(chr, uchrs))
+        s = data[: null_index * 2].decode("utf-16-le", errors="backslashreplace")
 
         if encoding:
             return s.encode(encoding, "backslashreplace_")
