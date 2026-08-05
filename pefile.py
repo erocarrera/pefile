@@ -4968,21 +4968,31 @@ class PE:
     def parse_version_information(self, version_struct):
         """Parse version information structure.
 
-        The date will be made available in three attributes of the PE object.
+        The data will be made available in three attributes of the PE object.
 
-        VS_VERSIONINFO   will contain the first three fields of the main structure:
+        VS_VERSIONINFO will contain the first three fields of the main structure:
             'Length', 'ValueLength', and 'Type'
 
         VS_FIXEDFILEINFO will hold the rest of the fields, accessible as sub-attributes:
-            'Signature', 'StrucVersion', 'FileVersionMS', 'FileVersionLS',
-            'ProductVersionMS', 'ProductVersionLS', 'FileFlagsMask', 'FileFlags',
-            'FileOS', 'FileType', 'FileSubtype', 'FileDateMS', 'FileDateLS'
-
-        FileInfo    is a list of all StringFileInfo and VarFileInfo structures.
+            'Signature'
+            'StrucVersion'
+            'FileVersionMS'
+            'FileVersionLS'
+            'ProductVersionMS'
+            'ProductVersionLS'
+            'FileFlagsMask'
+            'FileFlags'
+            'FileOS'
+            'FileType'
+            'FileSubtype'
+            'FileDateMS'
+            'FileDateLS'
+            
+        FileInfo is a list of all StringFileInfo and VarFileInfo structures.
 
         StringFileInfo structures will have a list as an attribute named 'StringTable'
         containing all the StringTable structures. Each of those structures contains a
-        dictionary 'entries' with all the key / value version information string pairs.
+        dictionary 'entries' with all the key-value version information string pairs.
 
         VarFileInfo structures will have a list as an attribute named 'Var' containing
         all Var structures. Each Var structure will have a dictionary as an attribute
@@ -5068,7 +5078,7 @@ class PE:
         # Set the PE object's VS_VERSIONINFO to this one
         vinfo = versioninfo_struct
 
-        # Set the Key attribute to point to the unicode string identifying the structure
+        # Set the Key attribute to point to the Unicode string identifying the structure
         vinfo.Key = versioninfo_string
 
         self.VS_VERSIONINFO.append(vinfo)
@@ -5103,7 +5113,7 @@ class PE:
             version_struct.OffsetToData,
         )
 
-        # Set the PE object's attribute that will contain them all.
+        # Set the PE object's attribute that will contain them all
         if not hasattr(self, "FileInfo"):
             self.FileInfo = []
 
@@ -5122,7 +5132,7 @@ class PE:
                 )
                 return None
 
-            # Get the subsequent string defining the structure.
+            # Get the subsequent string defining the structure
             ustr_offset = (
                 version_struct.OffsetToData
                 + stringfileinfo_offset
