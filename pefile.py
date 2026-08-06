@@ -5013,14 +5013,14 @@ class PE:
         raw_data = self.__data__[start_offset : start_offset + version_struct.Size]
 
         # Map the main structure and the subsequent string
-        versioninfo_struct = self.__unpack_data__(
+        vs_version_info = self.__unpack_data__(
             self.__VS_VERSIONINFO_format__, raw_data, file_offset=start_offset
         )
 
-        if versioninfo_struct is None:
+        if vs_version_info is None:
             return
 
-        ustr_offset = version_struct.OffsetToData + versioninfo_struct.sizeof()
+        ustr_offset = version_struct.OffsetToData + vs_version_info.sizeof()
         section = self.get_section_by_rva(ustr_offset)
         section_end = None
         if section:
@@ -5028,18 +5028,18 @@ class PE:
                 section.SizeOfRawData, section.Misc_VirtualSize
             )
 
-        versioninfo_string = None
+        version_info_string = None
         # These should return 'ascii' decoded data. For the case when it's
         # garbled data the ascii string will retain the byte values while
         # encoding it to something else may yield values that don't match the
         # file's contents.
         try:
             if section_end is None:
-                versioninfo_string = self.get_string_u_at_rva(
+                version_info_string = self.get_string_u_at_rva(
                     ustr_offset, encoding="ascii"
                 )
             else:
-                versioninfo_string = self.get_string_u_at_rva(
+                version_info_string = self.get_string_u_at_rva(
                     ustr_offset, (section_end - ustr_offset) >> 1, encoding="ascii"
                 )
         except PEFormatError:
@@ -5049,25 +5049,25 @@ class PE:
                 "read unicode string at offset 0x%x" % ustr_offset
             )
 
-        if versioninfo_string is None:
+        if version_info_string is None:
             self.__warnings.append(
-                "Invalid VS_VERSION_INFO block: {0}".format(versioninfo_string)
+                "Invalid VS_VERSION_INFO block: {0}".format(version_info_string)
             )
             return
 
         # If the structure does not contain the expected name, it's assumed to
         # be invalid
-        if versioninfo_string is not None and versioninfo_string != b"VS_VERSION_INFO":
-            if len(versioninfo_string) > 128:
-                excerpt = versioninfo_string[:128].decode("ascii")
+        if version_info_string is not None and version_info_string != b"VS_VERSION_INFO":
+            if len(version_info_string) > 128:
+                excerpt = version_info_string[:128].decode("ascii")
                 # Don't leave any half-escaped characters
                 excerpt = excerpt[: excerpt.rfind("\\u")]
-                versioninfo_string = "{0} ... ({1} bytes, too long to display)".format(
-                    excerpt, len(versioninfo_string)
+                version_info_string = "{0} ... ({1} bytes, too long to display)".format(
+                    excerpt, len(version_info_string)
                 ).encode()
             self.__warnings.append(
                 "Invalid VS_VERSION_INFO block: {0}".format(
-                    versioninfo_string.decode("ascii").replace("\00", "\\00")
+                    version_info_string.decode("ascii").replace("\00", "\\00")
                 )
             )
             return
@@ -5076,40 +5076,40 @@ class PE:
             self.VS_VERSIONINFO = []
 
         # Set the PE object's VS_VERSIONINFO to this one
-        vinfo = versioninfo_struct
+        vinfo = vs_version_info
 
         # Set the Key attribute to point to the Unicode string identifying the structure
-        vinfo.Key = versioninfo_string
+        vinfo.Key = version_info_string
 
         self.VS_VERSIONINFO.append(vinfo)
 
-        if versioninfo_string is None:
-            versioninfo_string = ""
+        if version_info_string is None:
+            version_info_string = ""
         # Process the fixed version information, get the offset and structure
-        fixedfileinfo_offset = self.dword_align(
-            versioninfo_struct.sizeof() + 2 * (len(versioninfo_string) + 1),
+        fixed_info_offset = self.dword_align(
+            vs_version_info.sizeof() + 2 * (len(version_info_string) + 1),
             version_struct.OffsetToData,
         )
-        fixedfileinfo_struct = self.__unpack_data__(
+        vs_fixed_file_info = self.__unpack_data__(
             self.__VS_FIXEDFILEINFO_format__,
-            raw_data[fixedfileinfo_offset:],
-            file_offset=start_offset + fixedfileinfo_offset,
+            raw_data[fixed_info_offset:],
+            file_offset=start_offset + fixed_info_offset,
         )
 
-        if not fixedfileinfo_struct:
+        if not vs_fixed_file_info:
             return
 
         if not hasattr(self, "VS_FIXEDFILEINFO"):
             self.VS_FIXEDFILEINFO = []
 
         # Set the PE object's VS_FIXEDFILEINFO to this one
-        self.VS_FIXEDFILEINFO.append(fixedfileinfo_struct)
+        self.VS_FIXEDFILEINFO.append(vs_fixed_file_info)
 
         # Start parsing all the StringFileInfo and VarFileInfo structures
 
         # Get the first one
-        stringfileinfo_offset = self.dword_align(
-            fixedfileinfo_offset + fixedfileinfo_struct.sizeof(),
+        string_file_info_offset = self.dword_align(
+            fixed_info_offset + vs_fixed_file_info.sizeof(),
             version_struct.OffsetToData,
         )
 
@@ -5120,13 +5120,13 @@ class PE:
         finfo = []
         while True:
             # Process the StringFileInfo/VarFileInfo structure
-            stringfileinfo_struct = self.__unpack_data__(
+            string_file_info = self.__unpack_data__(
                 self.__StringFileInfo_format__,
-                raw_data[stringfileinfo_offset:],
-                file_offset=start_offset + stringfileinfo_offset,
+                raw_data[string_file_info_offset:],
+                file_offset=start_offset + string_file_info_offset,
             )
 
-            if stringfileinfo_struct is None:
+            if string_file_info is None:
                 self.__warnings.append(
                     "Error parsing StringFileInfo/VarFileInfo struct"
                 )
@@ -5135,11 +5135,11 @@ class PE:
             # Get the subsequent string defining the structure
             ustr_offset = (
                 version_struct.OffsetToData
-                + stringfileinfo_offset
-                + versioninfo_struct.sizeof()
+                + string_file_info_offset
+                + vs_version_info.sizeof()
             )
             try:
-                stringfileinfo_string = self.get_string_u_at_rva(ustr_offset)
+                string_file_info_string = self.get_string_u_at_rva(ustr_offset)
             except PEFormatError:
                 self.__warnings.append(
                     "Error parsing the version information, "
@@ -5149,34 +5149,34 @@ class PE:
                 break
 
             # Set such string as the Key attribute
-            stringfileinfo_struct.Key = stringfileinfo_string
+            string_file_info.Key = string_file_info_string
 
             # Append the structure to the PE object's list
-            finfo.append(stringfileinfo_struct)
+            finfo.append(string_file_info)
 
             # Parse a StringFileInfo entry
-            if stringfileinfo_string and stringfileinfo_string.startswith(
+            if string_file_info_string and string_file_info_string.startswith(
                 b"StringFileInfo"
             ):
                 if (
-                    stringfileinfo_struct.Type in (0, 1)
-                    and stringfileinfo_struct.ValueLength == 0
+                    string_file_info.Type in (0, 1)
+                    and string_file_info.ValueLength == 0
                 ):
-                    stringtable_offset = self.dword_align(
-                        stringfileinfo_offset
-                        + stringfileinfo_struct.sizeof()
-                        + 2 * (len(stringfileinfo_string) + 1),
+                    string_table_offset = self.dword_align(
+                        string_file_info_offset
+                        + string_file_info.sizeof()
+                        + 2 * (len(string_file_info_string) + 1),
                         version_struct.OffsetToData,
                     )
 
-                    stringfileinfo_struct.StringTable = []
+                    string_file_info.StringTable = []
 
                     # Process the String Table entries
                     while True:
                         stringtable_struct = self.__unpack_data__(
                             self.__StringTable_format__,
-                            raw_data[stringtable_offset:],
-                            file_offset=start_offset + stringtable_offset,
+                            raw_data[string_table_offset:],
+                            file_offset=start_offset + string_table_offset,
                         )
 
                         if not stringtable_struct:
@@ -5184,7 +5184,7 @@ class PE:
 
                         ustr_offset = (
                             version_struct.OffsetToData
-                            + stringtable_offset
+                            + string_table_offset
                             + stringtable_struct.sizeof()
                         )
                         try:
@@ -5203,10 +5203,10 @@ class PE:
                         stringtable_struct.entries = {}
                         stringtable_struct.entries_offsets = {}
                         stringtable_struct.entries_lengths = {}
-                        stringfileinfo_struct.StringTable.append(stringtable_struct)
+                        string_file_info.StringTable.append(stringtable_struct)
 
                         entry_offset = self.dword_align(
-                            stringtable_offset
+                            string_table_offset
                             + stringtable_struct.sizeof()
                             + 2 * (len(stringtable_string) + 1),
                             version_struct.OffsetToData,
@@ -5216,7 +5216,7 @@ class PE:
 
                         while (
                             entry_offset
-                            < stringtable_offset + stringtable_struct.Length
+                            < string_table_offset + stringtable_struct.Length
                         ):
                             string_struct = self.__unpack_data__(
                                 self.__String_format__,
@@ -5268,7 +5268,7 @@ class PE:
 
                             if string_struct.Length == 0:
                                 entry_offset = (
-                                    stringtable_offset + stringtable_struct.Length
+                                    string_table_offset + stringtable_struct.Length
                                 )
                             else:
                                 entry_offset = self.dword_align(
@@ -5286,39 +5286,39 @@ class PE:
                                 len(value),
                             )
 
-                        new_stringtable_offset = self.dword_align(
-                            stringtable_struct.Length + stringtable_offset,
+                        new_string_table_offset = self.dword_align(
+                            stringtable_struct.Length + string_table_offset,
                             version_struct.OffsetToData,
                         )
 
                         # Check if the entry is crafted in a way that would lead
                         # to an infinite loop and break if so.
-                        if new_stringtable_offset == stringtable_offset:
+                        if new_string_table_offset == string_table_offset:
                             break
-                        stringtable_offset = new_stringtable_offset
+                        string_table_offset = new_string_table_offset
 
-                        if stringtable_offset >= stringfileinfo_struct.Length:
+                        if string_table_offset >= string_file_info.Length:
                             break
 
             # Parse a VarFileInfo entry
-            elif stringfileinfo_string and stringfileinfo_string.startswith(
+            elif string_file_info_string and string_file_info_string.startswith(
                 b"VarFileInfo"
             ):
-                varfileinfo_struct = stringfileinfo_struct
-                varfileinfo_struct.name = "VarFileInfo"
+                var_file_info = string_file_info
+                var_file_info.name = "VarFileInfo"
 
                 if (
-                    varfileinfo_struct.Type in (0, 1)
-                    and varfileinfo_struct.ValueLength == 0
+                    var_file_info.Type in (0, 1)
+                    and var_file_info.ValueLength == 0
                 ):
                     var_offset = self.dword_align(
-                        stringfileinfo_offset
-                        + varfileinfo_struct.sizeof()
-                        + 2 * (len(stringfileinfo_string) + 1),
+                        string_file_info_offset
+                        + var_file_info.sizeof()
+                        + 2 * (len(string_file_info_string) + 1),
                         version_struct.OffsetToData,
                     )
 
-                    varfileinfo_struct.Var = []
+                    var_file_info.Var = []
 
                     # Process all entries
 
@@ -5352,27 +5352,27 @@ class PE:
                         if var_string is None:
                             break
 
-                        varfileinfo_struct.Var.append(var_struct)
+                        var_file_info.Var.append(var_struct)
 
-                        varword_offset = self.dword_align(
+                        var_word_offset = self.dword_align(
                             2 * (len(var_string) + 1)
                             + var_offset
                             + var_struct.sizeof(),
                             version_struct.OffsetToData,
                         )
-                        orig_varword_offset = varword_offset
+                        original_var_word_offset = var_word_offset
 
                         while (
-                            varword_offset
-                            < orig_varword_offset + var_struct.ValueLength
+                            var_word_offset
+                            < original_var_word_offset + var_struct.ValueLength
                         ):
                             word1 = self.get_word_from_data(
-                                raw_data[varword_offset : varword_offset + 2], 0
+                                raw_data[var_word_offset : var_word_offset + 2], 0
                             )
                             word2 = self.get_word_from_data(
-                                raw_data[varword_offset + 2 : varword_offset + 4], 0
+                                raw_data[var_word_offset + 2 : var_word_offset + 4], 0
                             )
-                            varword_offset += 4
+                            var_word_offset += 4
 
                             if isinstance(word1, int) and isinstance(word2, int):
                                 var_struct.entry = {
@@ -5387,15 +5387,15 @@ class PE:
                             break
 
             # Increment and align the offset
-            stringfileinfo_offset = self.dword_align(
-                stringfileinfo_struct.Length + stringfileinfo_offset,
+            string_file_info_offset = self.dword_align(
+                string_file_info.Length + string_file_info_offset,
                 version_struct.OffsetToData,
             )
 
             # Check if all the StringFileInfo and VarFileInfo items have been processed
             if (
-                stringfileinfo_struct.Length == 0
-                or stringfileinfo_offset >= versioninfo_struct.Length
+                string_file_info.Length == 0
+                or string_file_info_offset >= vs_version_info.Length
             ):
                 break
 
