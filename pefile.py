@@ -5057,7 +5057,7 @@ class PE:
 
         # If the structure does not contain the expected name, it's assumed to
         # be invalid
-        if versioninfo_string is not None and versioninfo_string != b"VS_VERSION_INFO":
+        if versioninfo_string != b"VS_VERSION_INFO":
             if len(versioninfo_string) > 128:
                 excerpt = versioninfo_string[:128].decode("ascii")
                 # Don't leave any half-escaped characters
@@ -5083,8 +5083,6 @@ class PE:
 
         self.VS_VERSIONINFO.append(vinfo)
 
-        if versioninfo_string is None:
-            versioninfo_string = ""
         # Process the fixed version information, get the offset and structure
         fixedfileinfo_offset = self.dword_align(
             versioninfo_struct.sizeof() + 2 * (len(versioninfo_string) + 1),
