@@ -5126,7 +5126,7 @@ class PE:
                 self.__warnings.append(
                     "Error parsing StringFileInfo/VarFileInfo struct"
                 )
-                return None
+                return
 
             # Get the subsequent string defining the structure
             ustr_offset = (
@@ -6919,8 +6919,8 @@ class PE:
                                 and resource_id.directory.strings
                             ):
                                 dump.add_line("[STRINGS]", 10)
-                                for idx, res_string in list(
-                                    sorted(resource_id.directory.strings.items())
+                                for idx, res_string in sorted(
+                                    resource_id.directory.strings.items()
                                 ):
                                     dump.add_line(
                                         "{0:6d}: {1}".format(
