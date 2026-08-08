@@ -939,10 +939,10 @@ class Structure:
     def __init__(self, format, name=None, file_offset=None):
         # Format is forced little endian, for big endian non-Intel platforms
         self.__format_str__ = "<"
+        self.__unpacked_data_elms__ = []
+        self.__field_offsets__ = {}
         self.__keys__ = []
         self.__format_length__ = 0
-        self.__field_offsets__ = {}
-        self.__unpacked_data_elms__ = []
 
         d = format[1]
         # need a tuple to be hashable in set_format using lru cache
@@ -957,12 +957,12 @@ class Structure:
             self.__format_length__,
         ) = set_format(d)
 
-        self.__all_zeroes__ = False
-        self.__file_offset__ = file_offset
         if name:
             self.name = name
         else:
             self.name = format[0]
+        self.__file_offset__ = file_offset
+        self.__all_zeroes__ = False
 
     def __get_format__(self) -> str:
         return self.__format_str__
@@ -1033,9 +1033,7 @@ class Structure:
     def dump(self, indentation=0):
         """Returns a string representation of the structure."""
 
-        dump = []
-
-        dump.append("[{0}]".format(self.name))
+        dump = ["[{0}]".format(self.name)]
 
         printable_bytes = [
             ord(i) for i in string.printable if i not in string.whitespace
