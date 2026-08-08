@@ -5128,7 +5128,7 @@ class PE:
                 self.__warnings.append(
                     "Error parsing StringFileInfo/VarFileInfo struct"
                 )
-                return None
+                return
 
             # Get the subsequent string defining the structure
             ustr_offset = (
@@ -6728,10 +6728,10 @@ class PE:
                                     ]
                                     dump.add_line(
                                         "    {0}: {1}".format(
-                                            list(var_entry.entry.keys())[0].decode(
+                                            next(iter(var_entry.entry.keys())).decode(
                                                 "utf-8", "backslashreplace_"
                                             ),
-                                            list(var_entry.entry.values())[0],
+                                            next(iter(var_entry.entry.values())),
                                         )
                                     )
 
@@ -6921,8 +6921,8 @@ class PE:
                                 and resource_id.directory.strings
                             ):
                                 dump.add_line("[STRINGS]", 10)
-                                for idx, res_string in list(
-                                    sorted(resource_id.directory.strings.items())
+                                for idx, res_string in sorted(
+                                    resource_id.directory.strings.items()
                                 ):
                                     dump.add_line(
                                         "{0:6d}: {1}".format(
@@ -7087,9 +7087,9 @@ class PE:
                                 var_dict = {}
                                 if hasattr(var_entry, "entry"):
                                     file_info.append(var_entry.dump_dict())
-                                    var_dict[list(var_entry.entry.keys())[0]] = list(
-                                        var_entry.entry.values()
-                                    )[0]
+                                    var_dict[next(iter(var_entry.entry.keys()))] = next(
+                                        iter(var_entry.entry.values())
+                                    )
                                     file_info.append(var_dict)
 
                 dump_dict["Version Information"].append(version_info)
