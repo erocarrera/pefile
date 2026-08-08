@@ -6728,10 +6728,10 @@ class PE:
                                     ]
                                     dump.add_line(
                                         "    {0}: {1}".format(
-                                            next(iter(var_entry.entry.keys())).decode(
+                                            list(var_entry.entry.keys())[0].decode(
                                                 "utf-8", "backslashreplace_"
                                             ),
-                                            next(iter(var_entry.entry.values())),
+                                            list(var_entry.entry.values())[0],
                                         )
                                     )
 
@@ -7087,9 +7087,9 @@ class PE:
                                 var_dict = {}
                                 if hasattr(var_entry, "entry"):
                                     file_info.append(var_entry.dump_dict())
-                                    var_dict[next(iter(var_entry.entry.keys()))] = next(
-                                        iter(var_entry.entry.values())
-                                    )
+                                    var_dict[list(var_entry.entry.keys())[0]] = list(
+                                        var_entry.entry.values()
+                                    )[0]
                                     file_info.append(var_dict)
 
                 dump_dict["Version Information"].append(version_info)
