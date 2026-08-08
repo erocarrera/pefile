@@ -1202,8 +1202,7 @@ class SectionStructure(Structure):
         # extra bytes that might get cut off by aligning the start (and hence cutting
         # something off the end)
         if self.PointerToRawData is not None and self.SizeOfRawData is not None:
-            if end > self.PointerToRawData + self.SizeOfRawData:
-                end = self.PointerToRawData + self.SizeOfRawData
+            end = min(end, self.PointerToRawData + self.SizeOfRawData)
         return self.pe.__data__[offset:end]
 
     def __setattr__(self, name, val):
@@ -1477,7 +1476,7 @@ class StructureWithBitfields(Structure):
         """Replace compound attributes corresponding to bitfields with separate
         sub-fields.
         """
-        for i in self.__compound_fields__.keys():
+        for i in self.__compound_fields__:
             cf_name = self.__keys__[i][0]
             cval = getattr(self, cf_name)
             delattr(self, cf_name)
@@ -1494,7 +1493,7 @@ class StructureWithBitfields(Structure):
 
     def _pack_bitfield_attributes(self):
         """Pack attributes into a compound bitfield"""
-        for i in self.__compound_fields__.keys():
+        for i in self.__compound_fields__:
             cf_name = self.__keys__[i][0]
             offst, acc_val = 0, 0
             for sf in self.__compound_fields__[i][StructureWithBitfields.CF_SUBFLD_IDX]:
@@ -3632,12 +3631,10 @@ class PE:
             ):
                 simultaneous_errors += 1
                 self.__warnings.append(
-                    (
-                        f"Error parsing section {i}. "
-                        "PointerToRawData should normally be "
-                        "a multiple of FileAlignment, this might imply the file "
-                        "is trying to confuse tools which parse this incorrectly."
-                    )
+                    f"Error parsing section {i}. "
+                    "PointerToRawData should normally be "
+                    "a multiple of FileAlignment, this might imply the file "
+                    "is trying to confuse tools which parse this incorrectly."
                 )
 
             if simultaneous_errors >= MAX_SIMULTANEOUS_ERRORS:
