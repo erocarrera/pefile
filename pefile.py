@@ -7807,14 +7807,11 @@ class PE:
 
         EXE_flag = IMAGE_CHARACTERISTICS["IMAGE_FILE_EXECUTABLE_IMAGE"]
 
-        if (
-            (not self.is_dll())
-            and (not self.is_driver())
-            and (EXE_flag & self.FILE_HEADER.Characteristics)
-        ):
-            return True
-
-        return False
+        return (
+            (EXE_flag & self.FILE_HEADER.Characteristics)
+            and not self.is_dll()
+            and not self.is_driver()
+        )
 
     def is_dll(self):
         """Check whether the file is a standard DLL.
@@ -7824,10 +7821,7 @@ class PE:
 
         DLL_flag = IMAGE_CHARACTERISTICS["IMAGE_FILE_DLL"]
 
-        if DLL_flag & self.FILE_HEADER.Characteristics:
-            return True
-
-        return False
+        return bool(DLL_flag & self.FILE_HEADER.Characteristics)
 
     def is_driver(self):
         """Check whether the file is a Windows driver.
@@ -7845,10 +7839,11 @@ class PE:
 
         # This is not reliable either...
         #
-        # if any((section.Characteristics &
-        #           SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_NOT_PAGED']) for
-        #        section in self.sections ):
-        #    return True
+        # if any(
+        #     (section.Characteristics & SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_NOT_PAGED'])
+        #     for section in pe.sections
+        # ):
+        #     return True
 
         # If the import directory was not parsed (fast_load = True); do it now.
         if not hasattr(self, "DIRECTORY_ENTRY_IMPORT"):
@@ -7877,18 +7872,14 @@ class PE:
             return True
 
         driver_like_section_names = {b"page", b"paged"}
-        if driver_like_section_names.intersection(
+        return driver_like_section_names.intersection(
             {section.Name.lower().rstrip(b"\x00") for section in self.sections}
         ) and (
-            self.OPTIONAL_HEADER.Subsystem
-            in (
+            self.OPTIONAL_HEADER.Subsystem in (
                 SUBSYSTEM_TYPE["IMAGE_SUBSYSTEM_NATIVE"],
                 SUBSYSTEM_TYPE["IMAGE_SUBSYSTEM_NATIVE_WINDOWS"],
             )
-        ):
-            return True
-
-        return False
+        )
 
     def get_overlay_data_start_offset(self):
         """Get the offset of data appended to the file and not contained within
