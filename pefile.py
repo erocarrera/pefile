@@ -3899,7 +3899,7 @@ class PE:
                     "The Bound Imports directory exists but can't be parsed."
                 )
 
-                return
+                return None
 
             if bnd_descr.all_zeroes():
                 break
@@ -3933,7 +3933,7 @@ class PE:
                         "to an invalid address: {0:x}"
                     ).format(rva)
                 )
-                return
+                return None
 
             forwarder_refs = []
             # 8 is the size of __IMAGE_BOUND_IMPORT_DESCRIPTOR_format__
@@ -5416,10 +5416,10 @@ class PE:
             self.__warnings.append(
                 "Error parsing export directory at RVA: 0x%x" % rva
             )
-            return
+            return None
 
         if not export_dir:
-            return
+            return None
 
         # We keep track of the bytes left in the file and use it to set a upper
         # bound in the number of items that can be read from the different
@@ -5453,7 +5453,7 @@ class PE:
             self.__warnings.append(
                 "Error parsing export directory at RVA: 0x%x" % rva
             )
-            return
+            return None
 
         exports = []
 
@@ -5647,7 +5647,7 @@ class PE:
                 "RVA AddressOfFunctions in the export directory points to an invalid "
                 f"address: {export_dir.AddressOfFunctions:x}"
             )
-            return
+            return None
 
         if not exports and export_dir.all_zeroes():
             return None
