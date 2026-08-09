@@ -7839,10 +7839,11 @@ class PE:
 
         # This is not reliable either...
         #
-        # if any((section.Characteristics &
-        #           SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_NOT_PAGED']) for
-        #        section in self.sections ):
-        #    return True
+        # if any(
+        #     (section.Characteristics & SECTION_CHARACTERISTICS['IMAGE_SCN_MEM_NOT_PAGED'])
+        #     for section in pe.sections
+        # ):
+        #     return True
 
         # If the import directory was not parsed (fast_load = True); do it now.
         if not hasattr(self, "DIRECTORY_ENTRY_IMPORT"):
