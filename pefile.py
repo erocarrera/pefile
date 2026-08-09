@@ -766,7 +766,7 @@ class UnicodeStringWrapperPostProcessor:
         except PEFormatError:
             self.pe.get_warnings().append(
                 "Failed rendering pascal string, "
-                "attempting to read from RVA 0x{0:x}".format(self.rva_ptr + 2)
+                f"attempting to read from RVA 0x{self.rva_ptr + 2:x}"
             )
 
     def get_pascal_16_length(self):
@@ -801,7 +801,7 @@ class UnicodeStringWrapperPostProcessor:
         except PEFormatError:
             self.pe.get_warnings().append(
                 "Failed rendering unicode string, "
-                "attempting to read from RVA 0x{0:x}".format(self.rva_ptr)
+                f"attempting to read from RVA 0x{self.rva_ptr:x}"
             )
 
 
@@ -853,7 +853,7 @@ class Dump:
 
     def get_text(self):
         """Get the text in its current state."""
-        return "".join("{0}".format(b) for b in self.text)
+        return "".join(f"{b}" for b in self.text)
 
 
 STRUCT_SIZEOF_TYPES = {
@@ -907,7 +907,7 @@ def set_format(format):
                 if elm_name in __keys__:
                     search_list = [x[: len(elm_name)] for x in __keys__]
                     occ_count = search_list.count(elm_name)
-                    elm_name = "{0}_{1:d}".format(elm_name, occ_count)
+                    elm_name = f"{elm_name}_{occ_count:d}"
                 names.append(elm_name)
                 __field_offsets__[elm_name] = offset
 
@@ -1033,7 +1033,7 @@ class Structure:
     def dump(self, indentation=0):
         """Returns a string representation of the structure."""
 
-        dump = ["[{0}]".format(self.name)]
+        dump = [f"[{self.name}]"]
 
         printable_bytes = [
             ord(i) for i in string.printable if i not in string.whitespace
@@ -1046,9 +1046,9 @@ class Structure:
                 val = getattr(self, key)
                 if isinstance(val, int):
                     if key.startswith("Signature_"):
-                        val_str = "{:<8X}".format(val)
+                        val_str = f"{val:<8X}"
                     else:
-                        val_str = "0x{:<8X}".format(val)
+                        val_str = f"0x{val:<8X}"
                     if key == "TimeDateStamp" or key == "dwTimeStamp":
                         try:
                             val_str += " [%s UTC]" % time.asctime(time.gmtime(val))
@@ -1058,14 +1058,14 @@ class Structure:
                     val_str = bytearray(val)
                     if key.startswith("Signature"):
                         val_str = "".join(
-                            ["{:02X}".format(i) for i in val_str.rstrip(b"\x00")]
+                            [f"{i:02X}" for i in val_str.rstrip(b"\x00")]
                         )
                     else:
                         val_str = "".join(
                             [
                                 chr(i)
                                 if (i in printable_bytes)
-                                else "\\x{0:02x}".format(i)
+                                else f"\\x{i:02x}"
                                 for i in val_str.rstrip(b"\x00")
                             ]
                         )
@@ -2162,7 +2162,7 @@ class PrologEpilogOpEpilogMarker(PrologEpilogOp):
         self._first = not hasattr(unw_info, "SizeOfEpilog")
         super().initialize(unw_code, data, unw_info, file_offset)
         if self._first:
-            setattr(unw_info, "SizeOfEpilog", self.struct.Size)
+            unw_info.SizeOfEpilog = self.struct.Size
             self._long_offst = unw_code.OpInfo & 1 == 0
         self._epilog_size = unw_info.SizeOfEpilog
 
@@ -3035,7 +3035,7 @@ class PE:
                     # Windows
                     self.__data__ = mmap.mmap(self.fileno, 0, access=mmap.ACCESS_READ)
                 self.__from_file = True
-            except IOError as excp:
+            except OSError as excp:
                 exception_msg = f"{excp}"
                 exception_msg = exception_msg and (": %s" % exception_msg)
                 raise Exception(
@@ -3063,10 +3063,10 @@ class PE:
                     byte != 0 and byte_count / len(self.__data__) > 0.15
                 ):
                     self.__warnings.append(
-                        (
-                            "Byte 0x{0:02x} makes up {1:.4f}% of the file's contents. "
+                        
+                            f"Byte 0x{byte:02x} makes up {100.0 * byte_count / len(self.__data__):.4f}% of the file's contents. "
                             "This may indicate truncation / malformation."
-                        ).format(byte, 100.0 * byte_count / len(self.__data__))
+                        
                     )
 
         dos_header_data = self.__data__[:64]
@@ -3216,9 +3216,7 @@ class PE:
             raise PEFormatError("No Optional Header found, invalid PE32 or PE32+ file.")
         if self.PE_TYPE is None:
             self.__warnings.append(
-                "Invalid type 0x{0:04x} in Optional Header.".format(
-                    self.OPTIONAL_HEADER.Magic
-                )
+                f"Invalid type 0x{self.OPTIONAL_HEADER.Magic:04x} in Optional Header."
             )
 
         dll_characteristics_flags = retrieve_flags(
@@ -3387,7 +3385,7 @@ class PE:
             # subsequent parsing will fail. It's not impossible that we retrieve
             # truncated data that is not a multiple.
             rich_data = rich_data[: 4 * (len(rich_data) // 4)]
-            data = list(struct.unpack("<{0}I".format(len(rich_data) // 4), rich_data))
+            data = list(struct.unpack(f"<{len(rich_data) // 4}I", rich_data))
             if RICH not in data:
                 return None
         except PEFormatError:
@@ -3562,9 +3560,7 @@ class PE:
         for i in range(self.FILE_HEADER.NumberOfSections):
             if i >= MAX_SECTIONS:
                 self.__warnings.append(
-                    "Too many sections {0} (>={1})".format(
-                        self.FILE_HEADER.NumberOfSections, MAX_SECTIONS
-                    )
+                    f"Too many sections {self.FILE_HEADER.NumberOfSections} (>={MAX_SECTIONS})"
                 )
                 break
             simultaneous_errors = 0
@@ -3928,10 +3924,10 @@ class PE:
                 )
             if not section:
                 self.__warnings.append(
-                    (
+                    
                         "RVA of IMAGE_BOUND_IMPORT_DESCRIPTOR points "
-                        "to an invalid address: {0:x}"
-                    ).format(rva)
+                        f"to an invalid address: {rva:x}"
+                    
                 )
                 return
 
@@ -4475,7 +4471,7 @@ class PE:
                     # Checking for positive size here to ensure proper parsing.
                     if pdbFileName_size > 0:
                         __CV_INFO_PDB70_format__[1].append(
-                            "{0}s,PdbFileName".format(pdbFileName_size)
+                            f"{pdbFileName_size}s,PdbFileName"
                         )
                     dbg_type = self.__unpack_data__(
                         __CV_INFO_PDB70_format__, dbg_type_data, dbg_type_offset
@@ -4522,7 +4518,7 @@ class PE:
                     if pdbFileName_size > 0:
                         # Add the last variable-length string field.
                         __CV_INFO_PDB20_format__[1].append(
-                            "{0}s,PdbFileName".format(pdbFileName_size)
+                            f"{pdbFileName_size}s,PdbFileName"
                         )
                     dbg_type = self.__unpack_data__(
                         __CV_INFO_PDB20_format__, dbg_type_data, dbg_type_offset
@@ -4568,7 +4564,7 @@ class PE:
                         # here to ensure proper parsing.
                         if data_size > 0:
                             ___IMAGE_DEBUG_MISC_format__[1].append(
-                                "{0}s,Data".format(data_size)
+                                f"{data_size}s,Data"
                             )
                         dbg_type = self.__unpack_data__(
                             ___IMAGE_DEBUG_MISC_format__, dbg_type_data, dbg_type_offset
@@ -5000,9 +4996,7 @@ class PE:
         except PEFormatError:
             self.__warnings.append(
                 "Error parsing the version information, "
-                "attempting to read OffsetToData with RVA: 0x{:x}".format(
-                    version_struct.OffsetToData
-                )
+                f"attempting to read OffsetToData with RVA: 0x{version_struct.OffsetToData:x}"
             )
             return
         raw_data = self.__data__[start_offset : start_offset + version_struct.Size]
@@ -5046,7 +5040,7 @@ class PE:
 
         if versioninfo_string is None:
             self.__warnings.append(
-                "Invalid VS_VERSION_INFO block: {0}".format(versioninfo_string)
+                f"Invalid VS_VERSION_INFO block: {versioninfo_string}"
             )
             return
 
@@ -5057,9 +5051,7 @@ class PE:
                 excerpt = versioninfo_string[:128].decode("ascii")
                 # Don't leave any half-escaped characters
                 excerpt = excerpt[: excerpt.rfind("\\u")]
-                versioninfo_string = "{0} ... ({1} bytes, too long to display)".format(
-                    excerpt, len(versioninfo_string)
-                ).encode()
+                versioninfo_string = f"{excerpt} ... ({len(versioninfo_string)} bytes, too long to display)".encode()
             self.__warnings.append(
                 "Invalid VS_VERSION_INFO block: {0}".format(
                     versioninfo_string.decode("ascii").replace("\00", "\\00")
@@ -5137,7 +5129,7 @@ class PE:
                 self.__warnings.append(
                     "Error parsing the version information, "
                     "attempting to read StringFileInfo string. Can't "
-                    "read unicode string at offset 0x{0:x}".format(ustr_offset)
+                    f"read unicode string at offset 0x{ustr_offset:x}"
                 )
                 break
 
@@ -5186,9 +5178,7 @@ class PE:
                             self.__warnings.append(
                                 "Error parsing the version information, "
                                 "attempting to read StringTable string. Can't "
-                                "read unicode string at offset 0x{0:x}".format(
-                                    ustr_offset
-                                )
+                                f"read unicode string at offset 0x{ustr_offset:x}"
                             )
                             break
 
@@ -5232,9 +5222,7 @@ class PE:
                                 self.__warnings.append(
                                     "Error parsing the version information, "
                                     "attempting to read StringTable Key string. Can't "
-                                    "read unicode string at offset 0x{0:x}".format(
-                                        ustr_offset
-                                    )
+                                    f"read unicode string at offset 0x{ustr_offset:x}"
                                 )
                                 break
 
@@ -5336,9 +5324,7 @@ class PE:
                             self.__warnings.append(
                                 "Error parsing the version information, "
                                 "attempting to read VarFileInfo Var string. "
-                                "Can't read unicode string at offset 0x{0:x}".format(
-                                    ustr_offset
-                                )
+                                f"Can't read unicode string at offset 0x{ustr_offset:x}"
                             )
                             break
 
@@ -5543,8 +5529,8 @@ class PE:
                 break
             elif len(symbol_counts) > self.max_symbol_exports:
                 self.__warnings.append(
-                    "Export directory contains more than {} symbol entries. "
-                    "Assuming corrupt.".format(self.max_symbol_exports)
+                    f"Export directory contains more than {self.max_symbol_exports} symbol entries. "
+                    "Assuming corrupt."
                 )
                 break
 
@@ -5620,10 +5606,8 @@ class PE:
                 if symbol_counts[symbol_address] > self.max_repeated_symbol:
                     # if most_common and most_common[0][1] > 10:
                     self.__warnings.append(
-                        "Export directory contains more than {} repeated "
-                        "ordinal entries (0x{:x}). Assuming corrupt.".format(
-                            self.max_repeated_symbol, symbol_address
-                        )
+                        f"Export directory contains more than {self.max_repeated_symbol} repeated "
+                        f"ordinal entries (0x{symbol_address:x}). Assuming corrupt."
                     )
                     break
                 elif len(symbol_counts) > self.max_symbol_exports:
@@ -5743,13 +5727,13 @@ class PE:
             except PEFormatError as excp:
                 self.__warnings.append(
                     "Error parsing the Delay import directory. "
-                    "Invalid import data at RVA: 0x{0:x} ({1})".format(rva, excp.value)
+                    f"Invalid import data at RVA: 0x{rva:x} ({excp.value})"
                 )
 
             if error_count > 5:
                 self.__warnings.append(
                     "Too many errors parsing the Delay import directory. "
-                    "Invalid import data at RVA: 0x{0:x}".format(rva)
+                    f"Invalid import data at RVA: 0x{rva:x}"
                 )
                 break
 
@@ -6648,10 +6632,10 @@ class PE:
                     flags.append(flag[0])
             dump.add_line(", ".join(flags))
             dump.add_line(
-                "Entropy: {0:f} (Min=0.0, Max=8.0)".format(section.get_entropy())
+                f"Entropy: {section.get_entropy():f} (Min=0.0, Max=8.0)"
             )
             if md5 is not None:
-                dump.add_line("MD5     hash: {0}".format(section.get_hash_md5()))
+                dump.add_line(f"MD5     hash: {section.get_hash_md5()}")
             if sha1 is not None:
                 dump.add_line("SHA-1   hash: %s" % section.get_hash_sha1())
             if sha256 is not None:
@@ -6798,7 +6782,7 @@ class PE:
                         )
 
                     if symbol.bound:
-                        dump.add_line(" Bound: 0x{0:08X}".format(symbol.bound))
+                        dump.add_line(f" Bound: 0x{symbol.bound:08X}")
                     else:
                         dump.add_newline()
                 dump.add_newline()
@@ -6848,7 +6832,7 @@ class PE:
                         )
 
                     if symbol.bound:
-                        dump.add_line(" Bound: 0x{0:08X}".format(symbol.bound))
+                        dump.add_line(f" Bound: 0x{symbol.bound:08X}")
                     else:
                         dump.add_newline()
                 dump.add_newline()
@@ -6958,7 +6942,7 @@ class PE:
                 try:
                     dump.add_line("Type: " + DEBUG_TYPE[dbg.struct.Type])
                 except KeyError:
-                    dump.add_line("Type: 0x{0:x}(Unknown)".format(dbg.struct.Type))
+                    dump.add_line(f"Type: 0x{dbg.struct.Type:x}(Unknown)")
                 dump.add_newline()
                 if dbg.entry:
                     dump.add_lines(dbg.entry.dump(), 4)
