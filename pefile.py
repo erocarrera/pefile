@@ -958,7 +958,7 @@ class Structure:
         ) = set_format(d)
 
         self.__file_offset__ = file_offset
-        self.__unpacked_data_elms__ = [None] * self.__keys__
+        self.__unpacked_data_elms__ = [None] * len(self.__keys__)
         self.__all_zeroes__ = False
 
     def __get_format__(self) -> str:
