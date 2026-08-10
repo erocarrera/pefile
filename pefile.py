@@ -888,6 +888,7 @@ def sizeof_type(t):
 
 @lru_cache_copy(maxsize=2048)
 def set_format(format):
+    # Format is forced little endian, for big endian non-Intel platforms
     __format_str__ = "<"
     __field_offsets__ = {}
     __keys__ = []
@@ -934,12 +935,6 @@ class Structure:
     """
 
     def __init__(self, format, name=None, file_offset=None):
-        # Format is forced little endian, for big endian non-Intel platforms
-        self.__format_str__ = "<"
-        self.__field_offsets__ = {}
-        self.__keys__ = []
-        self.__format_length__ = 0
-
         if name:
             self.name = name
         else:
