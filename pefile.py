@@ -1379,7 +1379,7 @@ def set_bitfields_format(format):
         ac.add_subfield(elm_name, elm_bits)
     ac.wrap_up()
 
-    format_str, _, field_offsets, keys, format_length = set_format(tuple(old_fmt))
+    format_str, field_offsets, keys, format_length = set_format(tuple(old_fmt))
 
     extended_keys = []
     for idx, val in enumerate(keys):
