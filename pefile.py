@@ -889,7 +889,6 @@ def sizeof_type(t):
 @lru_cache_copy(maxsize=2048)
 def set_format(format):
     __format_str__ = "<"
-    __unpacked_data_elms__ = []
     __field_offsets__ = {}
     __keys__ = []
     __format_length__ = 0
@@ -899,7 +898,6 @@ def set_format(format):
         if "," in elm:
             elm_type, elm_name = elm.split(",", 1)
             __format_str__ += elm_type
-            __unpacked_data_elms__.append(None)
 
             elm_names = elm_name.split(",")
             names = []
@@ -922,7 +920,6 @@ def set_format(format):
 
     return (
         __format_str__,
-        __unpacked_data_elms__,
         __field_offsets__,
         __keys__,
         __format_length__,
@@ -939,29 +936,29 @@ class Structure:
     def __init__(self, format, name=None, file_offset=None):
         # Format is forced little endian, for big endian non-Intel platforms
         self.__format_str__ = "<"
-        self.__unpacked_data_elms__ = []
         self.__field_offsets__ = {}
         self.__keys__ = []
         self.__format_length__ = 0
-
-        d = format[1]
-        # need a tuple to be hashable in set_format using lru cache
-        if not isinstance(d, tuple):
-            d = tuple(d)
-
-        (
-            self.__format_str__,
-            self.__unpacked_data_elms__,
-            self.__field_offsets__,
-            self.__keys__,
-            self.__format_length__,
-        ) = set_format(d)
 
         if name:
             self.name = name
         else:
             self.name = format[0]
+        d = format[1]
+
+        # Need a tuple to be hashable in set_format using lru cache
+        if not isinstance(d, tuple):
+            d = tuple(d)
+
+        (
+            self.__format_str__,
+            self.__field_offsets__,
+            self.__keys__,
+            self.__format_length__,
+        ) = set_format(d)
+
         self.__file_offset__ = file_offset
+        self.__unpacked_data_elms__ = [None] * self.__keys__
         self.__all_zeroes__ = False
 
     def __get_format__(self) -> str:
