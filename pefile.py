@@ -3207,9 +3207,6 @@ class PE:
                         file_offset=optional_header_offset,
                     )
 
-        if not self.FILE_HEADER:
-            raise PEFormatError("File Header missing")
-
         # Die gracefully if there is no OPTIONAL_HEADER field
         # 975440f5ad5e2e4a92c4d9a5f22f75c1
         if self.OPTIONAL_HEADER is None:
