@@ -4031,11 +4031,11 @@ class PE:
             )
             return None
 
-        # load config directory size can be less than represented by 'format' variable,
-        # generate truncated format which correspond load config directory size
+        # load config directory size can be less than represented by 'fmt' variable;
+        # generate truncated fmt corresponding to the load config directory size
         fields_counter = 0
         cumulative_sz = 0
-        for field in format[1]:
+        for field in fmt[1]:
             fields_counter += 1
             cumulative_sz += STRUCT_SIZEOF_TYPES[field.split(",")[0]]
             if cumulative_sz == load_config_dir_sz:
