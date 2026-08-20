@@ -1781,7 +1781,6 @@ class LoadConfigData(DataContainer):
     """Holds Load Config data.
 
     struct:     IMAGE_LOAD_CONFIG_DIRECTORY structure
-    name:       dll name
     dynamic_relocations: dynamic relocation information, if present
     """
 
@@ -4021,10 +4020,10 @@ class PE:
 
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
             load_config_dir_sz = self.get_dword_at_rva(rva)
-            format = self.__IMAGE_LOAD_CONFIG_DIRECTORY_format__
+            fmt = self.__IMAGE_LOAD_CONFIG_DIRECTORY_format__
         elif self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE_PLUS:
             load_config_dir_sz = self.get_dword_at_rva(rva)
-            format = self.__IMAGE_LOAD_CONFIG_DIRECTORY64_format__
+            fmt = self.__IMAGE_LOAD_CONFIG_DIRECTORY64_format__
         else:
             self.__warnings.append(
                 "Don't know how to parse LOAD_CONFIG information for non-PE32/"
@@ -4032,22 +4031,22 @@ class PE:
             )
             return None
 
-        # load config directory size can be less than represented by 'format' variable,
-        # generate truncated format which correspond load config directory size
+        # load config directory size can be less than represented by 'fmt' variable;
+        # generate truncated fmt corresponding to the load config directory size
         fields_counter = 0
         cumulative_sz = 0
-        for field in format[1]:
+        for field in fmt[1]:
             fields_counter += 1
             cumulative_sz += STRUCT_SIZEOF_TYPES[field.split(",")[0]]
             if cumulative_sz == load_config_dir_sz:
                 break
-        format = (format[0], format[1][:fields_counter])
+        fmt = fmt[0], fmt[1][:fields_counter]
 
-        load_config_struct = None
+        load_config = None
         try:
-            load_config_struct = self.__unpack_data__(
-                format,
-                self.get_data(rva, Structure(format).sizeof()),
+            load_config = self.__unpack_data__(
+                fmt,
+                self.get_data(rva, Structure(fmt).sizeof()),
                 file_offset=self.get_offset_from_rva(rva),
             )
         except PEFormatError:
@@ -4055,18 +4054,18 @@ class PE:
                 "Invalid LOAD_CONFIG information. Can't read " "data at RVA: 0x%x" % rva
             )
 
-        if not load_config_struct:
+        if not load_config:
             return None
 
         dynamic_relocations = None
         if fields_counter > 35:
             dynamic_relocations = self.parse_dynamic_relocations(
-                load_config_struct.DynamicValueRelocTableOffset,
-                load_config_struct.DynamicValueRelocTableSection,
+                load_config.DynamicValueRelocTableOffset,
+                load_config.DynamicValueRelocTableSection,
             )
 
         return LoadConfigData(
-            struct=load_config_struct, dynamic_relocations=dynamic_relocations
+            struct=load_config, dynamic_relocations=dynamic_relocations
         )
 
     def parse_dynamic_relocations(
