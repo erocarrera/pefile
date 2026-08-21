@@ -40,7 +40,7 @@ class SignatureDatabase:
         # RegExp to match a signature block
         self.parse_sig = re.compile(
             r"\[(.*?)\]\s+?signature\s*=\s*(.*?)(\s+\?\?)*\s*ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)",
-            re.S,
+            re.DOTALL,
         )
 
         # Signature information
@@ -138,12 +138,7 @@ class SignatureDatabase:
         else:
             section_start_only = "false"
 
-        signature = "[{}]\nsignature = {}\nep_only = {}\nsection_start_only = {}\n".format(
-            name,
-            signature_bytes,
-            ep_only,
-            section_start_only,
-        )
+        signature = f"[{name}]\nsignature = {signature_bytes}\nep_only = {ep_only}\nsection_start_only = {section_start_only}\n"
 
         return signature
 
@@ -196,7 +191,7 @@ class SignatureDatabase:
             # look once loaded in memory
             try:
                 data = pe.__data__
-            except Exception as excp:
+            except Exception:
                 raise
 
             # Load the corresponding tree of signatures
@@ -211,7 +206,7 @@ class SignatureDatabase:
             # look once loaded in memory
             try:
                 data = pe.get_memory_mapped_image()
-            except Exception as excp:
+            except Exception:
                 raise
 
             # Load the corresponding tree of signatures
@@ -453,13 +448,11 @@ class SignatureDatabase:
                 tree = tree[byte]
                 depth += 1
 
-            if depth > self.max_depth:
-                self.max_depth = depth
+            self.max_depth = max(self.max_depth, depth)
 
 
 def is_valid(pe):
     """"""
-    pass
 
 
 def is_suspicious(pe):
@@ -511,7 +504,6 @@ def is_suspicious(pe):
 
     # If compressed data (high entropy) and is_driver => uuuuhhh, nasty
 
-    pass
 
 
 def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):
