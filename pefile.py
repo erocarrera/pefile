@@ -3710,9 +3710,8 @@ class PE:
         attribute will not have a `symbols` attribute.
         """
 
-        if directories is not None:
-            if not isinstance(directories, (tuple, list)):
-                directories = [directories]
+        if directories is not None and not isinstance(directories, (tuple, list)):
+            directories = [directories]
 
         directory_parsing = (
             ("IMAGE_DIRECTORY_ENTRY_EXPORT", self.parse_export_directory),
@@ -6515,9 +6514,8 @@ class PE:
 
         # if we look a lot of times at RVA in the same section, "cache" the last used section
         # to speedup lookups (very useful when parsing import table)
-        if self._get_section_by_rva_last_used is not None:
-            if self._get_section_by_rva_last_used.contains_rva(rva):
-                return self._get_section_by_rva_last_used
+        if self._get_section_by_rva_last_used is not None and self._get_section_by_rva_last_used.contains_rva(rva):
+            return self._get_section_by_rva_last_used
 
         for section in self.sections:
             if section.contains_rva(rva):
@@ -6534,9 +6532,8 @@ class PE:
         return hasattr(self, "DIRECTORY_ENTRY_BASERELOC")
 
     def has_dynamic_relocs(self):
-        if hasattr(self, "DIRECTORY_ENTRY_LOAD_CONFIG"):
-            if self.DIRECTORY_ENTRY_LOAD_CONFIG.dynamic_relocations:
-                return True
+        if hasattr(self, "DIRECTORY_ENTRY_LOAD_CONFIG") and self.DIRECTORY_ENTRY_LOAD_CONFIG.dynamic_relocations:
+            return True
 
         return False
 
