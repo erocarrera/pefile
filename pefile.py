@@ -3869,7 +3869,7 @@ class PE:
         return rt_funcs
 
     def parse_directory_bound_imports(self, rva, size):
-        """"""
+        """Parse the bound import table."""
 
         bnd_descr = Structure(self.__IMAGE_BOUND_IMPORT_DESCRIPTOR_format__)
         bnd_descr_size = bnd_descr.sizeof()
@@ -3988,7 +3988,7 @@ class PE:
         return bound_imports
 
     def parse_directory_tls(self, rva, size):
-        """"""
+        """Parse the thread local storage (TLS) table."""
 
         # By default let's pretend the format is a 32-bit PE. It may help
         # produce some output for files where the Magic in the Optional Header
@@ -4016,7 +4016,7 @@ class PE:
         return TlsData(struct=tls_struct)
 
     def parse_directory_load_config(self, rva, size):
-        """"""
+        """Parse the load configuration table."""
 
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
             load_config_dir_sz = self.get_dword_at_rva(rva)
@@ -4170,7 +4170,7 @@ class PE:
         return dynamic_relocations
 
     def parse_function_override_data(self, rva):
-        """"""
+        """Parse function override data."""
         func_relocs = []
         bdd_relocs = []
 
@@ -4257,7 +4257,7 @@ class PE:
         return func_relocs, bdd_relocs
 
     def parse_relocations_directory(self, rva, size):
-        """"""
+        """Parse the base relocation table."""
         return self.parse_image_base_relocation_list(rva, size)
 
     def parse_image_base_relocation_list(self, rva, size, fmt=None):
@@ -4319,7 +4319,7 @@ class PE:
         return relocations
 
     def parse_relocations(self, data_rva, rva, size):
-        """"""
+        """Parse relocations."""
 
         try:
             data = self.get_data(data_rva, size)
@@ -4362,7 +4362,7 @@ class PE:
         return entries
 
     def parse_relocations_with_format(self, data_rva, rva, size, format):
-        """"""
+        """Parse relocations with format."""
 
         try:
             data = self.get_data(data_rva, size)
@@ -4401,7 +4401,7 @@ class PE:
         return entries
 
     def parse_debug_directory(self, rva, size):
-        """"""
+        """Parse the debug data."""
 
         dbg_size = Structure(self.__IMAGE_DEBUG_DIRECTORY_format__).sizeof()
 
