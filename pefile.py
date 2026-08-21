@@ -890,9 +890,9 @@ def sizeof_type(t):
 def set_format(format):
     # Format is forced little endian, for big endian non-Intel platforms
     __format_str__ = "<"
+    __format_length__ = 0
     __field_offsets__ = {}
     __keys__ = []
-    __format_length__ = 0
 
     offset = 0
     for elm in format:
@@ -921,9 +921,9 @@ def set_format(format):
 
     return (
         __format_str__,
+        __format_length__,
         __field_offsets__,
         __keys__,
-        __format_length__,
     )
 
 
@@ -947,9 +947,9 @@ class Structure:
 
         (
             self.__format_str__,
+            self.__format_length__,
             self.__field_offsets__,
             self.__keys__,
-            self.__format_length__,
         ) = set_format(d)
 
         self.__file_offset__ = file_offset
@@ -1374,7 +1374,7 @@ def set_bitfields_format(format):
         ac.add_subfield(elm_name, elm_bits)
     ac.wrap_up()
 
-    format_str, field_offsets, keys, format_length = set_format(tuple(old_fmt))
+    format_str, format_length, field_offsets, keys = set_format(tuple(old_fmt))
 
     extended_keys = []
     for idx, val in enumerate(keys):
