@@ -85,7 +85,7 @@ EXPECT_NAMES = [
 ]
 
 
-class Test_exports(unittest.TestCase):
+class TestExports(unittest.TestCase):
     def test_exports32(self):
         """Iterate all exports of the 32 bit binary, and validate that they are all accepted"""
         # Update all the symbol addresses to be __ImageBase+0x01

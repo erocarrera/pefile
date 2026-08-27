@@ -1,0 +1,94 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pefile"
+dynamic = ["version"]
+description = "A Portable Executable (PE) parsing module"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.6.0"
+authors = [
+    { name = "Ero Carrera", email = "ero.carrera@gmail.com" },
+]
+keywords = ["pe", "pecoff", "pefile", "exe", "dll"]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "coverage",
+    "tox",
+    "tox-gh-actions",
+    "flake8",
+]
+
+[project.urls]
+Homepage = "https://github.com/erocarrera/pefile"
+Source = "https://github.com/erocarrera/pefile"
+"Bug Tracker" = "https://github.com/erocarrera/pefile/issues"
+Download = "https://github.com/erocarrera/pefile/releases"
+
+# Read __version__ from pefile.py
+[tool.hatch.version]
+path = "pefile.py"
+
+
+# Hatchling does not auto-detect root-level .py files
+[tool.hatch.build.targets.wheel]
+include = [
+    "/pefile.py",
+    "/peutils.py",
+    "/ordlookup",
+]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/pefile.py",
+    "/peutils.py",
+    "/ordlookup",
+    "/CITATION.cff",
+    "/LICENSE",
+    "/README.md",
+    "/pyproject.toml",
+]
+
+# Tox configuration, previously in tox.ini
+[tool.tox]
+legacy_tox_ini = """
+[tox]
+envlist = py38,py39,py310,py311,py312,coverage
+
+[testenv]
+deps =
+    pytest
+    coverage
+commands =
+    python -m coverage run -p -m pytest --ignore=./tests/pefile_test.py
+
+[testenv:coverage]
+basepython = python3.10
+commands =
+    python -m coverage combine
+    python -m coverage report --show-missing --skip-covered --ignore-errors
+    python -m coverage json --ignore-errors
+
+[gh-actions]
+python =
+    3.8: py38
+    3.9: py39
+    3.10: py310
+    3.11: py311
+    3.12: py312
+"""

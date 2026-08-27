@@ -2,6 +2,9 @@ name: pefile tests
 
 on: [push, pull_request, workflow_dispatch]
 
+permissions:
+  contents: read
+
 jobs:
   tests:
     name: "Python ${{ matrix.python-version }} on ${{ matrix.os }}"
@@ -29,13 +32,13 @@ jobs:
 
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        uses: actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1 # v6.3.0
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
@@ -50,7 +53,7 @@ jobs:
           flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
 
       - name: Clone https://github.com/erocarrera/pefile-tests
-        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: erocarrera/pefile-tests
           path: ./pefile-tests
@@ -61,10 +64,11 @@ jobs:
 
       - if: ${{matrix.coverage}}
         name: "Upload coverage data"
-        uses: actions/upload-artifact@1746f4ab65b179e0ea60a494b83293b640dd5bba # v4.3.2
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: covdata
           path: .coverage.*
+          include-hidden-files: true
 
   coverage:
     name: Coverage
@@ -72,15 +76,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@63c24ba6bd7ba022e95695ff85de572c04a18142 # v2.7.0
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
 
       - name: "Check out the repo"
-        uses: "actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11"  # v4.1.1
+        uses: "actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0"  # v7.0.0
 
       - name: "Set up Python"
-        uses: "actions/setup-python@82c7e631bb3cdc910f68e0081d67478d79c6982d"  # v5.1.0
+        uses: "actions/setup-python@ece7cb06caefa5fff74198d8649806c4678c61a1"  # v6.3.0
         with:
           python-version: "3.10"
 
@@ -90,7 +94,7 @@ jobs:
           python -m pip install tox tox-gh-actions
 
       - name: "Download coverage data"
-        uses: actions/download-artifact@8caf195ad4b1dee92908e23f56eeb0696f1dd42d # v4.1.5
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: covdata
 
@@ -103,7 +107,7 @@ jobs:
 
       - name: "Make badge"
         if: github.event_name == 'push' && github.ref == 'refs/heads/master' && github.repository == 'erocarrera/pefile'
-        uses: schneegans/dynamic-badges-action@e9a478b16159b4d31420099ba146cdc50f134483 # v1.7.0
+        uses: schneegans/dynamic-badges-action@28b0fa8bdeb46170ac397105ece0c1fe58f68910 # v1.9.0
         with:
           # GIST_TOKEN is a GitHub personal access token with scope "gist".
           auth: ${{ secrets.GIST_TOKEN }}
