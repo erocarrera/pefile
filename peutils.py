@@ -22,12 +22,12 @@ class SignatureDatabase:
 
     Usage:
 
-        sig_db = SignatureDatabase('/path/to/signature/file')
+        signatures = SignatureDatabase('/path/to/signature/file')
 
     and/or
 
-        sig_db = SignatureDatabase()
-        sig_db.load('/path/to/signature/file')
+        signatures = SignatureDatabase()
+        signatures.load('/path/to/signature/file')
 
     Signature databases can be combined by performing multiple loads.
 
@@ -78,7 +78,7 @@ class SignatureDatabase:
 
         section_signatures = []
 
-        for idx, section in enumerate(pe.sections):
+        for idx, section in enumerate(pe.sections, start=1):
 
             if section.SizeOfRawData < sig_length:
                 continue
@@ -88,7 +88,7 @@ class SignatureDatabase:
 
             sig_name = "%s Section(%d/%d,%s)" % (
                 name,
-                idx + 1,
+                idx,
                 len(pe.sections),
                 "".join(c for c in section.Name if c in string.printable),
             )
@@ -239,9 +239,8 @@ class SignatureDatabase:
         # Return only the matched items found at the entry point if
         # ep_only is True (matches will have only one element in that
         # case)
-        if ep_only is True:
-            if matches:
-                return matches[0]
+        if ep_only is True and matches:
+            return matches[0]
 
         return matches
 
@@ -277,9 +276,8 @@ class SignatureDatabase:
         # Return only the matched items found at the entry point if
         # ep_only is True (matches will have only one element in that
         # case)
-        if ep_only:
-            if matches:
-                return matches[0]
+        if ep_only and matches:
+            return matches[0]
 
         return matches
 
@@ -370,9 +368,8 @@ class SignatureDatabase:
             else:
                 # Get the data for a file
                 try:
-                    sig_f = open(filename)
-                    sig_data = sig_f.read()
-                    sig_f.close()
+                    with open(filename, 'r') as f:
+                        sig_data = f.read()
                 except OSError:
                     # Let this be raised back to the user...
                     raise
@@ -422,27 +419,20 @@ class SignatureDatabase:
             depth = 0
 
             if section_start_only:
-
                 tree = self.signature_tree_section_start
                 self.signature_count_section_start += 1
-
+            elif ep_only:
+                tree = self.signature_tree_eponly_true
+                self.signature_count_eponly_true += 1
             else:
-                if ep_only:
-                    tree = self.signature_tree_eponly_true
-                    self.signature_count_eponly_true += 1
-                else:
-                    tree = self.signature_tree_eponly_false
-                    self.signature_count_eponly_false += 1
+                tree = self.signature_tree_eponly_false
+                self.signature_count_eponly_false += 1
 
-            for idx, byte in enumerate(signature_bytes):
-
-                if idx + 1 == len(signature_bytes):
-
+            for idx, byte in enumerate(signature_bytes, start=1):
+                if idx == len(signature_bytes):
                     tree[byte] = tree.get(byte, {})
                     tree[byte][packer_name] = None
-
                 else:
-
                     tree[byte] = tree.get(byte, {})
 
                 tree = tree[byte]
