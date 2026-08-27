@@ -4,7 +4,6 @@ import struct
 import sys
 import unittest
 from hashlib import sha256
-import struct
 
 import pefile
 
@@ -136,7 +135,7 @@ class TestPEFile(unittest.TestCase):
                     error_diff_f = open("error_diff.txt", "ab")
                     error_diff_f.write(b"\n________________________________________\n")
                     error_diff_f.write(
-                        'Errors for file "{0}":\n'.format(pe_filename).encode(
+                        f'Errors for file "{pe_filename}":\n'.encode(
                             "utf-8", "backslashreplace"
                         )
                     )
