@@ -45,13 +45,12 @@ class TestPEFile(unittest.TestCase):
                 pe_file_data = pe_file_data.replace("\n\r", "\n")
             except Exception as excp:
                 print(
-                    "Failed processing [%s] (%s)"
-                    % (os.path.basename(pe_filename), excp)
+                    f"Failed processing [{os.path.basename(pe_filename)}] ({excp})"
                 )
                 failed = True
                 continue
 
-            control_data_filename = "%s.dmp" % pe_filename
+            control_data_filename = f"{pe_filename}.dmp"
 
             if not os.path.exists(control_data_filename):
                 print(
@@ -79,7 +78,7 @@ class TestPEFile(unittest.TestCase):
             lines_to_ignore = 0
 
             if control_data_hash != pe_file_data_hash:
-                print("\nHash differs for [%s]" % os.path.basename(pe_filename))
+                print(f"\nHash differs for [{os.path.basename(pe_filename)}]")
 
                 control_file_lines = [
                     l for l in control_data.decode("utf-8").splitlines()
@@ -136,7 +135,7 @@ class TestPEFile(unittest.TestCase):
                     error_diff_f = open("error_diff.txt", "ab")
                     error_diff_f.write(b"\n________________________________________\n")
                     error_diff_f.write(
-                        'Errors for file "{0}":\n'.format(pe_filename).encode(
+                        f'Errors for file "{pe_filename}":\n'.encode(
                             "utf-8", "backslashreplace"
                         )
                     )
