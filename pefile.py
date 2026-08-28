@@ -841,7 +841,7 @@ class Dump:
 
         The text can be indented with the optional argument 'indent'.
         """
-        self.text.append("{0}{1}".format(" " * indent, txt))
+        self.text.append(f"{' ' * indent}{txt}")
 
     def add_header(self, txt):
         """Adds a header element."""
@@ -1026,9 +1026,7 @@ class Structure:
         return "\n".join(self.dump())
 
     def __repr__(self):
-        return "<Structure: %s>" % (
-            " ".join([" ".join(s.split()) for s in self.dump()])
-        )
+        return f"<Structure: {' '.join([' '.join(s.split()) for s in self.dump()])}>"
 
     def dump(self, indentation=0):
         """Returns a string representation of the structure."""
@@ -1051,7 +1049,7 @@ class Structure:
                         val_str = f"0x{val:<8X}"
                     if key == "TimeDateStamp" or key == "dwTimeStamp":
                         try:
-                            val_str += " [%s UTC]" % time.asctime(time.gmtime(val))
+                            val_str += f" [{time.asctime(time.gmtime(val))} UTC]"
                         except ValueError:
                             val_str += " [INVALID TIME]"
                 else:
@@ -1095,15 +1093,12 @@ class Structure:
                 if isinstance(val, int):
                     if key == "TimeDateStamp" or key == "dwTimeStamp":
                         try:
-                            val = "0x%-8X [%s UTC]" % (
-                                val,
-                                time.asctime(time.gmtime(val)),
-                            )
+                            val = f"0x{val:-8X} [{time.asctime(time.gmtime(val))} UTC]"
                         except ValueError:
-                            val = "0x%-8X [INVALID TIME]" % val
+                            val = f"0x{val:-8X} [INVALID TIME]"
                 else:
                     val = "".join(
-                        chr(d) if chr(d) in string.printable else "\\x%02x" % d
+                        chr(d) if chr(d) in string.printable else f"\\x{d:02x}"
                         for d in [ord(c) if not isinstance(c, int) else c for c in val]
                     )
 
@@ -3036,7 +3031,7 @@ class PE:
                 self.__from_file = True
             except OSError as excp:
                 exception_msg = f"{excp}"
-                exception_msg = exception_msg and (": %s" % exception_msg)
+                exception_msg = exception_msg and (f": {exception_msg}")
                 raise Exception(
                     f"Unable to access file '{fname}'{exception_msg}"
                 )
@@ -4005,7 +4000,7 @@ class PE:
             )
         except PEFormatError:
             self.__warnings.append(
-                "Invalid TLS information. Can't read " "data at RVA: 0x%x" % rva
+                f"Invalid TLS information. Can't read data at RVA: 0x{rva:x}"
             )
             tls_struct = None
 
@@ -4050,7 +4045,7 @@ class PE:
             )
         except PEFormatError:
             self.__warnings.append(
-                "Invalid LOAD_CONFIG information. Can't read " "data at RVA: 0x%x" % rva
+                f"Invalid LOAD_CONFIG information. Can't read data at RVA: 0x{rva:x}"
             )
 
         if not load_config:
@@ -4123,8 +4118,7 @@ class PE:
                 )
             except PEFormatError:
                 self.__warnings.append(
-                    "Invalid relocation information. Can't read "
-                    "data at RVA: 0x%x" % rva
+                    f"Invalid relocation information. Can't read data at RVA: 0x{rva:x}"
                 )
                 dynamic_rlc = None
 
@@ -4181,8 +4175,7 @@ class PE:
         )
         if not func_header:
             self.__warnings.append(
-                "Invalid function override header. Can't read "
-                "data at RVA: 0x%x" % rva
+                f"Invalid function override header. Can't read data at RVA: 0x{rva:x}"
             )
             return func_relocs, bdd_relocs
         rva += Structure(format).sizeof()
@@ -4198,8 +4191,7 @@ class PE:
             )
             if not func_info:
                 self.__warnings.append(
-                    "Invalid function override info. Can't read "
-                    "data at RVA: 0x%x" % rva
+                    f"Invalid function override info. Can't read data at RVA: 0x{rva:x}"
                 )
                 return func_relocs, bdd_relocs
             rva += Structure(format).sizeof()
@@ -4231,7 +4223,7 @@ class PE:
         )
         if not bdd_info:
             self.__warnings.append(
-                "Invalid bdd info. Can't read " "data at RVA: 0x%x" % rva
+                f"Invalid bdd info. Can't read data at RVA: 0x{rva:x}"
             )
             return func_relocs, bdd_relocs
         rva += Structure(format).sizeof()
@@ -4245,8 +4237,7 @@ class PE:
             )
             if not bdd_reloc:
                 self.__warnings.append(
-                    "Invalid bdd dynamic relocation. Can't read "
-                    "data at RVA: 0x%x" % rva
+                    f"Invalid bdd dynamic relocation. Can't read data at RVA: 0x{rva:x}"
                 )
                 return func_relocs, bdd_relocs
             rva += Structure(format).sizeof()
@@ -4275,8 +4266,7 @@ class PE:
                 )
             except PEFormatError:
                 self.__warnings.append(
-                    "Invalid relocation information. Can't read "
-                    "data at RVA: 0x%x" % rva
+                    f"Invalid relocation information. Can't read data at RVA: 0x{rva:x}"
                 )
                 rlc = None
 
@@ -4410,7 +4400,7 @@ class PE:
                 data = self.get_data(rva + dbg_size * idx, dbg_size)
             except PEFormatError:
                 self.__warnings.append(
-                    "Invalid debug information. Can't read " "data at RVA: 0x%x" % rva
+                    f"Invalid debug information. Can't read data at RVA: 0x{rva:x}"
                 )
                 return None
 
@@ -5350,7 +5340,7 @@ class PE:
 
                             if isinstance(word1, int) and isinstance(word2, int):
                                 var_struct.entry = {
-                                    var_string: "0x%04x 0x%04x" % (word1, word2)
+                                    var_string: f"0x{word1:04x} 0x{word2:04x}"
                                 }
 
                         var_offset = self.dword_align(
@@ -5395,7 +5385,7 @@ class PE:
             )
         except PEFormatError:
             self.__warnings.append(
-                "Error parsing export directory at RVA: 0x%x" % rva
+                f"Error parsing export directory at RVA: 0x{rva:x}"
             )
             return None
 
@@ -5432,7 +5422,7 @@ class PE:
             )
         except PEFormatError:
             self.__warnings.append(
-                "Error parsing export directory at RVA: 0x%x" % rva
+                f"Error parsing export directory at RVA: 0x{rva:x}"
             )
             return None
 
@@ -5665,7 +5655,7 @@ class PE:
                 )
             except PEFormatError:
                 self.__warnings.append(
-                    "Error parsing the Delay import directory at RVA: 0x%x" % rva
+                    f"Error parsing the Delay import directory at RVA: 0x{rva:x}"
                 )
                 break
 
@@ -5825,7 +5815,7 @@ class PE:
 
                 if isinstance(funcname, bytes):
                     funcname = funcname.decode()
-                impstrs.append("%s.%s" % (libname.lower(), funcname.lower()))
+                impstrs.append(f"{libname.lower()}.{funcname.lower()}")
 
         return md5(",".join(impstrs).encode(), usedforsecurity=usedforsecurity).hexdigest()
 
@@ -6630,11 +6620,11 @@ class PE:
             if md5 is not None:
                 dump.add_line(f"MD5     hash: {section.get_hash_md5()}")
             if sha1 is not None:
-                dump.add_line("SHA-1   hash: %s" % section.get_hash_sha1())
+                dump.add_line(f"SHA-1   hash: {section.get_hash_sha1()}")
             if sha256 is not None:
-                dump.add_line("SHA-256 hash: %s" % section.get_hash_sha256())
+                dump.add_line(f"SHA-256 hash: {section.get_hash_sha256()}")
             if sha512 is not None:
-                dump.add_line("SHA-512 hash: %s" % section.get_hash_sha512())
+                dump.add_line(f"SHA-512 hash: {section.get_hash_sha512()}")
             dump.add_newline()
 
         if hasattr(self, "OPTIONAL_HEADER") and hasattr(
@@ -6713,7 +6703,7 @@ class PE:
             dump.add_header("Exported symbols")
             dump.add_lines(self.DIRECTORY_ENTRY_EXPORT.struct.dump())
             dump.add_newline()
-            dump.add_line("%-10s   %-10s  %s" % ("Ordinal", "RVA", "Name"))
+            dump.add_line(f"{'Ordinal':10}   {'RVA':10}  Name")
             for export in self.DIRECTORY_ENTRY_EXPORT.symbols:
                 if export.address is not None:
                     name = b"None"
@@ -6785,9 +6775,7 @@ class PE:
             for bound_imp_desc in self.DIRECTORY_ENTRY_BOUND_IMPORT:
                 dump.add_lines(bound_imp_desc.struct.dump())
                 dump.add_line(
-                    "DLL: {0}".format(
-                        bound_imp_desc.name.decode(encoding, "backslashreplace_")
-                    )
+                    f"DLL: {bound_imp_desc.name.decode(encoding, 'backslashreplace_')}"
                 )
                 dump.add_newline()
 
@@ -6948,12 +6936,12 @@ class PE:
                 for reloc in base_reloc.entries:
                     try:
                         dump.add_line(
-                            "%08Xh %s" % (reloc.rva, RELOCATION_TYPE[reloc.type][16:]),
+                            f"{reloc.rva:08X}h {RELOCATION_TYPE[reloc.type][16:]}",
                             4,
                         )
                     except KeyError:
                         dump.add_line(
-                            "0x%08X 0x%x(Unknown)" % (reloc.rva, reloc.type), 4
+                            f"0x{reloc.rva:08X} 0x{reloc.type:x}(Unknown)", 4
                         )
                 dump.add_newline()
 
