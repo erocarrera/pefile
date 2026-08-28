@@ -1,5 +1,6 @@
 import difflib
 import os
+import struct
 import sys
 import unittest
 from hashlib import sha256
@@ -9,7 +10,7 @@ import pefile
 REGRESSION_TESTS_DIR = "tests/test_files"
 
 
-class Test_pefile(unittest.TestCase):
+class TestPEFile(unittest.TestCase):
     maxDiff = None
 
     def setUp(self):
@@ -43,13 +44,12 @@ class Test_pefile(unittest.TestCase):
                 pe_file_data = pe_file_data.replace("\n\r", "\n")
             except Exception as excp:
                 print(
-                    "Failed processing [%s] (%s)"
-                    % (os.path.basename(pe_filename), excp)
+                    f"Failed processing [{os.path.basename(pe_filename)}] ({excp})"
                 )
                 failed = True
                 continue
 
-            control_data_filename = "%s.dmp" % pe_filename
+            control_data_filename = f"{pe_filename}.dmp"
 
             if not os.path.exists(control_data_filename):
                 print(
@@ -77,7 +77,7 @@ class Test_pefile(unittest.TestCase):
             lines_to_ignore = 0
 
             if control_data_hash != pe_file_data_hash:
-                print("\nHash differs for [%s]" % os.path.basename(pe_filename))
+                print(f"\nHash differs for [{os.path.basename(pe_filename)}]")
 
                 control_file_lines = [
                     l for l in control_data.decode("utf-8").splitlines()
@@ -134,7 +134,7 @@ class Test_pefile(unittest.TestCase):
                     error_diff_f = open("error_diff.txt", "ab")
                     error_diff_f.write(b"\n________________________________________\n")
                     error_diff_f.write(
-                        'Errors for file "{0}":\n'.format(pe_filename).encode(
+                        f'Errors for file "{pe_filename}":\n'.encode(
                             "utf-8", "backslashreplace"
                         )
                     )
@@ -342,6 +342,56 @@ class Test_pefile(unittest.TestCase):
         control_file = os.path.join(REGRESSION_TESTS_DIR, "empty_file")
         self.assertRaises(pefile.PEFormatError, pefile.PE, control_file)
 
+    def test_virtual_size_less_than_raw_size(self):
+        """File-alignment padding must not bleed into the memory-mapped image.
+
+        When VirtualSize < SizeOfRawData the bytes beyond VirtualSize are
+        disk padding that the OS loader never maps.  The memory-mapped image
+        must end at VirtualAddress + VirtualSize, not VirtualAddress + SizeOfRawData.
+        """
+        vsize = 0x800
+        raw_size = 0x1000
+        pe = pefile.PE(data=_create_pe(vsize, raw_size))
+        image = pe.get_memory_mapped_image()
+
+        va = pe.sections[0].VirtualAddress
+        # Section content up to VirtualSize must be present.
+        self.assertEqual(
+            image[va : va + vsize],
+            b"\xCC" * vsize,
+            "section content must be preserved up to VirtualSize",
+        )
+        # The image must not extend past VirtualAddress + VirtualSize; raw
+        # file-padding bytes (0xCC beyond the boundary) must not be included.
+        self.assertEqual(
+            len(image),
+            va + vsize,
+            "mapped image must not include raw file-padding past VirtualSize",
+        )
+
+    def test_virtual_size_greater_than_raw_size(self):
+        """Uninitialized BSS region must be zero-padded in the memory-mapped image.
+
+        When SizeOfRawData < VirtualSize the bytes from SizeOfRawData up to
+        VirtualSize represent BSS and must be zero in the mapped view.
+        """
+        vsize = 0x1500
+        raw_size = 0x1000
+        pe = pefile.PE(data=_create_pe(vsize, raw_size))
+        image = pe.get_memory_mapped_image()
+
+        va = pe.sections[0].VirtualAddress
+        self.assertEqual(
+            image[va : va + raw_size],
+            b"\xCC" * raw_size,
+            "raw section content must be preserved",
+        )
+        self.assertEqual(
+            image[va + raw_size : va + vsize],
+            b"\x00" * (vsize - raw_size),
+            "BSS region (VirtualSize - SizeOfRawData) must be zero-padded",
+        )
+
     def test_relocated_memory_mapped_image(self):
         """Test different rebasing methods produce the same image"""
 
@@ -497,6 +547,17 @@ class Test_pefile(unittest.TestCase):
             pe.__data__[0:10],
         )
 
+    def test_low_alignment_section_pointer_to_raw_data(self):
+        # Issue #465: for low-alignment images (SectionAlignment < 0x1000) a
+        # section's PointerToRawData must not be rounded down to a sector
+        # boundary. Resource-only DLLs can have e.g. PointerToRawData 0x160 with
+        # VirtualAddress 0x1a0; rounding 0x160 down to 0 sent RVA->offset lookups
+        # into the MZ header, so the resource directory failed to parse.
+        pe = pefile.PE(data=_low_alignment_resource_pe())
+        self.assertEqual(pe.get_offset_from_rva(0x1A0), 0x160)
+        self.assertTrue(hasattr(pe, "DIRECTORY_ENTRY_RESOURCE"))
+        self.assertEqual([e.id for e in pe.DIRECTORY_ENTRY_RESOURCE.entries], [3])
+
     def test_VS_VERSIONINFO_dword_aligment(self):
         # Fixed a bug in pefile < 1.2.10-96. Fixed in revision 96:
         # http://code.google.com/p/pefile/source/detail?r=96
@@ -555,7 +616,7 @@ class Test_pefile(unittest.TestCase):
         pe = pefile.PE(control_file_pe)
 
         # Ensure the overlay data is correct (should not be any in this case).
-        self.assertEqual(pe.get_overlay(), None)
+        self.assertIsNone(pe.get_overlay())
 
         trimmed_data = pe.trim()
 
@@ -568,7 +629,7 @@ class Test_pefile(unittest.TestCase):
         pe = pefile.PE(control_file_pe)
 
         # Ensure the overlay data is correct (should not be any in this case).
-        self.assertEqual(pe.get_overlay(), None)
+        self.assertIsNone(pe.get_overlay())
 
     def test_unable_to_read_file(self):
         """Attempting to open a file without read permission for the user
@@ -599,7 +660,7 @@ class Test_pefile(unittest.TestCase):
         )
 
         pe = pefile.PE(control_file_pe, fast_load=False)
-        self.assertEqual(pe.is_driver(), True)
+        self.assertTrue(pe.is_driver())
 
     def test_rebased_image(self):
         """Test correctness of rebased images"""
@@ -629,14 +690,14 @@ class Test_pefile(unittest.TestCase):
 
         # verify_checksum() generates a checksum from the image's data and
         # compares it against the checksum field in the optional header.
-        self.assertEqual(pe.verify_checksum(), True)
+        self.assertTrue(pe.verify_checksum())
 
         control_file = os.path.join(
             REGRESSION_TESTS_DIR,
             "checksum/0031709440C539B47E34B524AF3900248DD35274_bad_checksum",
         )
         pe = pefile.PE(control_file)
-        self.assertEqual(pe.verify_checksum(), False)
+        self.assertFalse(pe.verify_checksum())
         self.assertEqual(pe.generate_checksum(), 0x16C39)
 
         control_file = os.path.join(
@@ -644,17 +705,124 @@ class Test_pefile(unittest.TestCase):
             "checksum/009763E904C053C1803B26EC0D817AF497DA1BB2_bad_checksum",
         )
         pe = pefile.PE(control_file)
-        self.assertEqual(pe.verify_checksum(), False)
+        self.assertFalse(pe.verify_checksum())
         self.assertEqual(pe.generate_checksum(), 0x249F7)
 
         control_file = os.path.join(
             REGRESSION_TESTS_DIR, "checksum/00499E3A70A324160A3FE935F10BFB699ACB0954"
         )
         pe = pefile.PE(control_file)
-        self.assertEqual(pe.verify_checksum(), True)
+        self.assertTrue(pe.verify_checksum())
 
         control_file = os.path.join(
             REGRESSION_TESTS_DIR, "checksum/0011FEECD53D06A6C68C531E0DA7A61C692E76BF"
         )
         pe = pefile.PE(control_file)
-        self.assertEqual(pe.verify_checksum(), True)
+        self.assertTrue(pe.verify_checksum())
+
+
+def _low_alignment_resource_pe():
+    """Minimal PE32 with SectionAlignment == FileAlignment == 0x10 and a single
+    .rsrc section whose PointerToRawData (0x160) differs from its VirtualAddress
+    (0x1a0), mirroring the resource-only DLL reported in issue #465."""
+    va, ptr_raw = 0x1A0, 0x160
+
+    # resource tree, offsets relative to the start of .rsrc (RVA 0x1a0)
+    res = b""
+    res += struct.pack("<IIHHHH", 0, 0, 0, 0, 0, 1)  # type dir, one id entry
+    res += struct.pack("<II", 3, 0x80000000 | 0x18)  # type 3 -> name dir
+    res += struct.pack("<IIHHHH", 0, 0, 0, 0, 0, 1)  # name dir
+    res += struct.pack("<II", 1, 0x80000000 | 0x30)  # name 1 -> lang dir
+    res += struct.pack("<IIHHHH", 0, 0, 0, 0, 0, 1)  # lang dir
+    res += struct.pack("<II", 0x409, 0x48)           # lang -> data entry
+    res += struct.pack("<IIII", va + 0x58, 4, 0, 0)  # data entry
+    res += b"TEST"
+
+    dos = b"MZ" + b"\x00" * 0x3A + struct.pack("<I", 0x40)
+    coff = struct.pack("<HHIIIHH", 0x14C, 1, 0, 0, 0, 0xE0, 0x2102)
+    size_of_image = (va + len(res) + 0xF) & ~0xF
+    opt = struct.pack("<HBBIIIIII", 0x10B, 0, 0, 0, 0, 0, 0, 0, 0)
+    opt += struct.pack("<III", 0x400000, 0x10, 0x10)
+    opt += struct.pack("<HHHHHH", 4, 0, 0, 0, 4, 0)
+    opt += struct.pack("<I", 0)
+    opt += struct.pack("<II", size_of_image, ptr_raw)
+    opt += struct.pack("<IHH", 0, 2, 0)
+    opt += struct.pack("<IIII", 0, 0, 0, 0)
+    opt += struct.pack("<II", 0, 16)
+    dirs = [(0, 0)] * 16
+    dirs[2] = (va, len(res))  # resource directory
+    for rva, sz in dirs:
+        opt += struct.pack("<II", rva, sz)
+    section = struct.pack(
+        "<8sIIIIIIHHI", b".rsrc\x00\x00\x00", len(res), va, len(res), ptr_raw, 0, 0, 0, 0, 0x40000040
+    )
+    return dos + b"PE\x00\x00" + coff + opt + section + res
+
+
+def _create_pe(virtual_size, size_of_raw_data):
+    """Build a minimal PE32 with one section whose VirtualSize and SizeOfRawData differ.
+
+    Reused by the memory-mapped-image tests below.
+    """
+
+    dos_header = bytearray(64)
+    dos_header[0:2] = b"MZ"
+    dos_header[60:64] = struct.pack("<I", 64)
+
+    file_header = (
+        struct.pack("<H", 0x014C)  # Machine = I386
+        + struct.pack("<H", 1)  # NumberOfSections
+        + struct.pack("<I", 0)  # TimeDateStamp
+        + struct.pack("<I", 0)  # PointerToSymbolTable
+        + struct.pack("<I", 0)  # NumberOfSymbols
+        + struct.pack("<H", 0xE0)  # SizeOfOptionalHeader
+        + struct.pack("<H", 0x0102)  # Characteristics
+    )
+
+    section_alignment = 0x1000
+    pointer_to_raw_data = 0x400  # section data starts at file offset 0x400
+    va = 0x1000  # section virtual address
+    size_of_image = va + max(virtual_size, size_of_raw_data)
+    size_of_image = (size_of_image + section_alignment - 1) & ~(section_alignment - 1)
+
+    opt_header = (
+        struct.pack("<H", 0x010B)  # Magic PE32
+        + struct.pack("<BB", 14, 0)  # LinkerVersion
+        + struct.pack("<I", size_of_raw_data)  # SizeOfCode
+        + struct.pack("<II", 0, 0)  # SizeOfInitializedData, SizeOfUninitializedData
+        + struct.pack("<I", va)  # AddressOfEntryPoint
+        + struct.pack("<II", va, 0)  # BaseOfCode, BaseOfData
+        + struct.pack("<I", 0x400000)  # ImageBase
+        + struct.pack("<II", section_alignment, 0x200)  # FileAlignment
+        + struct.pack("<HHHHHH", 6, 0, 0, 0, 6, 0)  # OS/Image/Subsystem versions
+        + struct.pack("<I", 0)  # Win32VersionValue
+        + struct.pack("<I", size_of_image)  # SizeOfImage
+        + struct.pack("<I", 0x200)  # SizeOfHeaders (headers rounded up to FileAlignment)
+        + struct.pack("<I", 0)  # CheckSum
+        + struct.pack("<H", 2)  # Subsystem GUI
+        + struct.pack("<H", 0x8100)  # DllCharacteristics
+        + struct.pack("<IIII", 0x100000, 0x1000, 0x100000, 0x1000)
+        + struct.pack("<II", 0, 16)  # LoaderFlags, NumberOfRvaAndSizes
+        + b"\x00" * 128  # DataDirectory (16 entries, all zero)
+    )
+    assert len(opt_header) == 0xE0
+
+    section_header = (
+        b".text\x00\x00\x00"  # Name
+        + struct.pack("<I", virtual_size)  # VirtualSize
+        + struct.pack("<I", va)  # VirtualAddress
+        + struct.pack("<I", size_of_raw_data)  # SizeOfRawData
+        + struct.pack("<I", pointer_to_raw_data)  # PointerToRawData
+        + struct.pack("<IIHHI", 0, 0, 0, 0, 0x60000020)
+        # PointerToRelocations, PointerToLinenumbers,
+        # NumberOfRelocations, NumberOfLinenumbers, Characteristics
+    )
+
+    headers = (
+        bytes(dos_header) + b"PE\x00\x00" + file_header + opt_header + section_header
+    )
+    headers = headers.ljust(pointer_to_raw_data, b"\x00")
+
+    # Fill raw section data with a sentinel byte so leakage is obvious
+    section_data = b"\xCC" * size_of_raw_data
+    return bytes(headers) + section_data

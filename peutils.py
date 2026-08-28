@@ -22,12 +22,12 @@ class SignatureDatabase:
 
     Usage:
 
-        sig_db = SignatureDatabase('/path/to/signature/file')
+        signatures = SignatureDatabase('/path/to/signature/file')
 
     and/or
 
-        sig_db = SignatureDatabase()
-        sig_db.load('/path/to/signature/file')
+        signatures = SignatureDatabase()
+        signatures.load('/path/to/signature/file')
 
     Signature databases can be combined by performing multiple loads.
 
@@ -40,7 +40,7 @@ class SignatureDatabase:
         # RegExp to match a signature block
         self.parse_sig = re.compile(
             r"\[(.*?)\]\s+?signature\s*=\s*(.*?)(\s+\?\?)*\s*ep_only\s*=\s*(\w+)(?:\s*section_start_only\s*=\s*(\w+)|)",
-            re.S,
+            re.DOTALL,
         )
 
         # Signature information
@@ -78,7 +78,7 @@ class SignatureDatabase:
 
         section_signatures = []
 
-        for idx, section in enumerate(pe.sections):
+        for idx, section in enumerate(pe.sections, start=1):
 
             if section.SizeOfRawData < sig_length:
                 continue
@@ -88,7 +88,7 @@ class SignatureDatabase:
 
             sig_name = "%s Section(%d/%d,%s)" % (
                 name,
-                idx + 1,
+                idx,
                 len(pe.sections),
                 "".join(c for c in section.Name if c in string.printable),
             )
@@ -119,30 +119,26 @@ class SignatureDatabase:
             pe, offset, name, ep_only=True, sig_length=sig_length
         )
 
+    @staticmethod
     def __generate_signature(
-        self, pe, offset, name, ep_only=False, section_start_only=False, sig_length=512
+        pe, offset, name, ep_only=False, section_start_only=False, sig_length=512
     ):
 
         data = pe.__data__[offset : offset + sig_length]
 
         signature_bytes = " ".join(f"{ord(c):02x}" for c in data)
 
-        if ep_only == True:
+        if ep_only:
             ep_only = "true"
         else:
             ep_only = "false"
 
-        if section_start_only == True:
+        if section_start_only:
             section_start_only = "true"
         else:
             section_start_only = "false"
 
-        signature = "[{}]\nsignature = {}\nep_only = {}\nsection_start_only = {}\n".format(
-            name,
-            signature_bytes,
-            ep_only,
-            section_start_only,
-        )
+        signature = f"[{name}]\nsignature = {signature_bytes}\nep_only = {ep_only}\nsection_start_only = {section_start_only}\n"
 
         return signature
 
@@ -160,7 +156,7 @@ class SignatureDatabase:
         # The last match (the most precise) from the
         # list of matches (if any) is returned
         if matches:
-            if ep_only == False:
+            if not ep_only:
                 # Get the most exact match for each list of matches
                 # at a given offset
                 return [(match[0], match[1][-1]) for match in matches]
@@ -175,7 +171,7 @@ class SignatureDatabase:
         matches = self.__match(pe, ep_only, section_start_only)
 
         if matches:
-            if ep_only == False:
+            if not ep_only:
                 # Get the most exact match for each list of matches
                 # at a given offset
                 return matches
@@ -195,7 +191,7 @@ class SignatureDatabase:
             # look once loaded in memory
             try:
                 data = pe.__data__
-            except Exception as excp:
+            except Exception:
                 raise
 
             # Load the corresponding tree of signatures
@@ -210,7 +206,7 @@ class SignatureDatabase:
             # look once loaded in memory
             try:
                 data = pe.get_memory_mapped_image()
-            except Exception as excp:
+            except Exception:
                 raise
 
             # Load the corresponding tree of signatures
@@ -243,9 +239,8 @@ class SignatureDatabase:
         # Return only the matched items found at the entry point if
         # ep_only is True (matches will have only one element in that
         # case)
-        if ep_only is True:
-            if matches:
-                return matches[0]
+        if ep_only is True and matches:
+            return matches[0]
 
         return matches
 
@@ -257,14 +252,14 @@ class SignatureDatabase:
         # Load the corresponding set of signatures
         # Either the one for ep_only equal to True or
         # to False
-        if section_start_only is True:
+        if section_start_only:
 
             # Load the corresponding tree of signatures
             signatures = self.signature_tree_section_start
 
             # Set the starting address to start scanning from
 
-        elif ep_only is True:
+        elif ep_only:
 
             # Load the corresponding tree of signatures
             signatures = self.signature_tree_eponly_true
@@ -281,9 +276,8 @@ class SignatureDatabase:
         # Return only the matched items found at the entry point if
         # ep_only is True (matches will have only one element in that
         # case)
-        if ep_only is True:
-            if matches:
-                return matches[0]
+        if ep_only and matches:
+            return matches[0]
 
         return matches
 
@@ -374,9 +368,8 @@ class SignatureDatabase:
             else:
                 # Get the data for a file
                 try:
-                    sig_f = open(filename)
-                    sig_data = sig_f.read()
-                    sig_f.close()
+                    with open(filename, 'r') as f:
+                        sig_data = f.read()
                 except OSError:
                     # Let this be raised back to the user...
                     raise
@@ -425,40 +418,31 @@ class SignatureDatabase:
 
             depth = 0
 
-            if section_start_only is True:
-
+            if section_start_only:
                 tree = self.signature_tree_section_start
                 self.signature_count_section_start += 1
-
+            elif ep_only:
+                tree = self.signature_tree_eponly_true
+                self.signature_count_eponly_true += 1
             else:
-                if ep_only is True:
-                    tree = self.signature_tree_eponly_true
-                    self.signature_count_eponly_true += 1
-                else:
-                    tree = self.signature_tree_eponly_false
-                    self.signature_count_eponly_false += 1
+                tree = self.signature_tree_eponly_false
+                self.signature_count_eponly_false += 1
 
-            for idx, byte in enumerate(signature_bytes):
-
-                if idx + 1 == len(signature_bytes):
-
+            for idx, byte in enumerate(signature_bytes, start=1):
+                if idx == len(signature_bytes):
                     tree[byte] = tree.get(byte, {})
                     tree[byte][packer_name] = None
-
                 else:
-
                     tree[byte] = tree.get(byte, {})
 
                 tree = tree[byte]
                 depth += 1
 
-            if depth > self.max_depth:
-                self.max_depth = depth
+            self.max_depth = max(self.max_depth, depth)
 
 
 def is_valid(pe):
     """"""
-    pass
 
 
 def is_suspicious(pe):
@@ -510,7 +494,6 @@ def is_suspicious(pe):
 
     # If compressed data (high entropy) and is_driver => uuuuhhh, nasty
 
-    pass
 
 
 def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):

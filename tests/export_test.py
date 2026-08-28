@@ -85,7 +85,7 @@ EXPECT_NAMES = [
 ]
 
 
-class Test_exports(unittest.TestCase):
+class TestExports(unittest.TestCase):
     def test_exports32(self):
         """Iterate all exports of the 32 bit binary, and validate that they are all accepted"""
         # Update all the symbol addresses to be __ImageBase+0x01
@@ -115,7 +115,7 @@ class Test_exports(unittest.TestCase):
         self.assertEqual(EXPECT_NAMES, exports)
 
 
-"""
+r"""
 To generate the embedded files, run from a VS command prompt:
 link /NOLOGO /SUBSYSTEM:WINDOWS /NOIMPLIB /NOEXP /ALIGN:0x10 /DEF:test.def /DLL /NOENTRY /MACHINE:X86 /OUT:test32.dll
 link /NOLOGO /SUBSYSTEM:WINDOWS /NOIMPLIB /NOEXP /ALIGN:0x10 /DEF:test.def /DLL /NOENTRY /MACHINE:X64 /OUT:test64.dll
