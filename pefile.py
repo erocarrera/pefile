@@ -29,7 +29,7 @@ import string
 import struct
 import time
 import uuid
-from collections import Counter, defaultdict
+from collections import Counter, namedtuple, defaultdict
 from functools import lru_cache, wraps
 from hashlib import md5, sha1, sha256, sha512
 
@@ -919,12 +919,9 @@ def set_format(format):
 
     __format_length__ = struct.calcsize(__format_str__)
 
-    return (
-        __format_str__,
-        __format_length__,
-        __field_offsets__,
-        __keys__,
-    )
+    Format = namedtuple('Format', '__format_str__, __format_length__, __field_offsets__, __keys__')
+
+    return Format(__format_str__, __format_length__, __field_offsets__, __keys__)
 
 
 class Structure:
