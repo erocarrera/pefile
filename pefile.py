@@ -29,7 +29,7 @@ import string
 import struct
 import time
 import uuid
-from collections import Counter, defaultdict
+from collections import Counter, namedtuple, defaultdict
 from functools import lru_cache, wraps
 from hashlib import md5, sha1, sha256, sha512
 
@@ -888,45 +888,40 @@ def sizeof_type(t):
 
 @lru_cache_copy(maxsize=2048)
 def set_format(format):
-    __format_str__ = "<"
-    __unpacked_data_elms__ = []
-    __field_offsets__ = {}
-    __keys__ = []
-    __format_length__ = 0
+    # Format is forced little endian, for big endian non-Intel platforms
+    format_str = "<"
+    format_length = 0
+    field_offsets = {}
+    keys = []
 
     offset = 0
     for elm in format:
         if "," in elm:
             elm_type, elm_name = elm.split(",", 1)
-            __format_str__ += elm_type
-            __unpacked_data_elms__.append(None)
+            format_str += elm_type
 
             elm_names = elm_name.split(",")
             names = []
             for elm_name in elm_names:
-                if elm_name in __keys__:
-                    search_list = [x[: len(elm_name)] for x in __keys__]
+                if elm_name in keys:
+                    search_list = [x[: len(elm_name)] for x in keys]
                     occ_count = search_list.count(elm_name)
                     elm_name = f"{elm_name}_{occ_count:d}"
                 names.append(elm_name)
-                __field_offsets__[elm_name] = offset
+                field_offsets[elm_name] = offset
 
             offset += sizeof_type(elm_type)
 
             # Some PE header structures have unions on them, so a certain
             # value might have different names, so each key has a list of
             # all the possible members referring to the data.
-            __keys__.append(names)
+            keys.append(names)
 
-    __format_length__ = struct.calcsize(__format_str__)
+    format_length = struct.calcsize(format_str)
 
-    return (
-        __format_str__,
-        __unpacked_data_elms__,
-        __field_offsets__,
-        __keys__,
-        __format_length__,
-    )
+    Format = namedtuple('Format', 'format_str, format_length, field_offsets, keys')
+
+    return Format(format_str, format_length, field_offsets, keys)
 
 
 class Structure:
@@ -937,31 +932,25 @@ class Structure:
     """
 
     def __init__(self, format, name=None, file_offset=None):
-        # Format is forced little endian, for big endian non-Intel platforms
-        self.__format_str__ = "<"
-        self.__unpacked_data_elms__ = []
-        self.__field_offsets__ = {}
-        self.__keys__ = []
-        self.__format_length__ = 0
-
+        if name:
+            self.name = name
+        else:
+            self.name = format[0]
         d = format[1]
-        # need a tuple to be hashable in set_format using lru cache
+
+        # Need a tuple to be hashable in set_format using lru cache
         if not isinstance(d, tuple):
             d = tuple(d)
 
         (
             self.__format_str__,
-            self.__unpacked_data_elms__,
+            self.__format_length__,
             self.__field_offsets__,
             self.__keys__,
-            self.__format_length__,
         ) = set_format(d)
 
-        if name:
-            self.name = name
-        else:
-            self.name = format[0]
         self.__file_offset__ = file_offset
+        self.__unpacked_data_elms__ = [None] * len(self.__keys__)
         self.__all_zeroes__ = False
 
     def __get_format__(self) -> str:
@@ -1377,7 +1366,7 @@ def set_bitfields_format(format):
         ac.add_subfield(elm_name, elm_bits)
     ac.wrap_up()
 
-    format_str, _, field_offsets, keys, format_length = set_format(tuple(old_fmt))
+    format_str, format_length, field_offsets, keys = set_format(tuple(old_fmt))
 
     extended_keys = []
     for idx, val in enumerate(keys):
