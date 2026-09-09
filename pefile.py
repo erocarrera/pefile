@@ -4715,8 +4715,7 @@ class PE:
             entry_name = None
             entry_id = None
 
-            name_is_string = (res.Name & 0x80000000) >> 31
-            if not name_is_string:
+            if not res.NameIsString:
                 entry_id = res.Name
             else:
                 ustr_offset = base_rva + res.NameOffset
@@ -4930,14 +4929,12 @@ class PE:
         if resource is None:
             return None
 
-        # resource.NameIsString = (resource.Name & 0x80000000) >> 31
         resource.NameOffset = resource.Name & 0x7FFFFFFF
-
-        resource.__pad = resource.Name & 0xFFFF0000
+        resource.NameIsString = (resource.Name & 0x80000000) >> 31
         resource.Id = resource.Name & 0x0000FFFF
 
-        resource.DataIsDirectory = (resource.OffsetToData & 0x80000000) >> 31
         resource.OffsetToDirectory = resource.OffsetToData & 0x7FFFFFFF
+        resource.DataIsDirectory = (resource.OffsetToData & 0x80000000) >> 31
 
         return resource
 
