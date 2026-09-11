@@ -6519,10 +6519,7 @@ class PE:
         return hasattr(self, "DIRECTORY_ENTRY_BASERELOC")
 
     def has_dynamic_relocs(self):
-        if hasattr(self, "DIRECTORY_ENTRY_LOAD_CONFIG") and self.DIRECTORY_ENTRY_LOAD_CONFIG.dynamic_relocations:
-            return True
-
-        return False
+        return bool(hasattr(self, "DIRECTORY_ENTRY_LOAD_CONFIG") and self.DIRECTORY_ENTRY_LOAD_CONFIG.dynamic_relocations)
 
     def print_info(self, encoding="utf-8"):
         """Print all the PE header information in a human readable form."""
