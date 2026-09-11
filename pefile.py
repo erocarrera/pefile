@@ -3086,7 +3086,7 @@ class PE:
 
         self.NT_HEADERS = self.__unpack_data__(
             self.__IMAGE_NT_HEADERS_format__,
-            self.__data__[nt_headers_offset : nt_headers_offset + 8],
+            self.__data__[nt_headers_offset : nt_headers_offset + 4],
             file_offset=nt_headers_offset,
         )
 
