@@ -881,8 +881,8 @@ def sizeof_type(t):
     _t = t
     if t[0] in string.digits:
         # extract the count
-        count = int("".join([d for d in t if d in string.digits]))
-        _t = "".join([d for d in t if d not in string.digits])
+        count = int("".join(d for d in t if d in string.digits))
+        _t = "".join(d for d in t if d not in string.digits)
     return STRUCT_SIZEOF_TYPES[_t] * count
 
 
@@ -1056,16 +1056,14 @@ class Structure:
                     val_str = bytearray(val)
                     if key.startswith("Signature"):
                         val_str = "".join(
-                            [f"{i:02X}" for i in val_str.rstrip(b"\x00")]
+                            f"{i:02X}" for i in val_str.rstrip(b"\x00")
                         )
                     else:
                         val_str = "".join(
-                            [
-                                chr(i)
-                                if (i in printable_bytes)
-                                else f"\\x{i:02x}"
-                                for i in val_str.rstrip(b"\x00")
-                            ]
+                            chr(i)
+                            if (i in printable_bytes)
+                            else f"\\x{i:02x}"
+                            for i in val_str.rstrip(b"\x00")
                         )
 
                 dump.append(
@@ -1908,11 +1906,11 @@ class UnwindInfo(StructureWithBitfields):
 
         dump.append(
             "Flags: "
-            + ", ".join([s[0] for s in unwind_info_flags if getattr(self, s[0])])
+            + ", ".join(s[0] for s in unwind_info_flags if getattr(self, s[0]))
         )
         dump.append(
             "Unwind codes: "
-            + "; ".join([str(c) for c in self.UnwindCodes if c.is_valid()])
+            + "; ".join(str(c) for c in self.UnwindCodes if c.is_valid())
         )
         return dump
 
