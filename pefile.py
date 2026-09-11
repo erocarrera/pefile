@@ -4395,12 +4395,12 @@ class PE:
         dbg_size = Structure(self.__IMAGE_DEBUG_DIRECTORY_format__).sizeof()
 
         debug = []
-        for idx in range(int(size / dbg_size)):
+        for idx in range(size // dbg_size):
             try:
                 data = self.get_data(rva + dbg_size * idx, dbg_size)
             except PEFormatError:
                 self.__warnings.append(
-                    f"Invalid debug information. Can't read data at RVA: 0x{rva:x}"
+                    f"Invalid debug information. Can't read data at RVA: {rva:#x}"
                 )
                 return None
 
@@ -4422,7 +4422,7 @@ class PE:
                 pass
 
             elif dbg.Type == 2:
-                # if IMAGE_DEBUG_TYPE_CODEVIEW
+                # IMAGE_DEBUG_TYPE_CODEVIEW
                 dbg_type_offset = dbg.PointerToRawData
                 dbg_type_size = dbg.SizeOfData
                 dbg_type_data = self.__data__[
