@@ -766,7 +766,7 @@ class UnicodeStringWrapperPostProcessor:
         except PEFormatError:
             self.pe.get_warnings().append(
                 "Failed rendering pascal string, "
-                f"attempting to read from RVA 0x{self.rva_ptr + 2:x}"
+                f"attempting to read from RVA {self.rva_ptr + 2:#x}"
             )
 
     def get_pascal_16_length(self):
@@ -801,7 +801,7 @@ class UnicodeStringWrapperPostProcessor:
         except PEFormatError:
             self.pe.get_warnings().append(
                 "Failed rendering unicode string, "
-                f"attempting to read from RVA 0x{self.rva_ptr:x}"
+                f"attempting to read from RVA {self.rva_ptr:#x}"
             )
 
 
@@ -3998,7 +3998,7 @@ class PE:
             )
         except PEFormatError:
             self.__warnings.append(
-                f"Invalid TLS information. Can't read data at RVA: 0x{rva:x}"
+                f"Invalid TLS information. Can't read data at RVA: {rva:#x}"
             )
             tls_struct = None
 
@@ -4043,7 +4043,7 @@ class PE:
             )
         except PEFormatError:
             self.__warnings.append(
-                f"Invalid LOAD_CONFIG information. Can't read data at RVA: 0x{rva:x}"
+                f"Invalid LOAD_CONFIG information. Can't read data at RVA: {rva:#x}"
             )
 
         if not load_config:
@@ -4116,7 +4116,7 @@ class PE:
                 )
             except PEFormatError:
                 self.__warnings.append(
-                    f"Invalid relocation information. Can't read data at RVA: 0x{rva:x}"
+                    f"Invalid relocation information. Can't read data at RVA: {rva:#x}"
                 )
                 dynamic_rlc = None
 
@@ -4173,7 +4173,7 @@ class PE:
         )
         if not func_header:
             self.__warnings.append(
-                f"Invalid function override header. Can't read data at RVA: 0x{rva:x}"
+                f"Invalid function override header. Can't read data at RVA: {rva:#x}"
             )
             return func_relocs, bdd_relocs
         rva += Structure(format).sizeof()
@@ -4189,7 +4189,7 @@ class PE:
             )
             if not func_info:
                 self.__warnings.append(
-                    f"Invalid function override info. Can't read data at RVA: 0x{rva:x}"
+                    f"Invalid function override info. Can't read data at RVA: {rva:#x}"
                 )
                 return func_relocs, bdd_relocs
             rva += Structure(format).sizeof()
@@ -4221,7 +4221,7 @@ class PE:
         )
         if not bdd_info:
             self.__warnings.append(
-                f"Invalid bdd info. Can't read data at RVA: 0x{rva:x}"
+                f"Invalid bdd info. Can't read data at RVA: {rva:#x}"
             )
             return func_relocs, bdd_relocs
         rva += Structure(format).sizeof()
@@ -4235,7 +4235,7 @@ class PE:
             )
             if not bdd_reloc:
                 self.__warnings.append(
-                    f"Invalid bdd dynamic relocation. Can't read data at RVA: 0x{rva:x}"
+                    f"Invalid bdd dynamic relocation. Can't read data at RVA: {rva:#x}"
                 )
                 return func_relocs, bdd_relocs
             rva += Structure(format).sizeof()
@@ -4264,7 +4264,7 @@ class PE:
                 )
             except PEFormatError:
                 self.__warnings.append(
-                    f"Invalid relocation information. Can't read data at RVA: 0x{rva:x}"
+                    f"Invalid relocation information. Can't read data at RVA: {rva:#x}"
                 )
                 rlc = None
 
@@ -4312,7 +4312,7 @@ class PE:
             data = self.get_data(data_rva, size)
             file_offset = self.get_offset_from_rva(data_rva)
         except PEFormatError:
-            self.__warnings.append(f"Bad RVA in relocation data: 0x{data_rva:x}")
+            self.__warnings.append(f"Bad RVA in relocation data: {data_rva:#x}")
             return []
 
         entries = []
@@ -4355,7 +4355,7 @@ class PE:
             data = self.get_data(data_rva, size)
             file_offset = self.get_offset_from_rva(data_rva)
         except PEFormatError:
-            self.__warnings.append(f"Bad RVA in relocation data: 0x{data_rva:x}")
+            self.__warnings.append(f"Bad RVA in relocation data: {data_rva:#x}")
             return []
 
         entry_size = StructureWithBitfields(format).sizeof()
@@ -4803,7 +4803,7 @@ class PE:
                                 except PEFormatError:
                                     self.__warnings.append(
                                         f"Error parsing resource of type RT_STRING at "
-                                        f"RVA 0x{string_entry_rva:x} with "
+                                        f"RVA {string_entry_rva:#x} with "
                                         f"size {string_entry_size}"
                                     )
                                     continue
@@ -4976,7 +4976,7 @@ class PE:
         except PEFormatError:
             self.__warnings.append(
                 "Error parsing the version information, "
-                f"attempting to read OffsetToData with RVA: 0x{version_struct.OffsetToData:x}"
+                f"attempting to read OffsetToData with RVA: {version_struct.OffsetToData:#x}"
             )
             return
         raw_data = self.__data__[start_offset : start_offset + version_struct.Size]
@@ -5109,7 +5109,7 @@ class PE:
                 self.__warnings.append(
                     "Error parsing the version information, "
                     "attempting to read StringFileInfo string. Can't "
-                    f"read unicode string at offset 0x{ustr_offset:x}"
+                    f"read unicode string at offset {ustr_offset:#x}"
                 )
                 break
 
@@ -5158,7 +5158,7 @@ class PE:
                             self.__warnings.append(
                                 "Error parsing the version information, "
                                 "attempting to read StringTable string. Can't "
-                                f"read unicode string at offset 0x{ustr_offset:x}"
+                                f"read unicode string at offset {ustr_offset:#x}"
                             )
                             break
 
@@ -5202,7 +5202,7 @@ class PE:
                                 self.__warnings.append(
                                     "Error parsing the version information, "
                                     "attempting to read StringTable Key string. Can't "
-                                    f"read unicode string at offset 0x{ustr_offset:x}"
+                                    f"read unicode string at offset {ustr_offset:#x}"
                                 )
                                 break
 
@@ -5223,7 +5223,7 @@ class PE:
                                 self.__warnings.append(
                                     "Error parsing the version information, attempting "
                                     "to read StringTable Value string. Can't read "
-                                    f"unicode string at offset 0x{ustr_offset:x}"
+                                    f"unicode string at offset {ustr_offset:#x}"
                                 )
                                 break
 
@@ -5304,7 +5304,7 @@ class PE:
                             self.__warnings.append(
                                 "Error parsing the version information, "
                                 "attempting to read VarFileInfo Var string. "
-                                f"Can't read unicode string at offset 0x{ustr_offset:x}"
+                                f"Can't read unicode string at offset {ustr_offset:#x}"
                             )
                             break
 
@@ -5380,7 +5380,7 @@ class PE:
             )
         except PEFormatError:
             self.__warnings.append(
-                f"Error parsing export directory at RVA: 0x{rva:x}"
+                f"Error parsing export directory at RVA: {rva:#x}"
             )
             return None
 
@@ -5417,7 +5417,7 @@ class PE:
             )
         except PEFormatError:
             self.__warnings.append(
-                f"Error parsing export directory at RVA: 0x{rva:x}"
+                f"Error parsing export directory at RVA: {rva:#x}"
             )
             return None
 
@@ -5587,7 +5587,7 @@ class PE:
                     # if most_common and most_common[0][1] > 10:
                     self.__warnings.append(
                         f"Export directory contains more than {self.max_repeated_symbol} repeated "
-                        f"ordinal entries (0x{symbol_address:x}). Assuming corrupt."
+                        f"ordinal entries ({symbol_address:#x}). Assuming corrupt."
                     )
                     break
                 elif len(symbol_counts) > self.max_symbol_exports:
@@ -5650,7 +5650,7 @@ class PE:
                 )
             except PEFormatError:
                 self.__warnings.append(
-                    f"Error parsing the Delay import directory at RVA: 0x{rva:x}"
+                    f"Error parsing the Delay import directory at RVA: {rva:#x}"
                 )
                 break
 
@@ -5707,13 +5707,13 @@ class PE:
             except PEFormatError as excp:
                 self.__warnings.append(
                     "Error parsing the Delay import directory. "
-                    f"Invalid import data at RVA: 0x{rva:x} ({excp.value})"
+                    f"Invalid import data at RVA: {rva:#x} ({excp.value})"
                 )
 
             if error_count > 5:
                 self.__warnings.append(
                     "Too many errors parsing the Delay import directory. "
-                    f"Invalid import data at RVA: 0x{rva:x}"
+                    f"Invalid import data at RVA: {rva:#x}"
                 )
                 break
 
@@ -5853,7 +5853,7 @@ class PE:
                 data = self.get_data(rva, image_import_descriptor_size)
             except PEFormatError:
                 self.__warnings.append(
-                    f"Error parsing the import directory at RVA: 0x{rva:x}"
+                    f"Error parsing the import directory at RVA: {rva:#x}"
                 )
                 break
 
@@ -5889,13 +5889,13 @@ class PE:
                 except PEFormatError as e:
                     self.__warnings.append(
                         "Error parsing the import directory. "
-                        f"Invalid Import data at RVA: 0x{rva:x} ({e.value})"
+                        f"Invalid Import data at RVA: {rva:#x} ({e.value})"
                     )
 
                 if error_count > 5:
                     self.__warnings.append(
                         "Too many errors parsing the import directory. "
-                        f"Invalid import data at RVA: 0x{rva:x}"
+                        f"Invalid import data at RVA: {rva:#x}"
                     )
                     break
 
@@ -6409,7 +6409,7 @@ class PE:
             if rva < len(self.__data__):
                 return rva
 
-            raise PEFormatError(f"data at RVA 0x{rva:x} can't be fetched")
+            raise PEFormatError(f"data at RVA {rva:#x} can't be fetched")
 
         return s.get_offset_from_rva(rva)
 
@@ -6915,7 +6915,7 @@ class PE:
                 try:
                     dump.add_line("Type: " + DEBUG_TYPE[dbg.struct.Type])
                 except KeyError:
-                    dump.add_line(f"Type: 0x{dbg.struct.Type:x}(Unknown)")
+                    dump.add_line(f"Type: {dbg.struct.Type:#x}(Unknown)")
                 dump.add_newline()
                 if dbg.entry:
                     dump.add_lines(dbg.entry.dump(), 4)
