@@ -5768,7 +5768,7 @@ class PE:
         https://cloud.google.com/blog/topics/threat-intelligence/tracking-malware-import-hashing/
 
         Returns:
-            the hexdigest of the MD5 hash of the exported symbols.
+            The hexdigest of the MD5 hash of the exported symbols.
         """
 
         impstrs = []
@@ -5820,7 +5820,7 @@ class PE:
         Similar to imphash, but based on exported symbol names and their specific order.
 
         Returns:
-            the hexdigest of the MD5 hash of the exported symbols.
+            The hexdigest of the MD5 hash of the exported symbols.
         """
 
         if not hasattr(self, "DIRECTORY_ENTRY_EXPORT"):
@@ -6426,7 +6426,7 @@ class PE:
 
     @staticmethod
     def get_bytes_from_data(offset, data):
-        """."""
+        """Get bytes from data."""
         if offset > len(data):
             return b""
         d = data[offset:]
