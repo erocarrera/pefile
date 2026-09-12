@@ -3246,8 +3246,8 @@ class PE:
         if self.OPTIONAL_HEADER.NumberOfRvaAndSizes > 0x10:
             self.__warnings.append(
                 "Suspicious NumberOfRvaAndSizes in the Optional Header. "
-                "Normal values are never larger than 0x10, the value is: 0x%x"
-                % self.OPTIONAL_HEADER.NumberOfRvaAndSizes
+                "Normal values are never larger than 0x10, the value is: "
+                f"{self.OPTIONAL_HEADER.NumberOfRvaAndSizes:#x}"
             )
 
         MAX_ASSUMED_VALID_NUMBER_OF_RVA_AND_SIZES = 0x100
@@ -3331,14 +3331,13 @@ class PE:
             if ep_offset > len(self.__data__):
                 self.__warnings.append(
                     "Possibly corrupt file. AddressOfEntryPoint lies outside the "
-                    "file. AddressOfEntryPoint: 0x%x"
-                    % self.OPTIONAL_HEADER.AddressOfEntryPoint
+                    f"file. AddressOfEntryPoint: {self.OPTIONAL_HEADER.AddressOfEntryPoint:#x}"
                 )
 
         else:
             self.__warnings.append(
                 "AddressOfEntryPoint lies outside the sections' boundaries. "
-                "AddressOfEntryPoint: 0x%x" % self.OPTIONAL_HEADER.AddressOfEntryPoint
+                f"AddressOfEntryPoint: {self.OPTIONAL_HEADER.AddressOfEntryPoint:#x}"
             )
 
         if not fast_load:
@@ -4085,14 +4084,14 @@ class PE:
         except PEFormatError:
             self.__warnings.append(
                 "Invalid IMAGE_DYNAMIC_RELOCATION_TABLE information. Can't read "
-                "data at RVA: 0x%x" % rva
+                f"data at RVA: {rva:#x}"
             )
             return None
 
         if image_dynamic_reloc_table_struct.Version != 1:
             self.__warnings.append(
-                "No parsing available for IMAGE_DYNAMIC_RELOCATION_TABLE.Version = %d"
-                % image_dynamic_reloc_table_struct.Version
+                "No parsing available for IMAGE_DYNAMIC_RELOCATION_TABLE.Version = "
+                f"{image_dynamic_reloc_table_struct.Version}"
             )
             return None
 
@@ -4274,8 +4273,8 @@ class PE:
             # rlc.VirtualAddress must lie within the Image
             if rlc.VirtualAddress > self.OPTIONAL_HEADER.SizeOfImage:
                 self.__warnings.append(
-                    "Invalid relocation information. VirtualAddress outside"
-                    " of Image: 0x%x" % rlc.VirtualAddress
+                    "Invalid relocation information. "
+                    f"VirtualAddress outside of Image: {rlc.VirtualAddress:#x}"
                 )
                 break
 
@@ -4283,8 +4282,8 @@ class PE:
             # (It's a rather loose sanity test)
             if rlc.SizeOfBlock > self.OPTIONAL_HEADER.SizeOfImage:
                 self.__warnings.append(
-                    "Invalid relocation information. SizeOfBlock too large"
-                    ": %d" % rlc.SizeOfBlock
+                    "Invalid relocation information. "
+                    f"SizeOfBlock too large: {rlc.SizeOfBlock}"
                 )
                 break
 
@@ -4618,7 +4617,7 @@ class PE:
         if level > MAX_RESOURCE_DEPTH:
             self.__warnings.append(
                 "Error parsing the resources directory. "
-                "Excessively nested table depth %d (>%s)" % (level, MAX_RESOURCE_DEPTH)
+                f"Excessively nested table depth {level} (>{MAX_RESOURCE_DEPTH})"
             )
             return None
 
@@ -4631,7 +4630,7 @@ class PE:
         except PEFormatError:
             self.__warnings.append(
                 "Invalid resources directory. Can't read "
-                "directory data at RVA: 0x%x" % rva
+                f"directory data at RVA: {rva:#x}"
             )
             return None
 
@@ -4648,7 +4647,7 @@ class PE:
             # still have a valid PE file
             self.__warnings.append(
                 "Invalid resources directory. Can't parse "
-                "directory data at RVA: 0x%x" % rva
+                f"directory data at RVA: {rva:#x}"
             )
             return None
 
@@ -4667,8 +4666,7 @@ class PE:
         if number_of_entries > MAX_ALLOWED_ENTRIES:
             self.__warnings.append(
                 "Error parsing the resources directory. "
-                "The directory contains %d entries (>%s)"
-                % (number_of_entries, MAX_ALLOWED_ENTRIES)
+                f"The directory contains {number_of_entries} entries (>{MAX_ALLOWED_ENTRIES})"
             )
             return None
 
@@ -4676,8 +4674,7 @@ class PE:
         if self.__total_resource_entries_count > MAX_RESOURCE_ENTRIES:
             self.__warnings.append(
                 "Error parsing the resources directory. "
-                "The file contains at least %d entries (>%d)"
-                % (self.__total_resource_entries_count, MAX_RESOURCE_ENTRIES)
+                f"The file contains at least {self.__total_resource_entries_count} entries (>{MAX_RESOURCE_ENTRIES})"
             )
             return None
 
@@ -4694,19 +4691,15 @@ class PE:
             ):
                 self.__resource_size_limit_reached = True
                 self.__warnings.append(
-                    "Resource size 0x%x exceeds file size 0x%x, overlapping "
-                    "resources found."
-                    % (
-                        self.__total_resource_bytes,
-                        self.__resource_size_limit_upperbounds,
-                    )
+                    f"Resource size {self.__total_resource_bytes:#x} exceeds file size "
+                    f"{self.__resource_size_limit_upperbounds:#x}, overlapping resources found."
                 )
 
             res = self.parse_resource_entry(rva)
             if res is None:
                 self.__warnings.append(
                     "Error parsing the resources directory, "
-                    "Entry %d is invalid, RVA = 0x%x. " % (idx, rva)
+                    f"Entry {idx} is invalid, RVA = {rva:#x}. "
                 )
                 break
 
@@ -4732,7 +4725,7 @@ class PE:
                         self.__warnings.append(
                             "Error parsing the resources directory, "
                             "attempting to read entry name. "
-                            "Entry names overlap 0x%x" % ustr_offset
+                            f"Entry names overlap {ustr_offset:#x}"
                         )
                         break
 
@@ -4747,7 +4740,7 @@ class PE:
                     self.__warnings.append(
                         "Error parsing the resources directory, "
                         "attempting to read entry name. "
-                        "Can't read unicode string at offset 0x%x" % ustr_offset
+                        f"Can't read unicode string at offset {ustr_offset:#x}"
                     )
 
             if res.DataIsDirectory:
@@ -4895,7 +4888,7 @@ class PE:
         except PEFormatError:
             self.__warnings.append(
                 "Error parsing a resource directory data entry, "
-                "the RVA is invalid: 0x%x" % rva
+                f"the RVA is invalid: {rva:#x}"
             )
             return None
 
@@ -5015,7 +5008,7 @@ class PE:
             self.__warnings.append(
                 "Error parsing the version information, "
                 "attempting to read VS_VERSION_INFO string. Can't "
-                "read unicode string at offset 0x%x" % ustr_offset
+                f"read unicode string at offset {ustr_offset:#x}"
             )
 
         if versioninfo_string is None:
@@ -5723,8 +5716,7 @@ class PE:
 
             if self.__total_import_symbols > MAX_IMPORT_SYMBOLS:
                 self.__warnings.append(
-                    "Error, too many imported symbols %d (>%s)"
-                    % (self.__total_import_symbols, MAX_IMPORT_SYMBOLS)
+                    f"Error, too many imported symbols {self.__total_import_symbols} (>{MAX_IMPORT_SYMBOLS})"
                 )
                 break
 
