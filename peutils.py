@@ -441,8 +441,47 @@ class SignatureDatabase:
             self.max_depth = max(self.max_depth, depth)
 
 
-def is_valid(pe):
-    """"""
+def is_pe_file(pe):
+    """The paper "Lost in the Loader: The Many Faces of the Windows PE File
+    Format" identifices three broad operations performed by software on the PE
+    format: structrual checks, compliance checks, and memory mapping.
+
+    "As a rule of thumb, structural checks verify if a file is well formed,
+    while compliance checks test whether the extracted information is valid and
+    can be used to perform the task of the software. However, the boundary
+    between structural and compliance checks is not always clear because of the
+    ambiguities in the specifications ofthe PE Format that fails to declare the
+    structure of a PE executablein a formal way. Despite this difficulty, we
+    believe the distinction among the two types of checks can ease the
+    discussions of the various aspects of our work."
+
+    This function uses a subset of the YARA checks, for rudimentary structural
+    and compliance checks.
+    https://github.com/eurecom-s3/loaders-models/blob/d29d62bff9bff7f53f086f661b00168ffc082227/avs/yara/yara.lmod
+
+    Note: The Windows loader does more complex checks and includes all three
+    types of checks, and whether a PE file gets loaded varies between different
+    versions.
+    """
+    # IMAGE_DOS_SIGNATURE is checked during initial parsing, redundantly included for completeness
+    from pefile import IMAGE_DOS_SIGNATURE
+    if pe.DOS_HEADER.e_magic != IMAGE_DOS_SIGNATURE:
+        print(f"{pe.DOS_HEADER.e_magic=} does not equal {IMAGE_DOS_SIGNATURE=}")
+        return False
+
+    # IMAGE_NT_SIGNATURE is checked during initial parsing, redundantly included for completeness
+    from pefile import IMAGE_NT_SIGNATURE
+    if pe.NT_HEADERS.Signature != IMAGE_NT_SIGNATURE:
+        print(f"{pe.NT_HEADERS.Signature=} does not equal {IMAGE_NT_SIGNATURE=}")
+        return False
+
+    for section in pe.sections:
+        raw_data_end = section.PointerToRawData + section.SizeOfRawData
+        if raw_data_end > len(pe.__data__):
+            print(f"{section.PointerToRawData=} + {section.SizeOfRawData=} > {len(pe.__data__)=}")
+            return False
+
+    return True
 
 
 def is_suspicious(pe):
