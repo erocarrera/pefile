@@ -3394,7 +3394,6 @@ class PE:
     def parse_rich_header(self):
         """Parses the Rich Header
         https://www.ntcore.com/files/richsign.htm
-        https://www.virusbulletin.com/virusbulletin/2020/01/vb2019-paper-rich-headers-leveraging-mysterious-artifact-pe-format
 
         Structure:
         00 DanS ^ checksum, checksum, checksum, checksum
@@ -3407,6 +3406,7 @@ class PE:
         DANS = 0x536E6144  # 'DanS' as dword
         RICH = 0x68636952  # 'Rich' as dword
 
+        # https://www.virusbulletin.com/virusbulletin/2020/01/vb2019-paper-rich-headers-leveraging-mysterious-artifact-pe-format
         rich_index = self.__data__.find(
             b"Rich",
             0x50,  # The null DOS stub plus sixteen bytes
