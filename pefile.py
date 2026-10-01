@@ -144,6 +144,9 @@ directory_entry_types = [
 ]
 
 DIRECTORY_ENTRY = two_way_dict(directory_entry_types)
+DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_ARCHITECTURE"] = DIRECTORY_ENTRY[
+    "IMAGE_DIRECTORY_ENTRY_COPYRIGHT"
+]
 
 image_characteristics = [
     ("IMAGE_FILE_RELOCS_STRIPPED", 0x0001),
