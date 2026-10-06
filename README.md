@@ -22,6 +22,20 @@ To install pefile through pip:
 
 `pip3 install pefile`
 
+### source checkout
+
+this repository contains a large compressed test corpus, and its git history retains older versions of that corpus. a full clone can therefore be much larger than the library itself. use the pip installation above if you only need the library.
+
+to work on the source without downloading the test corpus or its history:
+
+```sh
+git clone --depth 1 --filter=blob:none --sparse https://github.com/erocarrera/pefile.git
+cd pefile
+git sparse-checkout set ordlookup
+```
+
+this checks out the library and its ordinal lookup tables. to include the tests, run `git sparse-checkout set ordlookup tests`; this also downloads the large test corpus. `--depth 1` omits older history, and filtered clones fetch additional file contents when needed.
+
 ## Features
 
 Some of the tasks that pefile makes possible are:
