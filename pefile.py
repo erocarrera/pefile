@@ -2347,6 +2347,10 @@ class PE:
     at a higher offset than the limit configured by the 'max_offset'
     parameter, which defaults to '0x10000000' (256MiB).
 
+    the 'max_repeated_import_addresses' parameter controls the threshold
+    for repeated addresses in an import table (15 by default). increase it
+    when parsing legitimate tables with many entries sharing an address.
+
     Basic headers information will be available in the attributes:
 
     DOS_HEADER
@@ -2896,9 +2900,11 @@ class PE:
         max_repeated_symbol=120,
         *, # args after this are keyword-only
         max_offset=0x10000000,
+        max_repeated_import_addresses=15,
     ):
         self.max_symbol_exports = max_symbol_exports
         self.max_repeated_symbol = max_repeated_symbol
+        self.max_repeated_import_addresses = max_repeated_import_addresses
 
         self._get_section_by_rva_last_used = None
 
@@ -6122,7 +6128,6 @@ class PE:
         expected_size = Structure(format).sizeof()
         MAX_ADDRESS_SPREAD = 128 * 2**20  # 128 MB
         ADDR_4GB = 2**32
-        MAX_REPEATED_ADDRESSES = 15
         repeated_address = 0
         addresses_of_data_set_64 = AddressSet()
         addresses_of_data_set_32 = AddressSet()
@@ -6145,7 +6150,7 @@ class PE:
 
             # if we see too many times the same entry we assume it could be
             # a table containing bogus data (with malicious intent or otherwise)
-            if repeated_address >= MAX_REPEATED_ADDRESSES:
+            if repeated_address >= self.max_repeated_import_addresses:
                 return []
 
             # if the addresses point somewhere but the difference between the highest
