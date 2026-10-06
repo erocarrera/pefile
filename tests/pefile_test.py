@@ -27,6 +27,15 @@ class TestPEFile(unittest.TestCase):
 
         return test_files
 
+    def test_directory_entry_architecture_alias(self):
+        """Test IMAGE_DIRECTORY_ENTRY_ARCHITECTURE alias"""
+    
+        self.assertEqual(pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_COPYRIGHT"], 7)
+        self.assertEqual(
+            pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_ARCHITECTURE"],
+            pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_COPYRIGHT"],
+        )
+    
     def test_pe_image_regression_test(self):
         """Run through all the test files and make sure they run correctly"""
 
