@@ -90,7 +90,10 @@ class SignatureDatabase:
                 name,
                 idx,
                 len(pe.sections),
-                "".join(c for c in section.Name if c in string.printable),
+                "".join(
+                    c for c in section.Name.decode("ascii", errors="ignore")
+                    if c in string.printable
+                ),
             )
 
             section_signatures.append(
@@ -126,7 +129,7 @@ class SignatureDatabase:
 
         data = pe.__data__[offset : offset + sig_length]
 
-        signature_bytes = " ".join(f"{ord(c):02x}" for c in data)
+        signature_bytes = " ".join(f"{c:02x}" for c in data)
 
         if ep_only:
             ep_only = "true"
