@@ -47,8 +47,8 @@ class SignatureDatabase:
         #
         # Signatures are stored as trees using dictionaries.
         #
-        # The keys are the byte values while the values for
-        # each key are either:
+        # keys are byte values, or (mask, value) tuples for nibble wildcards.
+        # values for each key are either:
         #
         # * Other dictionaries of the same form for further
         #   bytes in the signature
@@ -65,6 +65,7 @@ class SignatureDatabase:
 
         # The depth (length) of the longest signature
         self.max_depth = 0
+        self.__has_nibble_wildcards = False
 
         self.__load(filename=filename, data=data)
 
@@ -331,6 +332,15 @@ class SignatureDatabase:
                         )
                     )
 
+            if self.__has_nibble_wildcards:
+                for wildcard in ((0xF0, byte & 0xF0), (0x0F, byte & 0x0F)):
+                    if wildcard in match:
+                        matched_names.extend(
+                            self.__match_signature_tree(
+                                match[wildcard], data[idx + 1 :], idx + depth + 1
+                            )
+                        )
+
             match = match_next
 
         # If we have any more packer name in the end of the signature tree
@@ -383,6 +393,13 @@ class SignatureDatabase:
 
         # Helper function to parse the signature bytes
         def to_byte(value):
+            if len(value) == 2 and value != "??":
+                if value[0] == "?":
+                    self.__has_nibble_wildcards = True
+                    return (0x0F, int(value[1], 16))
+                if value[1] == "?":
+                    self.__has_nibble_wildcards = True
+                    return (0xF0, int(value[0], 16) << 4)
             if "?" in value:
                 return value
             return int(value, 16)
