@@ -7830,7 +7830,7 @@ class PE:
             )
         )
 
-    def get_overlay_data_start_offset(self):
+    def get_overlay_data_start_offset(self, include_certificate=True):
         """Get the offset of data appended to the file and not contained within
         the area described in the headers."""
 
@@ -7881,7 +7881,7 @@ class PE:
 
         for idx, directory in enumerate(self.OPTIONAL_HEADER.DATA_DIRECTORY):
 
-            if idx == DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']:
+            if not include_certificate and idx == DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']:
                 # For the Security / Certificate Table, the VirtualAddress is
                 # a file offset instead of an RVA
                 largest_offset_and_size = update_if_sum_is_larger_and_within_file(
