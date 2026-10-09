@@ -4,10 +4,11 @@ import struct
 import sys
 import unittest
 from hashlib import sha256
+from pathlib import Path, PurePath
 
 import pefile
 
-REGRESSION_TESTS_DIR = "tests/test_files"
+REGRESSION_TESTS_DIR = Path("tests/test_files")
 
 
 class TestPEFile(unittest.TestCase):
@@ -165,7 +166,7 @@ class TestPEFile(unittest.TestCase):
     def test_get_rich_header_hash(self):
         """Verify the RICH_HEADER hashes."""
 
-        control_file = os.path.join(REGRESSION_TESTS_DIR, "kernel32.dll")
+        control_file = REGRESSION_TESTS_DIR / "kernel32.dll"
         pe = pefile.PE(control_file)
 
         self.assertEqual(pe.get_rich_header_hash(), "b855b76450d1cd0dc4716bb129962b6d")
@@ -192,7 +193,7 @@ class TestPEFile(unittest.TestCase):
         opposed to do a single pass.
         """
 
-        control_file = os.path.join(REGRESSION_TESTS_DIR, "MSVBVM60.DLL")
+        control_file = REGRESSION_TESTS_DIR / "MSVBVM60.DLL"
         pe = pefile.PE(control_file, fast_load=True)
         # Load the 16 directories.
         pe.parse_data_directories(directories=list(range(0x10)))
@@ -210,28 +211,25 @@ class TestPEFile(unittest.TestCase):
         """Test imphash values."""
 
         self.assertEqual(
-            pefile.PE(os.path.join(REGRESSION_TESTS_DIR, "mfc40.dll")).get_imphash(),
+            pefile.PE(REGRESSION_TESTS_DIR / "mfc40.dll").get_imphash(),
             "ef3d32741141a9ffde06721c65ea07b6",
         )
 
         self.assertEqual(
-            pefile.PE(os.path.join(REGRESSION_TESTS_DIR, "kernel32.dll")).get_imphash(),
+            pefile.PE(REGRESSION_TESTS_DIR / "kernel32.dll").get_imphash(),
             "239b8e3d4f9d1860d6ce5efb07b02e2a",
         )
 
         self.assertEqual(
             pefile.PE(
-                os.path.join(
-                    REGRESSION_TESTS_DIR,
-                    "66c74e4c9dbd1d33b22f63cd0318b72dea88f9dbb4d36a3383d3da20b037d42e",
-                )
+                    REGRESSION_TESTS_DIR / "66c74e4c9dbd1d33b22f63cd0318b72dea88f9dbb4d36a3383d3da20b037d42e"
             ).get_imphash(),
             "a781de574e0567285ee1233bf6a57cc0",
         )
 
         self.assertEqual(
             pefile.PE(
-                os.path.join(REGRESSION_TESTS_DIR, "64bit_Binaries/cmd.exe")
+                REGRESSION_TESTS_DIR / "64bit_Binaries/cmd.exe"
             ).get_imphash(),
             "d0058544e4588b1b2290b7f4d830eb0a",
         )
@@ -240,28 +238,25 @@ class TestPEFile(unittest.TestCase):
         """Test exphash values."""
 
         self.assertEqual(
-            pefile.PE(os.path.join(REGRESSION_TESTS_DIR, "mfc40.dll")).get_exphash(),
+            pefile.PE(REGRESSION_TESTS_DIR / "mfc40.dll").get_exphash(),
             "62d630f6941ad56df3b0a079873a82bc",
         )
 
         self.assertEqual(
-            pefile.PE(os.path.join(REGRESSION_TESTS_DIR, "kernel32.dll")).get_exphash(),
+            pefile.PE(REGRESSION_TESTS_DIR / "kernel32.dll").get_exphash(),
             "ce0e98011116b41414acebc1e8c411c9",
         )
 
         self.assertEqual(
             pefile.PE(
-                os.path.join(
-                    REGRESSION_TESTS_DIR,
-                    "66c74e4c9dbd1d33b22f63cd0318b72dea88f9dbb4d36a3383d3da20b037d42e",
-                )
+                REGRESSION_TESTS_DIR / "66c74e4c9dbd1d33b22f63cd0318b72dea88f9dbb4d36a3383d3da20b037d42e"
             ).get_exphash(),
             "1f00d8a63daedf9970feb050bad38030",
         )
 
         self.assertEqual(
             pefile.PE(
-                os.path.join(REGRESSION_TESTS_DIR, "64bit_Binaries/cmd.exe")
+                REGRESSION_TESTS_DIR / "64bit_Binaries/cmd.exe"
             ).get_exphash(),
             "",
         )
@@ -270,7 +265,7 @@ class TestPEFile(unittest.TestCase):
         """Verify correct field data modification."""
 
         # Test version information writing
-        control_file = os.path.join(REGRESSION_TESTS_DIR, "MSVBVM60.DLL")
+        control_file = REGRESSION_TESTS_DIR / "MSVBVM60.DLL"
         pe = pefile.PE(control_file, fast_load=True)
         pe.parse_data_directories(
             directories=[pefile.DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_RESOURCE"]]
@@ -309,7 +304,7 @@ class TestPEFile(unittest.TestCase):
         """pefile should fail parsing invalid data (missing NT headers)"""
 
         # Take a known good file.
-        control_file = os.path.join(REGRESSION_TESTS_DIR, "MSVBVM60.DLL")
+        control_file = REGRESSION_TESTS_DIR / "MSVBVM60.DLL"
         pe = pefile.PE(control_file, fast_load=True)
 
         # Truncate it at the PE header and add invalid data.
@@ -348,7 +343,7 @@ class TestPEFile(unittest.TestCase):
         """pefile should fail parsing empty files."""
 
         # Take a known good file
-        control_file = os.path.join(REGRESSION_TESTS_DIR, "empty_file")
+        control_file = REGRESSION_TESTS_DIR / "empty_file"
         self.assertRaises(pefile.PEFormatError, pefile.PE, control_file)
 
     def test_virtual_size_less_than_raw_size(self):
@@ -405,7 +400,7 @@ class TestPEFile(unittest.TestCase):
         """Test different rebasing methods produce the same image"""
 
         # Take a known good file
-        control_file = os.path.join(REGRESSION_TESTS_DIR, "MSVBVM60.DLL")
+        control_file = REGRESSION_TESTS_DIR / "MSVBVM60.DLL"
         pe = pefile.PE(control_file)
 
         def count_differences(data1, data2):
@@ -435,8 +430,8 @@ class TestPEFile(unittest.TestCase):
 
         # This file used to crash pefile when attempting to relocate it:
         # https://github.com/erocarrera/pefile/issues/314
-        control_file = os.path.join(
-            REGRESSION_TESTS_DIR, "crash-8499a0bb33aeba8f59a172584abc7ca0ab82a78c"
+        control_file = (
+            REGRESSION_TESTS_DIR / "crash-8499a0bb33aeba8f59a172584abc7ca0ab82a78c"
         )
         pe = pefile.PE(control_file)
 
@@ -451,10 +446,8 @@ class TestPEFile(unittest.TestCase):
         # A check is made now that the section's start address + size does not
         # go beyond a subsequent section's start address and if so, it's
         # truncated.
-        control_file = os.path.join(
-            REGRESSION_TESTS_DIR,
-            "924C62EF97E0B4939E9047B866037BB5BDDA92F9DA6D22F5DEEFC540856CDC0D."
-            "bin__aleph_overlapping_sections",
+        control_file = (
+            REGRESSION_TESTS_DIR / "924C62EF97E0B4939E9047B866037BB5BDDA92F9DA6D22F5DEEFC540856CDC0D.bin__aleph_overlapping_sections"
         )
         pe = pefile.PE(control_file)
 
@@ -472,10 +465,8 @@ class TestPEFile(unittest.TestCase):
         # this file has FileAlignment == SectionAlignment == 0x200 and
         # its section layout led to older versions of pefile not reading
         # the correct entry point data
-        control_file = os.path.join(
-            REGRESSION_TESTS_DIR,
-            "BackDoor.Poison.ex_bad_section_and_file_aligments_broke_"
-            "pefile_1.2.10-93",
+        control_file = (
+            REGRESSION_TESTS_DIR / "BackDoor.Poison.ex_bad_section_and_file_aligments_broke_pefile_1.2.10-93"
         )
         pe = pefile.PE(control_file)
 
@@ -495,8 +486,8 @@ class TestPEFile(unittest.TestCase):
         # is 0x10, which is rounded down to zero, it's VirtualAddress is 0x1000.
         # The entry point is at 0x1018, hence it will correspond to reading at
         # offset 0x18 in the file.
-        control_file = os.path.join(
-            REGRESSION_TESTS_DIR, "unconventional_PointerToRawData_values"
+        control_file = (
+            REGRESSION_TESTS_DIR / "unconventional_PointerToRawData_values"
         )
         pe = pefile.PE(control_file)
 
@@ -521,8 +512,8 @@ class TestPEFile(unittest.TestCase):
         # not make any difference, the Windows loader still aligns the PointerToRawData
         # to 0x200.
         fname = "pe-bear_issue_11/packed.exe"
-        if os.path.exists(os.path.join(REGRESSION_TESTS_DIR, fname)):
-            control_file = os.path.join(REGRESSION_TESTS_DIR, fname)
+        if (REGRESSION_TESTS_DIR / fname).exists():
+            control_file = REGRESSION_TESTS_DIR / fname
             pe = pefile.PE(control_file)
 
             self.assertEqual(
@@ -534,7 +525,7 @@ class TestPEFile(unittest.TestCase):
 
         # The file has a section with PointerToRawData = VirtualAddress = 0xc. Section
         # data is read starting from zero, as 0xc gets rounded down to zero.
-        control_file = os.path.join(REGRESSION_TESTS_DIR, "tiny-1.exe")
+        control_file = REGRESSION_TESTS_DIR / "tiny-1.exe"
         pe = pefile.PE(control_file)
 
         self.assertEqual(
@@ -546,8 +537,8 @@ class TestPEFile(unittest.TestCase):
         # The section "whole" has a PointerToRawData = 0x1 which gets rounded down to
         # zero. The whole file is then read and loaded at the section's VirtualAddress,
         # effectively creating a copy.
-        control_file = os.path.join(
-            REGRESSION_TESTS_DIR, "corkami_ange_testfiles/whole_pe_section.exe"
+        control_file = (
+            REGRESSION_TESTS_DIR / "corkami_ange_testfiles/whole_pe_section.exe"
         )
         pe = pefile.PE(control_file)
 
@@ -572,9 +563,8 @@ class TestPEFile(unittest.TestCase):
         # http://code.google.com/p/pefile/source/detail?r=96
         # Was issue: 12
 
-        control_file = os.path.join(
-            REGRESSION_TESTS_DIR,
-            "031.vxe_pefile_1.2.10-95_dword_alignment_was_not_ok_for_" "VS_VERSIONINFO",
+        control_file = (
+            REGRESSION_TESTS_DIR / "031.vxe_pefile_1.2.10-95_dword_alignment_was_not_ok_for_" "VS_VERSIONINFO"
         )
         pe = pefile.PE(control_file)
 
@@ -586,17 +576,15 @@ class TestPEFile(unittest.TestCase):
         self.assertEqual(vs_fixedfileinfo_signature, good_vs_fixedfileinfo_signature)
 
     def test_overlay_github_issue_104(self):
-        control_file_pe = os.path.join(
-            REGRESSION_TESTS_DIR,
-            "307a69414b203f1116db677b8bc07130ae2b72cf33cf2ae5a39bf1bd484b587c_overlay_issue_104",
+        control_file_pe = (
+            REGRESSION_TESTS_DIR / "307a69414b203f1116db677b8bc07130ae2b72cf33cf2ae5a39bf1bd484b587c_overlay_issue_104"
         )
         pe = pefile.PE(control_file_pe)
         overlay_offset = pe.get_overlay_data_start_offset()
         self.assertEqual(overlay_offset, 14848)
 
-        control_file_pe = os.path.join(
-            REGRESSION_TESTS_DIR,
-            "3096e39df63c0be68746ea3bbe528c067b6eb45e2d61cc167712c3b1e0966be3_overlay_issue_104",
+        control_file_pe = (
+            REGRESSION_TESTS_DIR / "3096e39df63c0be68746ea3bbe528c067b6eb45e2d61cc167712c3b1e0966be3_overlay_issue_104"
         )
         pe = pefile.PE(control_file_pe)
         overlay_offset = pe.get_overlay_data_start_offset()
@@ -605,8 +593,8 @@ class TestPEFile(unittest.TestCase):
     def test_get_overlay_and_trimming(self):
         """Test method to retrieve overlay data and trim the PE"""
 
-        control_file_pe = os.path.join(
-            REGRESSION_TESTS_DIR, "0x90_with_overlay_data.exe"
+        control_file_pe = (
+            REGRESSION_TESTS_DIR / "0x90_with_overlay_data.exe"
         )
         pe = pefile.PE(control_file_pe)
         overlay_data = pe.get_overlay()
@@ -621,7 +609,7 @@ class TestPEFile(unittest.TestCase):
         # Ensure the trim data is correct.
         self.assertEqual(len(trimmed_data), 294912)
 
-        control_file_pe = os.path.join(REGRESSION_TESTS_DIR, "0x90.exe")
+        control_file_pe = REGRESSION_TESTS_DIR / "0x90.exe"
         pe = pefile.PE(control_file_pe)
 
         # Ensure the overlay data is correct (should not be any in this case).
@@ -632,8 +620,8 @@ class TestPEFile(unittest.TestCase):
         # Ensure the trim data is correct.
         self.assertEqual(len(trimmed_data), 294912)
 
-        control_file_pe = os.path.join(
-            REGRESSION_TESTS_DIR, "sectionless.exe_corkami_issue_51"
+        control_file_pe = (
+            REGRESSION_TESTS_DIR / "sectionless.exe_corkami_issue_51"
         )
         pe = pefile.PE(control_file_pe)
 
@@ -645,17 +633,16 @@ class TestPEFile(unittest.TestCase):
         should result in an error message.
         """
 
-        control_file_pe = os.path.join(
-            REGRESSION_TESTS_DIR, "fake_PE_no_read_permissions_issue_53"
+        control_file_pe = (
+            REGRESSION_TESTS_DIR / "fake_PE_no_read_permissions_issue_53"
         )
         self.assertRaises(Exception, pefile.PE, control_file_pe)
 
     def test_driver_check(self):
         """Test the is_driver check"""
 
-        control_file_pe = os.path.join(
-            REGRESSION_TESTS_DIR,
-            "075356de51afac92d1c20ba53c966fa145172897a96cfdb1b3bb369edb376a77_driver",
+        control_file_pe = (
+            REGRESSION_TESTS_DIR / "075356de51afac92d1c20ba53c966fa145172897a96cfdb1b3bb369edb376a77_driver"
         )
 
         pe_fast = pefile.PE(control_file_pe, fast_load=True)
@@ -664,8 +651,8 @@ class TestPEFile(unittest.TestCase):
         # Ensure the rebased image is the same as the pre-generated one.
         self.assertEqual(pe_fast.is_driver(), pe_full.is_driver())
 
-        control_file_pe = os.path.join(
-            REGRESSION_TESTS_DIR, "issue_322_plaso_test_driver.sys"
+        control_file_pe = (
+            REGRESSION_TESTS_DIR / "issue_322_plaso_test_driver.sys"
         )
 
         pe = pefile.PE(control_file_pe, fast_load=False)
@@ -675,15 +662,14 @@ class TestPEFile(unittest.TestCase):
         """Test correctness of rebased images"""
 
         # Take a known good file.
-        control_file = os.path.join(
-            REGRESSION_TESTS_DIR,
-            "pefile_unittest_data__resurrel_malware_rebased_0x400000",
+        control_file = (
+            REGRESSION_TESTS_DIR / "pefile_unittest_data__resurrel_malware_rebased_0x400000"
         )
         control_file_f = open(control_file, "rb")
         control_file_data = control_file_f.read()
         control_file_f.close()
 
-        control_file_pe = os.path.join(REGRESSION_TESTS_DIR, "e05916.ex_")
+        control_file_pe = REGRESSION_TESTS_DIR / "e05916.ex_"
         pe = pefile.PE(control_file_pe)
         rebased_data = pe.get_memory_mapped_image(ImageBase=0x400000)
 
@@ -694,37 +680,35 @@ class TestPEFile(unittest.TestCase):
         """Verify correct calculation of checksum"""
 
         # Take a known good file.
-        control_file = os.path.join(REGRESSION_TESTS_DIR, "MSVBVM60.DLL")
+        control_file = REGRESSION_TESTS_DIR / "MSVBVM60.DLL"
         pe = pefile.PE(control_file)
 
         # verify_checksum() generates a checksum from the image's data and
         # compares it against the checksum field in the optional header.
         self.assertTrue(pe.verify_checksum())
 
-        control_file = os.path.join(
-            REGRESSION_TESTS_DIR,
-            "checksum/0031709440C539B47E34B524AF3900248DD35274_bad_checksum",
+        control_file = (
+            REGRESSION_TESTS_DIR / "checksum/0031709440C539B47E34B524AF3900248DD35274_bad_checksum"
         )
         pe = pefile.PE(control_file)
         self.assertFalse(pe.verify_checksum())
         self.assertEqual(pe.generate_checksum(), 0x16C39)
 
-        control_file = os.path.join(
-            REGRESSION_TESTS_DIR,
-            "checksum/009763E904C053C1803B26EC0D817AF497DA1BB2_bad_checksum",
+        control_file = (
+            REGRESSION_TESTS_DIR / "checksum/009763E904C053C1803B26EC0D817AF497DA1BB2_bad_checksum"
         )
         pe = pefile.PE(control_file)
         self.assertFalse(pe.verify_checksum())
         self.assertEqual(pe.generate_checksum(), 0x249F7)
 
-        control_file = os.path.join(
-            REGRESSION_TESTS_DIR, "checksum/00499E3A70A324160A3FE935F10BFB699ACB0954"
+        control_file = (
+            REGRESSION_TESTS_DIR / "checksum/00499E3A70A324160A3FE935F10BFB699ACB0954"
         )
         pe = pefile.PE(control_file)
         self.assertTrue(pe.verify_checksum())
 
-        control_file = os.path.join(
-            REGRESSION_TESTS_DIR, "checksum/0011FEECD53D06A6C68C531E0DA7A61C692E76BF"
+        control_file = (
+            REGRESSION_TESTS_DIR / "checksum/0011FEECD53D06A6C68C531E0DA7A61C692E76BF"
         )
         pe = pefile.PE(control_file)
         self.assertTrue(pe.verify_checksum())
