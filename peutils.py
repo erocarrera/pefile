@@ -368,7 +368,7 @@ class SignatureDatabase:
             else:
                 # Get the data for a file
                 try:
-                    with open(filename, 'r') as f:
+                    with open(filename) as f:
                         sig_data = f.read()
                 except OSError:
                     # Let this be raised back to the user...
