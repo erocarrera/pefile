@@ -89,8 +89,7 @@ class TestPEFile(unittest.TestCase):
             if control_data_hash != pe_file_data_hash:
                 print(f"\nHash differs for [{os.path.basename(pe_filename)}]")
 
-                control_file_lines = [*control_data.decode("utf-8").splitlines()
-                ]
+                control_file_lines = [*control_data.decode("utf-8").splitlines()]
                 pefile_lines = pe_file_data.splitlines()
 
                 diff = difflib.ndiff(control_file_lines, pefile_lines)
