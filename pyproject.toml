@@ -9,7 +9,7 @@ description = "A Portable Executable (PE) parsing module"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.6.0"
+requires-python = ">=3.11.0"
 authors = [
     { name = "Ero Carrera", email = "ero.carrera@gmail.com" },
 ]
@@ -78,7 +78,7 @@ commands =
     python -m coverage run -p -m pytest --ignore=./tests/pefile_test.py
 
 [testenv:coverage]
-basepython = python3.10
+basepython = python3.11
 commands =
     python -m coverage combine
     python -m coverage report --show-missing --skip-covered --ignore-errors
