@@ -59,6 +59,7 @@ class SignatureDatabase:
         self.signature_tree_eponly_false = {}
         self.signature_tree_eponly_true = {}
         self.signature_tree_section_start = {}
+
         self.signature_count_eponly_false = 0
         self.signature_count_eponly_true = 0
         self.signature_count_section_start = 0
@@ -131,17 +132,12 @@ class SignatureDatabase:
 
         signature_bytes = " ".join(f"{c:02x}" for c in data)
 
-        if ep_only:
-            ep_only = "true"
-        else:
-            ep_only = "false"
-
-        if section_start_only:
-            section_start_only = "true"
-        else:
-            section_start_only = "false"
-
-        signature = f"[{name}]\nsignature = {signature_bytes}\nep_only = {ep_only}\nsection_start_only = {section_start_only}\n"
+        signature = (
+            f"[{name}]\n"
+            f"signature = {signature_bytes}\n"
+            f"ep_only = {'true' if ep_only else 'false'}\n"
+            f"section_start_only = {'true' if section_start_only else 'false'}\n"
+        )
 
         return signature
 
@@ -371,7 +367,7 @@ class SignatureDatabase:
             else:
                 # Get the data for a file
                 try:
-                    with open(filename, 'r') as f:
+                    with open(filename) as f:
                         sig_data = f.read()
                 except OSError:
                     # Let this be raised back to the user...
