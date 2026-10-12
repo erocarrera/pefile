@@ -4,7 +4,7 @@ import struct
 import sys
 import unittest
 from hashlib import sha256
-from pathlib import Path, PurePath
+from pathlib import Path
 
 import pefile
 
@@ -117,7 +117,7 @@ class TestPEFile(unittest.TestCase):
                     and lines_to_ignore
                     == diff_lines_removed_count + diff_lines_added_count
                 ):
-                    print("Differences are in TimeDateStamp formatting, " "ignoring...")
+                    print("Differences are in TimeDateStamp formatting, ignoring...")
 
                 else:
                     print(
@@ -562,7 +562,7 @@ class TestPEFile(unittest.TestCase):
         # Was issue: 12
 
         control_file = (
-            REGRESSION_TESTS_DIR / "031.vxe_pefile_1.2.10-95_dword_alignment_was_not_ok_for_" "VS_VERSIONINFO"
+            REGRESSION_TESTS_DIR / "031.vxe_pefile_1.2.10-95_dword_alignment_was_not_ok_for_VS_VERSIONINFO"
         )
         pe = pefile.PE(control_file)
 
