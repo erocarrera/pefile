@@ -5776,6 +5776,7 @@ class PE:
 
         Returns:
             The hexdigest of the MD5 hash of the exported symbols.
+
         """
 
         impstrs = []
@@ -5828,6 +5829,7 @@ class PE:
 
         Returns:
             The hexdigest of the MD5 hash of the exported symbols.
+
         """
 
         if not hasattr(self, "DIRECTORY_ENTRY_EXPORT"):
@@ -6062,7 +6064,7 @@ class PE:
             except IndexError:
                 imp_bound = None
 
-            # The file with 
+            # The file with
             #
             # SHA-256: 3d22f8b001423cb460811ab4f4789f277b35838d45c62ec0454c877e7c82c7f5
             #
@@ -6190,7 +6192,7 @@ class PE:
             # being scanned, abort if that is the case, as it is very unlikely
             # to be legitimate data.
             #
-            # Seen in PE with 
+            # Seen in PE with
             # SHA-256: 5945bb6f0ac879ddf61b1c284f3b8d20c06b228e75ae4f571fa87f5b9512902c
             if (
                 thunk_data
@@ -7734,7 +7736,7 @@ class PE:
         checksum_offset = self.OPTIONAL_HEADER.get_file_offset() + 0x40  # 64
 
         checksum = 0
-        # Ensure the data is dword-aligned. 
+        # Ensure the data is dword-aligned.
         # Add padding if needed.
         remainder = len(self.__data__) % 4
         data_len = len(self.__data__) + ((4 - remainder) * (remainder != 0))
@@ -7918,9 +7920,9 @@ class PE:
         # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#optional-header-windows-specific-fields-image-only
         if self.OPTIONAL_HEADER.FileAlignment >= MIN_VALID_FILE_ALIGNMENT:
             # If it's not a power of two, report it:
-            if ( 
-                not power_of_two(self.OPTIONAL_HEADER.FileAlignment) 
-                and self.FileAlignment_Warning is False 
+            if (
+                not power_of_two(self.OPTIONAL_HEADER.FileAlignment)
+                and self.FileAlignment_Warning is False
             ):
                 self.__warnings.append(
                     f"If FileAlignment > 0x200 it should be a power of 2. "

@@ -512,6 +512,7 @@ def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):
 
     Returns:
         True if file is probably packed or contains compressed data, False otherwise.
+
     """
 
     # Calculate the length of the data up to the end of the last section in the
