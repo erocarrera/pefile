@@ -394,8 +394,8 @@ class TestPEFile(unittest.TestCase):
             "BSS region (VirtualSize - SizeOfRawData) must be zero-padded",
         )
 
-    def test_dynamic_relocation_table_cut_short(self):
-        """A DVRT header cut off by the end of the file must not raise.
+    def test_truncated_dynamic_relocation_table(self):
+        """A Dynamic Value Relocation Table (DVRT) header truncated by the end of the file must not raise.
 
         The load config points its DVRT at section offset 0x1000, but the file
         ends 4 bytes into the 8-byte IMAGE_DYNAMIC_RELOCATION_TABLE header.
