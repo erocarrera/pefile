@@ -4103,6 +4103,13 @@ class PE:
             )
             return None
 
+        if not image_dynamic_reloc_table_struct:
+            self.__warnings.append(
+                "Invalid IMAGE_DYNAMIC_RELOCATION_TABLE information. Can't read "
+                f"data at RVA: {rva:#x}"
+            )
+            return None
+
         if image_dynamic_reloc_table_struct.Version != 1:
             self.__warnings.append(
                 "No parsing available for IMAGE_DYNAMIC_RELOCATION_TABLE.Version = "
