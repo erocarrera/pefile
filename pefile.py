@@ -3497,10 +3497,16 @@ class PE:
         """
 
         file_data = bytearray(self.__data__)
+        file_size = len(file_data)
 
         for structure in self.__structures__:
             struct_data = bytearray(structure.__pack__())
             offset = structure.get_file_offset()
+            # A structure cut short by the end of the file was read zero padded,
+            # don't append that padding to the file unless it has been changed.
+            in_file = max(0, file_size - offset)
+            if len(struct_data) > in_file and not any(struct_data[in_file:]):
+                struct_data = struct_data[:in_file]
             file_data[offset : offset + len(struct_data)] = struct_data
 
         if hasattr(self, "VS_VERSIONINFO") and hasattr(self, "FileInfo"):
