@@ -298,6 +298,46 @@ class TestPEFile(unittest.TestCase):
 
         pe.close()
 
+    def test_old_style_delay_import_phmod(self):
+        """The VA fields of an old style delay import descriptor are each
+        converted to an RVA, phmod must not take the value of pUnloadIAT.
+        """
+
+        data = bytearray(0x400)
+        data[0:2] = b"MZ"
+        struct.pack_into("<I", data, 0x3C, 0x40)
+        data[0x40:0x44] = b"PE\0\0"
+        struct.pack_into("<HHIIIHH", data, 0x44, 0x14C, 1, 0, 0, 0, 0xE0, 0x102)
+        opt = 0x58
+        struct.pack_into(
+            "<HBBIIIIII", data, opt, 0x10B, 0, 0, 0x200, 0, 0, 0x1000, 0x1000, 0
+        )
+        struct.pack_into("<III", data, opt + 28, 0x400000, 0x1000, 0x200)
+        struct.pack_into("<I", data, opt + 56, 0x2000)
+        struct.pack_into("<I", data, opt + 60, 0x200)
+        struct.pack_into("<H", data, opt + 68, 2)
+        struct.pack_into("<I", data, opt + 92, 16)
+        # IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT
+        struct.pack_into("<II", data, opt + 96 + 13 * 8, 0x1000, 0x40)
+        sec = opt + 0xE0
+        data[sec : sec + 8] = b".data\0\0\0"
+        struct.pack_into("<IIII", data, sec + 8, 0x1000, 0x1000, 0x200, 0x200)
+        struct.pack_into("<I", data, sec + 36, 0xC0000040)
+        # grAttrs 0, then szName, phmod, pIAT, pINT, pBoundIAT, pUnloadIAT as VAs
+        va = 0x401000
+        fields = (0, va + 0x100, va + 0x180, va + 0x80, va + 0xA0, 0, va + 0xC0, 0)
+        struct.pack_into("<8I", data, 0x200, *fields)
+        struct.pack_into("<I", data, 0x200 + 0x80, va + 0x140)
+        struct.pack_into("<I", data, 0x200 + 0xA0, va + 0x140)
+        data[0x300:0x309] = b"test.dll\0"
+        data[0x342:0x346] = b"Foo\0"
+
+        pe = pefile.PE(data=bytes(data))
+        delay_import = pe.DIRECTORY_ENTRY_DELAY_IMPORT[0]
+        self.assertEqual(delay_import.dll, b"test.dll")
+        self.assertEqual(delay_import.struct.phmod, 0x1180)
+        self.assertEqual(delay_import.struct.pUnloadIAT, 0x10C0)
+
     def test_nt_headers_exception(self):
         """pefile should fail parsing invalid data (missing NT headers)"""
 

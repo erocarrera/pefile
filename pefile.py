@@ -5690,7 +5690,7 @@ class PE:
                 import_desc.pUnloadIAT = self.normalize_import_va(
                     import_desc.pUnloadIAT
                 )
-                import_desc.phmod = self.normalize_import_va(import_desc.pUnloadIAT)
+                import_desc.phmod = self.normalize_import_va(import_desc.phmod)
                 import_desc.szName = self.normalize_import_va(import_desc.szName)
                 contains_addresses = True
 
