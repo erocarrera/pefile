@@ -68,14 +68,14 @@ include = [
 [tool.tox]
 legacy_tox_ini = """
 [tox]
-envlist = py38,py39,py310,py311,py312,coverage
+envlist = py38,py39,py310,py311,py312,py313,py314,py314t,pypy310,coverage
 
 [testenv]
 deps =
     pytest
     coverage
 commands =
-    python -m coverage run -p -m pytest --ignore=./tests/pefile_test.py
+    python -m coverage run -p -m pytest tests
 
 [testenv:coverage]
 basepython = python3.10
@@ -91,4 +91,8 @@ python =
     3.10: py310
     3.11: py311
     3.12: py312
+    3.13: py313
+    3.14: py314
+    3.14t: py314t
+    pypy-3.10: pypy310
 """

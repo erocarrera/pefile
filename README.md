@@ -53,6 +53,22 @@ _pefile_ runs in several pipelines scanning hundreds of thousands of new PE file
 
 _pefile_ is self-contained. The module has no dependencies; it is endianness independent; and it works on Windows, macOS, and Linux.
 
+## Running tests
+
+The test runner lives in `tests/pefile_test.py`. Its PE samples and expected
+dumps come from the separate [pefile-tests](https://github.com/erocarrera/pefile-tests)
+repository. Clone that repository into `pefile-tests/` at the root of this
+checkout, then run:
+
+```shell
+python -m pip install -e ".[dev]"
+python -m pytest tests
+```
+
+CI checks out the corpus in the same location and runs this test module through
+tox. The corpus remains in its own repository so binary samples and expected
+dumps can be updated independently.
+
 ## Projects and products using _pefile_
 
   * Didier Stevens' [pecheck](https://blog.didierstevens.com/2018/06/12/update-pecheck-py-version-0-7-3/), a tool for displaying PE file info, handles PEiD files better then _pefile_ does.

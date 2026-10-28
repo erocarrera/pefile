@@ -20,6 +20,7 @@ venv/
 /build
 /dist
 /pefile.egg-info
+/pefile-tests/
 .DS_Store
 .coverage
 .ipynb_checkpoints/*
