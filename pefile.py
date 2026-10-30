@@ -3505,7 +3505,7 @@ class PE:
             # A structure cut short by the end of the file was read zero padded,
             # don't append that padding to the file unless it has been changed.
             in_file = max(0, file_size - offset)
-            if len(struct_data) > in_file and not any(struct_data[in_file:]):
+            if in_file < len(struct_data) and not any(struct_data[in_file:]):
                 struct_data = struct_data[:in_file]
             file_data[offset : offset + len(struct_data)] = struct_data
 

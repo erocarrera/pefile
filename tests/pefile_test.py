@@ -306,10 +306,10 @@ class TestPEFile(unittest.TestCase):
         # A PE32 file that ends 16 bytes into the optional header.
         data = bytearray(0x40 + 4 + 20 + 0x50)
         data[0:2] = b"MZ"
-        struct.pack_into("<I", data, 0x3C, 0x40)
+        struct.pack_into("<I", data, 0x3C, 0x40)  # e_lfanew
         data[0x40:0x44] = b"PE\0\0"
-        struct.pack_into("<HHIIIHH", data, 0x44, 0x14C, 0, 0, 0, 0, 0xE0, 0x102)
-        struct.pack_into("<H", data, 0x58, 0x10B)
+        struct.pack_into("<HHIIIHH", data, 0x44, 0x14C, 0, 0, 0, 0, 0xE0, 0x102)  # COFF File Header
+        struct.pack_into("<H", data, 0x58, 0x10B)  # Magic; 0x10B is a normal executable file
 
         pe = pefile.PE(data=bytes(data))
         self.assertEqual(pe.write(), data)
