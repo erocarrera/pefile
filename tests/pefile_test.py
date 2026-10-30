@@ -294,6 +294,26 @@ class TestPEFile(unittest.TestCase):
 
         pe.close()
 
+    def test_write_keeps_size_of_truncated_headers(self):
+        """Headers cut short by the end of the file are read zero padded,
+        write() must not append that padding to an unmodified file.
+        """
+
+        # A PE32 file that ends 16 bytes into the optional header.
+        data = bytearray(0x40 + 4 + 20 + 0x50)
+        data[0:2] = b"MZ"
+        struct.pack_into("<I", data, 0x3C, 0x40)  # e_lfanew
+        data[0x40:0x44] = b"PE\0\0"
+        struct.pack_into("<HHIIIHH", data, 0x44, 0x14C, 0, 0, 0, 0, 0xE0, 0x102)  # COFF File Header
+        struct.pack_into("<H", data, 0x58, 0x10B)  # Magic; 0x10B is a normal executable file
+
+        pe = pefile.PE(data=bytes(data))
+        self.assertEqual(pe.write(), data)
+
+        # A value written past the end of the file is still kept.
+        pe.OPTIONAL_HEADER.DATA_DIRECTORY[1].VirtualAddress = 0x1000
+        self.assertGreater(len(pe.write()), len(data))
+
     def test_nt_headers_exception(self):
         """pefile should fail parsing invalid data (missing NT headers)"""
 
