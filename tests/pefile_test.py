@@ -408,6 +408,33 @@ class TestPEFile(unittest.TestCase):
             "BSS region (VirtualSize - SizeOfRawData) must be zero-padded",
         )
 
+    def test_truncated_dynamic_relocation_table(self):
+        """A Dynamic Value Relocation Table (DVRT) header truncated by the end of the file must not raise.
+
+        The load config points its DVRT at section offset 0x1000, but the file
+        ends 4 bytes into the 8-byte IMAGE_DYNAMIC_RELOCATION_TABLE header.
+        """
+        data = bytearray(_create_pe(0x1004, 0x1004))
+
+        load_config = bytearray(0x8E)
+        struct.pack_into("<I", load_config, 0, 0x8E)  # Size
+        struct.pack_into("<I", load_config, 0x88, 0x1000)  # DynamicValueRelocTableOffset
+        struct.pack_into("<H", load_config, 0x8C, 1)  # DynamicValueRelocTableSection
+        # PE32 load config at RVA 0x1000.
+        data[0x400 : 0x400 + len(load_config)] = load_config
+        pe = pefile.PE(data=bytes(data))
+
+        load_config_data = pe.parse_directory_load_config(0x1000, 0x8E)
+
+        self.assertIsNotNone(load_config_data)
+        self.assertIsNone(load_config_data.dynamic_relocations)
+        self.assertTrue(
+            any(
+                "Invalid IMAGE_DYNAMIC_RELOCATION_TABLE information" in warning
+                for warning in pe.get_warnings()
+            )
+        )
+
     def test_relocated_memory_mapped_image(self):
         """Test different rebasing methods produce the same image"""
 
