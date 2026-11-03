@@ -1070,13 +1070,10 @@ class Structure:
                         )
 
                 dump.append(
-                    "0x%-8X 0x%-3X %-30s %s"
-                    % (
-                        self.__field_offsets__[key] + self.__file_offset__,
-                        self.__field_offsets__[key],
-                        key + ":",
-                        val_str,
-                    )
+                    f"0x{self.__field_offsets__[key] + self.__file_offset__:<8X} "
+                    f"0x{self.__field_offsets__[key]:<3X} "
+                    f"{key + ':':<30s} "
+                    f"{val_str}"
                 )
 
         return dump
@@ -6724,8 +6721,8 @@ class PE:
                     if export.name:
                         name = export.name
                     dump.add(
-                        "%-10d 0x%08X    %s"
-                        % (export.ordinal, export.address, name.decode(encoding))
+                        f"{export.ordinal:<10d} 0x{export.address:08X}    "
+                        f"{name.decode(encoding)}"
                     )
                     if export.forwarder:
                         dump.add_line(
@@ -6874,18 +6871,14 @@ class PE:
                             for resource_lang in resource_id.directory.entries:
                                 if hasattr(resource_lang, "data"):
                                     dump.add_line(
-                                        "\\--- LANG [%d,%d][%s,%s]"
-                                        % (
-                                            resource_lang.data.lang,
-                                            resource_lang.data.sublang,
-                                            LANG.get(
-                                                resource_lang.data.lang, "*unknown*"
-                                            ),
-                                            get_sublang_name_for_lang(
-                                                resource_lang.data.lang,
-                                                resource_lang.data.sublang,
-                                            ),
-                                        ),
+                                        "\\--- LANG ["
+                                        f"{resource_lang.data.lang}"
+                                        f"{resource_lang.data.sublang}"
+                                        "]["
+                                        f"{LANG.get(resource_lang.data.lang, '*unknown*')}"
+                                        f"{get_sublang_name_for_lang(resource_lang.data.lang, resource_lang.data.sublang,)}"
+                                        "]",
+
                                         8,
                                     )
                                     dump.add_lines(resource_lang.struct.dump(), 10)
