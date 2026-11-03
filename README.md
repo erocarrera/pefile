@@ -84,6 +84,13 @@ dumps can be updated independently.
   * [PE Tree](https://github.com/blackberry/pe_tree)
   * [icoextract](https://github.com/jlu5/icoextract)
 
+## Section names
+
+`section.Name` retains the raw eight-byte header field. Use
+`section.get_name()` to remove null padding and resolve COFF long names such as
+`/4` through the string table. The result is bytes, including for non-UTF-8
+names. Malformed or missing string-table references return the literal name.
+
 ## Additional resources
 
 PDFs of posters depicting the PE file format:
