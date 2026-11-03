@@ -712,23 +712,27 @@ class TestPEFile(unittest.TestCase):
     def test_driver_check(self):
         """Test the is_driver check"""
 
-        #control_file_pe = (
-        #    REGRESSION_TESTS_DIR / "075356de51afac92d1c20ba53c966fa145172897a96cfdb1b3bb369edb376a77_driver"
-        #)
+        # A 32 bit driver that imports DbgPrint from ntoskrnl.exe
+        control_file_pe = POCS_TESTS_DIR / "driver.sys"
 
-        #pe_fast = pefile.PE(control_file_pe, fast_load=True)
-        #pe_full = pefile.PE(control_file_pe, fast_load=False)
+        pe_fast = pefile.PE(control_file_pe, fast_load=True)
+        pe_full = pefile.PE(control_file_pe, fast_load=False)
 
-        ## Ensure the rebased image is the same as the pre-generated one.
-        #self.assertEqual(pe_fast.is_driver(), pe_full.is_driver())
+        # With fast_load the imports are only parsed by is_driver()
+        self.assertTrue(pe_fast.is_driver())
+        self.assertTrue(pe_full.is_driver())
 
-        #control_file_pe = (
-        #    REGRESSION_TESTS_DIR / "issue_322_plaso_test_driver.sys"
-        #)
+        # A 64 bit driver that imports from NTOSKRNL.exe in upper case
+        control_file_pe = LIEF_TESTS_DIR / "PE64_x86-64_atapi.sys"
 
-        #pe = pefile.PE(control_file_pe, fast_load=False)
-        #self.assertTrue(pe.is_driver())
-        pass
+        pe_fast = pefile.PE(control_file_pe, fast_load=True)
+        pe_full = pefile.PE(control_file_pe, fast_load=False)
+
+        self.assertTrue(pe_fast.is_driver())
+        self.assertTrue(pe_full.is_driver())
+
+        pe = pefile.PE(REGRESSION_TESTS_DIR / "cmd.exe")
+        self.assertFalse(pe.is_driver())
 
     def test_rebased_image(self):
         """Test correctness of rebased images"""
