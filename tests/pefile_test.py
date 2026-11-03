@@ -749,6 +749,12 @@ class TestPEFile(unittest.TestCase):
         #self.assertEqual(rebased_data, control_file_data)
         pass
 
+    def test_is_driver_returns_bool(self):
+        """Test is_driver returns False, not an empty set, for other files"""
+
+        pe = pefile.PE(REGRESSION_TESTS_DIR / "cmd.exe")
+        self.assertIs(pe.is_driver(), False)
+
     def test_checksum(self):
         """Verify correct calculation of checksum"""
 
