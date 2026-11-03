@@ -485,7 +485,7 @@ def is_suspicious(pe):
     # unusual entrypoint, suspicious imports)
     warnings = pe.get_warnings()
     if warnings:
-        warnings_while_parsing
+        warnings_while_parsing = True
 
     # If there are few or none (should come with a standard "density" of strings/kilobytes of data) longer (>8)
     # ASCII sequences that might indicate packed data, (this is similar to the entropy test in some ways but
