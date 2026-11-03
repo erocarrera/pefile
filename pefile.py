@@ -6872,10 +6872,10 @@ class PE:
                                 if hasattr(resource_lang, "data"):
                                     dump.add_line(
                                         "\\--- LANG ["
-                                        f"{resource_lang.data.lang}"
+                                        f"{resource_lang.data.lang},"
                                         f"{resource_lang.data.sublang}"
                                         "]["
-                                        f"{LANG.get(resource_lang.data.lang, '*unknown*')}"
+                                        f"{LANG.get(resource_lang.data.lang, '*unknown*')},"
                                         f"{get_sublang_name_for_lang(resource_lang.data.lang, resource_lang.data.sublang,)}"
                                         "]",
 
