@@ -29,8 +29,9 @@ from collections.abc import Iterable
 from hashlib import sha256
 from pathlib import Path, PurePath
 
-import pefile
 import pytest
+
+import pefile
 
 # do not truncate outputs
 pefile.MAX_SECTIONS = 128000
@@ -788,7 +789,8 @@ class TestPEFile(unittest.TestCase):
 def _low_alignment_resource_pe():
     """Minimal PE32 with SectionAlignment == FileAlignment == 0x10 and a single
     .rsrc section whose PointerToRawData (0x160) differs from its VirtualAddress
-    (0x1a0), mirroring the resource-only DLL reported in issue #465."""
+    (0x1a0), mirroring the resource-only DLL reported in issue #465.
+    """
     va, ptr_raw = 0x1A0, 0x160
 
     # resource tree, offsets relative to the start of .rsrc (RVA 0x1a0)

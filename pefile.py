@@ -737,7 +737,8 @@ class UnicodeStringWrapperPostProcessor:
     """This class attempts to help the process of identifying strings
     that might be plain Unicode or Pascal. A list of strings will be
     wrapped on it with the hope the overlappings will help make the
-    decision about their type."""
+    decision about their type.
+    """
 
     def __init__(self, pe, rva_ptr):
         self.pe = pe
@@ -1578,7 +1579,8 @@ class ExportDirData(DataContainer):
 
     struct:     IMAGE_EXPORT_DIRECTORY structure
     symbols:    list of exported symbols (ExportData instances)
-    name:       name of the export DLL"""
+    name:       name of the export DLL
+    """
 
 
 class ExportData(DataContainer):
@@ -2242,13 +2244,13 @@ def human_readable_size(value: int) -> str:
     """
     if value == 0:
         return "0B"
-    
+
     # Define the units for binary prefixes (powers of 1024)
     units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]
-    
+
     # Calculate the unit index
     i = min((value.bit_length() - 1) // 10, len(units) - 1)
-    
+
     # Calculate the value in the chosen unit, truncated to at most one decimal place
     display_value = value / (1 << (10 * i))
     if display_value.is_integer():
@@ -2256,7 +2258,7 @@ def human_readable_size(value: int) -> str:
     else:
         precision = 1
         display_value = math.floor(value * 10) / 10
-    
+
     # Format the result with the correct precision and unit
     return f"{display_value:.{precision}f}{units[i]}"
 
@@ -3055,10 +3057,8 @@ class PE:
                     byte != 0 and byte_count / len(self.__data__) > 0.15
                 ):
                     self.__warnings.append(
-                        
-                            f"Byte 0x{byte:02x} makes up {100.0 * byte_count / len(self.__data__):.4f}% of the file's contents. "
-                            "This may indicate truncation / malformation."
-                        
+                        f"Byte 0x{byte:02x} makes up {100.0 * byte_count / len(self.__data__):.4f}% of the file's contents. "
+                        "This may indicate truncation / malformation."
                     )
 
         dos_header_data = self.__data__[:64]
@@ -3368,7 +3368,7 @@ class PE:
             return None
 
         dans_index = self.__data__.find(
-            bytes(x ^ y for x, y in zip(b'DanS', self.__data__[rich_index + 4 : rich_index + 8])),
+            bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8])),
             0x40,  # The null DOS stub
             self.OPTIONAL_HEADER.get_file_offset()
         )
@@ -3929,10 +3929,8 @@ class PE:
                 )
             if not section:
                 self.__warnings.append(
-                    
-                        "RVA of IMAGE_BOUND_IMPORT_DESCRIPTOR points "
-                        f"to an invalid address: {rva:x}"
-                    
+                    "RVA of IMAGE_BOUND_IMPORT_DESCRIPTOR points "
+                    f"to an invalid address: {rva:x}"
                 )
                 return None
 
@@ -4896,11 +4894,10 @@ class PE:
         for s in strings_to_postprocess:
             s.render_pascal_16()
 
-        resource_directory_data = ResourceDirData(
+        return ResourceDirData(
             struct=resource_dir, entries=dir_entries
         )
 
-        return resource_directory_data
 
     def parse_resource_data_entry(self, rva):
         """Parse a data entry from the resources directory."""
@@ -4917,13 +4914,12 @@ class PE:
             )
             return None
 
-        data_entry = self.__unpack_data__(
+        return self.__unpack_data__(
             self.__IMAGE_RESOURCE_DATA_ENTRY_format__,
             data,
             file_offset=self.get_offset_from_rva(rva),
         )
 
-        return data_entry
 
     def parse_resource_entry(self, rva):
         """Parse a directory entry from the resources directory."""
@@ -4976,7 +4972,7 @@ class PE:
             'FileSubtype'
             'FileDateMS'
             'FileDateLS'
-            
+
         FileInfo is a list of all StringFileInfo and VarFileInfo structures.
 
         StringFileInfo structures will have a list as an attribute named 'StringTable'
@@ -7855,7 +7851,8 @@ class PE:
 
     def get_overlay_data_start_offset(self):
         """Get the offset of data appended to the file and not contained within
-        the area described in the headers."""
+        the area described in the headers.
+        """
 
         largest_offset_and_size = (0, 0)
 
@@ -7899,7 +7896,8 @@ class PE:
 
     def get_overlay(self):
         """Get the data appended to the file and not contained within the area described
-        in the headers."""
+        in the headers.
+        """
 
         overlay_data_offset = self.get_overlay_data_start_offset()
 
@@ -7964,7 +7962,7 @@ def main():
     import sys
 
     if not sys.argv[1:]:
-        print('pefile.py <filename>', 'pefile.py exports <filename>', sep='\n')
+        print("pefile.py <filename>", "pefile.py exports <filename>", sep="\n")
     elif sys.argv[1] == "exports":
         if not sys.argv[2:]:
             sys.exit("error: <filename> required")
