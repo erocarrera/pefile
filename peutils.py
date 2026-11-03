@@ -128,14 +128,13 @@ class SignatureDatabase:
 
         signature_bytes = " ".join(f"{c:02x}" for c in data)
 
-        signature = (
+        return (
             f"[{name}]\n"
             f"signature = {signature_bytes}\n"
             f"ep_only = {'true' if ep_only else 'false'}\n"
             f"section_start_only = {'true' if section_start_only else 'false'}\n"
         )
 
-        return signature
 
     def match(self, pe, ep_only=True, section_start_only=False):
         """Matches and returns the exact match(es).
