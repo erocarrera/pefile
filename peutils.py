@@ -87,15 +87,11 @@ class SignatureDatabase:
             # offset = pe.get_offset_from_rva(section.VirtualAddress)
             offset = section.PointerToRawData
 
-            sig_name = "%s Section(%d/%d,%s)" % (
-                name,
-                idx,
-                len(pe.sections),
-                "".join(
-                    c for c in section.Name.decode("ascii", errors="ignore")
-                    if c in string.printable
-                ),
+            section_name = "".join(
+                c for c in section.Name.decode("ascii", errors="ignore")
+                if c in string.printable
             )
+            sig_name = f"{name} Section({idx}/{len(pe.sections)},{section_name})"
 
             section_signatures.append(
                 self.__generate_signature(

@@ -25,9 +25,9 @@ import os
 import struct
 import sys
 import unittest
+from collections.abc import Iterable
 from hashlib import sha256
 from pathlib import Path, PurePath
-from typing import Iterable, Tuple, List
 
 import pefile
 import pytest
@@ -43,12 +43,12 @@ POCS_TESTS_DIR = corpus_dir / "corkami/pocs"
 LIEF_TESTS_DIR = corpus_dir / "lief-samples-PE"
 
 if sys.version_info >= (3, 12):
-    def unified_walk(top: str | Path, **kwargs) -> Iterable[Tuple[Path, List[str], List[str]]]:
+    def unified_walk(top: str | Path, **kwargs) -> Iterable[tuple[Path, list[str], list[str]]]:
         """Uses the native Path.walk available in Python 3.12+."""
         # Path.walk yields (root_path_object, dirnames, filenames)
         return Path(top).walk(**kwargs)
 else:
-    def unified_walk(top: str | Path, **kwargs) -> Iterable[Tuple[Path, List[str], List[str]]]:
+    def unified_walk(top: str | Path, **kwargs) -> Iterable[tuple[Path, list[str], list[str]]]:
         """Fallback for Python < 3.12 using os.walk."""
         # os.walk yields (root_string, dirnames, filenames)
         for root, dirs, files in os.walk(top, **kwargs):
