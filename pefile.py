@@ -7776,7 +7776,7 @@ class PE:
         EXE_flag = IMAGE_CHARACTERISTICS["IMAGE_FILE_EXECUTABLE_IMAGE"]
 
         return (
-            (EXE_flag & self.FILE_HEADER.Characteristics)
+            bool(EXE_flag & self.FILE_HEADER.Characteristics)
             and not self.is_dll()
             and not self.is_driver()
         )
