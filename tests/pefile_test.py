@@ -734,13 +734,13 @@ class TestPEFile(unittest.TestCase):
         """Test is_driver and is_exe return False, not set() or 0"""
 
         pe = pefile.PE(REGRESSION_TESTS_DIR / "cmd.exe")
-        self.assertIs(pe.is_driver(), False)
+        self.assertIs(pe.is_driver(), expr2=False)
 
         # Without IMAGE_FILE_EXECUTABLE_IMAGE
         pe.FILE_HEADER.Characteristics &= ~pefile.IMAGE_CHARACTERISTICS[
             "IMAGE_FILE_EXECUTABLE_IMAGE"
         ]
-        self.assertIs(pe.is_exe(), False)
+        self.assertIs(pe.is_exe(), expr2=False)
 
     def test_checksum(self):
         """Verify correct calculation of checksum"""
