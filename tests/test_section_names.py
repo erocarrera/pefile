@@ -1,7 +1,8 @@
 import struct
 
-import pefile
 import pytest
+
+import pefile
 
 
 def make_pe(name=b"/4", strings=b".debug_info\0"):
@@ -47,7 +48,7 @@ def test_short_or_invalid_section_name(name):
 
 
 @pytest.mark.parametrize(
-    "strings,expected",
+    ("strings", "expected"),
     [(b"\xffname\0", b"\xffname"), (b"first\0second\0", b"first"), (b"\0", b"")],
 )
 def test_resolved_names_are_bounded_bytes(strings, expected):
