@@ -7776,7 +7776,7 @@ class PE:
         EXE_flag = IMAGE_CHARACTERISTICS["IMAGE_FILE_EXECUTABLE_IMAGE"]
 
         return (
-            (EXE_flag & self.FILE_HEADER.Characteristics)
+            bool(EXE_flag & self.FILE_HEADER.Characteristics)
             and not self.is_dll()
             and not self.is_driver()
         )
@@ -7840,9 +7840,9 @@ class PE:
             return True
 
         driver_like_section_names = {b"page", b"paged"}
-        return driver_like_section_names.intersection(
+        return bool(driver_like_section_names.intersection(
             {section.Name.lower().rstrip(b"\x00") for section in self.sections}
-        ) and (
+        )) and (
             self.OPTIONAL_HEADER.Subsystem in (
                 SUBSYSTEM_TYPE["IMAGE_SUBSYSTEM_NATIVE"],
                 SUBSYSTEM_TYPE["IMAGE_SUBSYSTEM_NATIVE_WINDOWS"],
