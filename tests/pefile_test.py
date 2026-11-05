@@ -37,11 +37,10 @@ import pefile
 pefile.MAX_SECTIONS = 128000
 
 
-test_dir = Path(__file__).resolve().parent
-corpus_dir = test_dir.parent / "pefile-tests" / "tests"
-REGRESSION_TESTS_DIR = corpus_dir / "data"
-POCS_TESTS_DIR = corpus_dir / "corkami/pocs"
-LIEF_TESTS_DIR = corpus_dir / "lief-samples-PE"
+corpus = Path(__file__).resolve().parents[1] / "pefile-tests" / "tests"
+REGRESSION_TESTS_DIR = corpus / "data"
+POCS_TESTS_DIR = corpus / "corkami/pocs"
+LIEF_TESTS_DIR = corpus / "lief-samples-PE"
 
 if sys.version_info >= (3, 12):
     def unified_walk(top: str | Path, **kwargs) -> Iterable[tuple[Path, list[str], list[str]]]:
