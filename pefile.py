@@ -7901,21 +7901,21 @@ class PE:
 
         return None
 
-    def get_overlay(self):
+    def get_overlay(self, include_certificate=True):
         """Get the data appended to the file and not contained within the area described
         in the headers."""
 
-        overlay_data_offset = self.get_overlay_data_start_offset()
+        overlay_data_offset = self.get_overlay_data_start_offset(include_certificate)
 
         if overlay_data_offset is not None:
             return self.__data__[overlay_data_offset:]
 
         return None
 
-    def trim(self):
+    def trim(self, include_certificate=True):
         """Return just the data defined by the PE headers, removing any overlaid data."""
 
-        overlay_data_offset = self.get_overlay_data_start_offset()
+        overlay_data_offset = self.get_overlay_data_start_offset(include_certificate)
 
         if overlay_data_offset is not None:
             return self.__data__[:overlay_data_offset]
