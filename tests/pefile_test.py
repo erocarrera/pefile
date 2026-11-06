@@ -739,31 +739,22 @@ class TestPEFile(unittest.TestCase):
         # Ensure the image's data checksum equals that in the optional header
         self.assertTrue(pe.verify_checksum())
 
-        #control_file = (
-        #    REGRESSION_TESTS_DIR / "checksum/0031709440C539B47E34B524AF3900248DD35274_bad_checksum"
-        #)
-        #pe = pefile.PE(control_file)
-        #self.assertFalse(pe.verify_checksum())
-        #self.assertEqual(pe.generate_checksum(), 0x16C39)
+        # These three files only differ in the Subsystem field (1, 2 and 3),
+        # and all of them carry the checksum of the first one.
+        pe = pefile.PE(POCS_TESTS_DIR / "multiss_drv.sys")
+        self.assertTrue(pe.verify_checksum())
 
-        #control_file = (
-        #    REGRESSION_TESTS_DIR / "checksum/009763E904C053C1803B26EC0D817AF497DA1BB2_bad_checksum"
-        #)
-        #pe = pefile.PE(control_file)
-        #self.assertFalse(pe.verify_checksum())
-        #self.assertEqual(pe.generate_checksum(), 0x249F7)
+        pe = pefile.PE(POCS_TESTS_DIR / "multiss_gui.exe")
+        self.assertFalse(pe.verify_checksum())
+        self.assertEqual(pe.generate_checksum(), 0x255D)
 
-        #control_file = (
-        #    REGRESSION_TESTS_DIR / "checksum/00499E3A70A324160A3FE935F10BFB699ACB0954"
-        #)
-        #pe = pefile.PE(control_file)
-        #self.assertTrue(pe.verify_checksum())
+        pe = pefile.PE(POCS_TESTS_DIR / "multiss_con.exe")
+        self.assertFalse(pe.verify_checksum())
+        self.assertEqual(pe.generate_checksum(), 0x255E)
 
-        #control_file = (
-        #    REGRESSION_TESTS_DIR / "checksum/0011FEECD53D06A6C68C531E0DA7A61C692E76BF"
-        #)
-        #pe = pefile.PE(control_file)
-        #self.assertTrue(pe.verify_checksum())
+        # The optional header of this 97 byte file runs past the end of it.
+        pe = pefile.PE(POCS_TESTS_DIR / "tinydrivXP.sys")
+        self.assertTrue(pe.verify_checksum())
 
 
 def _low_alignment_resource_pe():
