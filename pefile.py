@@ -144,6 +144,9 @@ directory_entry_types = [
 ]
 
 DIRECTORY_ENTRY = two_way_dict(directory_entry_types)
+DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_ARCHITECTURE"] = DIRECTORY_ENTRY[
+    "IMAGE_DIRECTORY_ENTRY_COPYRIGHT"
+]
 
 image_characteristics = [
     ("IMAGE_FILE_RELOCS_STRIPPED", 0x0001),
@@ -734,7 +737,8 @@ class UnicodeStringWrapperPostProcessor:
     """This class attempts to help the process of identifying strings
     that might be plain Unicode or Pascal. A list of strings will be
     wrapped on it with the hope the overlappings will help make the
-    decision about their type."""
+    decision about their type.
+    """
 
     def __init__(self, pe, rva_ptr):
         self.pe = pe
@@ -1067,13 +1071,10 @@ class Structure:
                         )
 
                 dump.append(
-                    "0x%-8X 0x%-3X %-30s %s"
-                    % (
-                        self.__field_offsets__[key] + self.__file_offset__,
-                        self.__field_offsets__[key],
-                        key + ":",
-                        val_str,
-                    )
+                    f"0x{self.__field_offsets__[key] + self.__file_offset__:<8X} "
+                    f"0x{self.__field_offsets__[key]:<3X} "
+                    f"{key + ':':<30s} "
+                    f"{val_str}"
                 )
 
         return dump
@@ -1154,6 +1155,35 @@ class SectionStructure(Structure):
                 self.pe.OPTIONAL_HEADER.FileAlignment,
             )
         return self.VirtualAddress_adj
+
+    def get_name(self):
+        """Return the section name as bytes, resolving COFF string-table names.
+
+        ``Name`` always retains the raw eight-byte header field. If a slash
+        offset or its string table is malformed, return the literal name with
+        its null padding removed instead. No character encoding is assumed.
+        """
+        name = self.Name.split(b"\0", 1)[0]
+        if not name.startswith(b"/") or not name[1:].isdigit():
+            return name
+
+        header = self.pe.FILE_HEADER
+        if not header.PointerToSymbolTable:
+            return name
+        data = self.pe.__data__
+        # Use NumberOfSymbols to locate the string table, which immediately
+        # follows the symbol table.
+        table = header.PointerToSymbolTable + header.NumberOfSymbols * 18
+        if len(data) < table + 4:
+            return name
+        size = struct.unpack_from("<I", data, table)[0]
+        offset = int(name[1:])
+        if size < 4 or len(data) < table + size or not 4 <= offset < size:
+            return name
+        end = data.find(b"\0", table + offset, table + size)
+        if end < 0:
+            return name
+        return bytes(data[table + offset : end])
 
     def get_data(self, start=None, length=None, ignore_padding=False):
         """Get data chunk from a section.
@@ -1578,7 +1608,8 @@ class ExportDirData(DataContainer):
 
     struct:     IMAGE_EXPORT_DIRECTORY structure
     symbols:    list of exported symbols (ExportData instances)
-    name:       name of the export DLL"""
+    name:       name of the export DLL
+    """
 
 
 class ExportData(DataContainer):
@@ -2242,13 +2273,13 @@ def human_readable_size(value: int) -> str:
     """
     if value == 0:
         return "0B"
-    
+
     # Define the units for binary prefixes (powers of 1024)
     units = ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]
-    
+
     # Calculate the unit index
     i = min((value.bit_length() - 1) // 10, len(units) - 1)
-    
+
     # Calculate the value in the chosen unit, truncated to at most one decimal place
     display_value = value / (1 << (10 * i))
     if display_value.is_integer():
@@ -2256,7 +2287,7 @@ def human_readable_size(value: int) -> str:
     else:
         precision = 1
         display_value = math.floor(value * 10) / 10
-    
+
     # Format the result with the correct precision and unit
     return f"{display_value:.{precision}f}{units[i]}"
 
@@ -3055,10 +3086,8 @@ class PE:
                     byte != 0 and byte_count / len(self.__data__) > 0.15
                 ):
                     self.__warnings.append(
-                        
-                            f"Byte 0x{byte:02x} makes up {100.0 * byte_count / len(self.__data__):.4f}% of the file's contents. "
-                            "This may indicate truncation / malformation."
-                        
+                        f"Byte 0x{byte:02x} makes up {100.0 * byte_count / len(self.__data__):.4f}% of the file's contents. "
+                        "This may indicate truncation / malformation."
                     )
 
         dos_header_data = self.__data__[:64]
@@ -3368,7 +3397,7 @@ class PE:
             return None
 
         dans_index = self.__data__.find(
-            bytes(x ^ y for x, y in zip(b'DanS', self.__data__[rich_index + 4 : rich_index + 8])),
+            bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8])),
             0x40,  # The null DOS stub
             self.OPTIONAL_HEADER.get_file_offset()
         )
@@ -3494,10 +3523,16 @@ class PE:
         """
 
         file_data = bytearray(self.__data__)
+        file_size = len(file_data)
 
         for structure in self.__structures__:
             struct_data = bytearray(structure.__pack__())
             offset = structure.get_file_offset()
+            # A structure cut short by the end of the file was read zero padded,
+            # don't append that padding to the file unless it has been changed.
+            in_file = max(0, file_size - offset)
+            if in_file < len(struct_data) and not any(struct_data[in_file:]):
+                struct_data = struct_data[:in_file]
             file_data[offset : offset + len(struct_data)] = struct_data
 
         if hasattr(self, "VS_VERSIONINFO") and hasattr(self, "FileInfo"):
@@ -3923,10 +3958,8 @@ class PE:
                 )
             if not section:
                 self.__warnings.append(
-                    
-                        "RVA of IMAGE_BOUND_IMPORT_DESCRIPTOR points "
-                        f"to an invalid address: {rva:x}"
-                    
+                    "RVA of IMAGE_BOUND_IMPORT_DESCRIPTOR points "
+                    f"to an invalid address: {rva:x}"
                 )
                 return None
 
@@ -4094,6 +4127,13 @@ class PE:
                 file_offset=self.get_offset_from_rva(rva),
             )
         except PEFormatError:
+            self.__warnings.append(
+                "Invalid IMAGE_DYNAMIC_RELOCATION_TABLE information. Can't read "
+                f"data at RVA: {rva:#x}"
+            )
+            return None
+
+        if not image_dynamic_reloc_table_struct:
             self.__warnings.append(
                 "Invalid IMAGE_DYNAMIC_RELOCATION_TABLE information. Can't read "
                 f"data at RVA: {rva:#x}"
@@ -4883,11 +4923,10 @@ class PE:
         for s in strings_to_postprocess:
             s.render_pascal_16()
 
-        resource_directory_data = ResourceDirData(
+        return ResourceDirData(
             struct=resource_dir, entries=dir_entries
         )
 
-        return resource_directory_data
 
     def parse_resource_data_entry(self, rva):
         """Parse a data entry from the resources directory."""
@@ -4904,13 +4943,12 @@ class PE:
             )
             return None
 
-        data_entry = self.__unpack_data__(
+        return self.__unpack_data__(
             self.__IMAGE_RESOURCE_DATA_ENTRY_format__,
             data,
             file_offset=self.get_offset_from_rva(rva),
         )
 
-        return data_entry
 
     def parse_resource_entry(self, rva):
         """Parse a directory entry from the resources directory."""
@@ -4963,7 +5001,7 @@ class PE:
             'FileSubtype'
             'FileDateMS'
             'FileDateLS'
-            
+
         FileInfo is a list of all StringFileInfo and VarFileInfo structures.
 
         StringFileInfo structures will have a list as an attribute named 'StringTable'
@@ -5773,6 +5811,7 @@ class PE:
 
         Returns:
             The hexdigest of the MD5 hash of the exported symbols.
+
         """
 
         impstrs = []
@@ -5825,6 +5864,7 @@ class PE:
 
         Returns:
             The hexdigest of the MD5 hash of the exported symbols.
+
         """
 
         if not hasattr(self, "DIRECTORY_ENTRY_EXPORT"):
@@ -6059,7 +6099,7 @@ class PE:
             except IndexError:
                 imp_bound = None
 
-            # The file with 
+            # The file with
             #
             # SHA-256: 3d22f8b001423cb460811ab4f4789f277b35838d45c62ec0454c877e7c82c7f5
             #
@@ -6187,7 +6227,7 @@ class PE:
             # being scanned, abort if that is the case, as it is very unlikely
             # to be legitimate data.
             #
-            # Seen in PE with 
+            # Seen in PE with
             # SHA-256: 5945bb6f0ac879ddf61b1c284f3b8d20c06b228e75ae4f571fa87f5b9512902c
             if (
                 thunk_data
@@ -6706,8 +6746,8 @@ class PE:
                     if export.name:
                         name = export.name
                     dump.add(
-                        "%-10d 0x%08X    %s"
-                        % (export.ordinal, export.address, name.decode(encoding))
+                        f"{export.ordinal:<10d} 0x{export.address:08X}    "
+                        f"{name.decode(encoding)}"
                     )
                     if export.forwarder:
                         dump.add_line(
@@ -6856,18 +6896,14 @@ class PE:
                             for resource_lang in resource_id.directory.entries:
                                 if hasattr(resource_lang, "data"):
                                     dump.add_line(
-                                        "\\--- LANG [%d,%d][%s,%s]"
-                                        % (
-                                            resource_lang.data.lang,
-                                            resource_lang.data.sublang,
-                                            LANG.get(
-                                                resource_lang.data.lang, "*unknown*"
-                                            ),
-                                            get_sublang_name_for_lang(
-                                                resource_lang.data.lang,
-                                                resource_lang.data.sublang,
-                                            ),
-                                        ),
+                                        "\\--- LANG ["
+                                        f"{resource_lang.data.lang},"
+                                        f"{resource_lang.data.sublang}"
+                                        "]["
+                                        f"{LANG.get(resource_lang.data.lang, '*unknown*')},"
+                                        f"{get_sublang_name_for_lang(resource_lang.data.lang, resource_lang.data.sublang,)}"
+                                        "]",
+
                                         8,
                                     )
                                     dump.add_lines(resource_lang.struct.dump(), 10)
@@ -7729,7 +7765,7 @@ class PE:
         checksum_offset = self.OPTIONAL_HEADER.get_file_offset() + 0x40  # 64
 
         checksum = 0
-        # Ensure the data is dword-aligned. 
+        # Ensure the data is dword-aligned.
         # Add padding if needed.
         remainder = len(self.__data__) % 4
         data_len = len(self.__data__) + ((4 - remainder) * (remainder != 0))
@@ -7767,7 +7803,7 @@ class PE:
         EXE_flag = IMAGE_CHARACTERISTICS["IMAGE_FILE_EXECUTABLE_IMAGE"]
 
         return (
-            (EXE_flag & self.FILE_HEADER.Characteristics)
+            bool(EXE_flag & self.FILE_HEADER.Characteristics)
             and not self.is_dll()
             and not self.is_driver()
         )
@@ -7831,9 +7867,9 @@ class PE:
             return True
 
         driver_like_section_names = {b"page", b"paged"}
-        return driver_like_section_names.intersection(
+        return bool(driver_like_section_names.intersection(
             {section.Name.lower().rstrip(b"\x00") for section in self.sections}
-        ) and (
+        )) and (
             self.OPTIONAL_HEADER.Subsystem in (
                 SUBSYSTEM_TYPE["IMAGE_SUBSYSTEM_NATIVE"],
                 SUBSYSTEM_TYPE["IMAGE_SUBSYSTEM_NATIVE_WINDOWS"],
@@ -7842,7 +7878,8 @@ class PE:
 
     def get_overlay_data_start_offset(self):
         """Get the offset of data appended to the file and not contained within
-        the area described in the headers."""
+        the area described in the headers.
+        """
 
         largest_offset_and_size = (0, 0)
 
@@ -7886,7 +7923,8 @@ class PE:
 
     def get_overlay(self):
         """Get the data appended to the file and not contained within the area described
-        in the headers."""
+        in the headers.
+        """
 
         overlay_data_offset = self.get_overlay_data_start_offset()
 
@@ -7913,9 +7951,9 @@ class PE:
         # https://learn.microsoft.com/en-us/windows/win32/debug/pe-format#optional-header-windows-specific-fields-image-only
         if self.OPTIONAL_HEADER.FileAlignment >= MIN_VALID_FILE_ALIGNMENT:
             # If it's not a power of two, report it:
-            if ( 
-                not power_of_two(self.OPTIONAL_HEADER.FileAlignment) 
-                and self.FileAlignment_Warning is False 
+            if (
+                not power_of_two(self.OPTIONAL_HEADER.FileAlignment)
+                and self.FileAlignment_Warning is False
             ):
                 self.__warnings.append(
                     f"If FileAlignment > 0x200 it should be a power of 2. "
@@ -7951,7 +7989,7 @@ def main():
     import sys
 
     if not sys.argv[1:]:
-        print('pefile.py <filename>', 'pefile.py exports <filename>', sep='\n')
+        print("pefile.py <filename>", "pefile.py exports <filename>", sep="\n")
     elif sys.argv[1] == "exports":
         if not sys.argv[2:]:
             sys.exit("error: <filename> required")

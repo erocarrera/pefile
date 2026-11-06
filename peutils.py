@@ -59,6 +59,7 @@ class SignatureDatabase:
         self.signature_tree_eponly_false = {}
         self.signature_tree_eponly_true = {}
         self.signature_tree_section_start = {}
+
         self.signature_count_eponly_false = 0
         self.signature_count_eponly_true = 0
         self.signature_count_section_start = 0
@@ -86,12 +87,11 @@ class SignatureDatabase:
             # offset = pe.get_offset_from_rva(section.VirtualAddress)
             offset = section.PointerToRawData
 
-            sig_name = "%s Section(%d/%d,%s)" % (
-                name,
-                idx,
-                len(pe.sections),
-                "".join(c for c in section.Name if c in string.printable),
+            section_name = "".join(
+                c for c in section.Name.decode("ascii", errors="ignore")
+                if c in string.printable
             )
+            sig_name = f"{name} Section({idx}/{len(pe.sections)},{section_name})"
 
             section_signatures.append(
                 self.__generate_signature(
@@ -126,21 +126,15 @@ class SignatureDatabase:
 
         data = pe.__data__[offset : offset + sig_length]
 
-        signature_bytes = " ".join(f"{ord(c):02x}" for c in data)
+        signature_bytes = " ".join(f"{c:02x}" for c in data)
 
-        if ep_only:
-            ep_only = "true"
-        else:
-            ep_only = "false"
+        return (
+            f"[{name}]\n"
+            f"signature = {signature_bytes}\n"
+            f"ep_only = {'true' if ep_only else 'false'}\n"
+            f"section_start_only = {'true' if section_start_only else 'false'}\n"
+        )
 
-        if section_start_only:
-            section_start_only = "true"
-        else:
-            section_start_only = "false"
-
-        signature = f"[{name}]\nsignature = {signature_bytes}\nep_only = {ep_only}\nsection_start_only = {section_start_only}\n"
-
-        return signature
 
     def match(self, pe, ep_only=True, section_start_only=False):
         """Matches and returns the exact match(es).
@@ -368,7 +362,7 @@ class SignatureDatabase:
             else:
                 # Get the data for a file
                 try:
-                    with open(filename, 'r') as f:
+                    with open(filename) as f:
                         sig_data = f.read()
                 except OSError:
                     # Let this be raised back to the user...
@@ -486,7 +480,7 @@ def is_suspicious(pe):
     # unusual entrypoint, suspicious imports)
     warnings = pe.get_warnings()
     if warnings:
-        warnings_while_parsing
+        warnings_while_parsing = True
 
     # If there are few or none (should come with a standard "density" of strings/kilobytes of data) longer (>8)
     # ASCII sequences that might indicate packed data, (this is similar to the entropy test in some ways but
@@ -517,6 +511,7 @@ def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):
 
     Returns:
         True if file is probably packed or contains compressed data, False otherwise.
+
     """
 
     # Calculate the length of the data up to the end of the last section in the
