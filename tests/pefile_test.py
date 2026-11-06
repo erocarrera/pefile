@@ -1,25 +1,3 @@
-# The MIT License (MIT)
-#
-# Copyright (c) 2004-2016 Ero Carrera
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-
 import difflib
 import os
 import struct
@@ -37,11 +15,10 @@ import pefile
 pefile.MAX_SECTIONS = 128000
 
 
-test_dir = Path(__file__).resolve().parent
-corpus_dir = test_dir.parent / "pefile-tests" / "tests"
-REGRESSION_TESTS_DIR = corpus_dir / "data"
-POCS_TESTS_DIR = corpus_dir / "corkami/pocs"
-LIEF_TESTS_DIR = corpus_dir / "lief-samples-PE"
+corpus = Path(__file__).resolve().parents[1] / "pefile-tests" / "tests"
+REGRESSION_TESTS_DIR = corpus / "data"
+POCS_TESTS_DIR = corpus / "corkami/pocs"
+LIEF_TESTS_DIR = corpus / "lief-samples-PE"
 
 if sys.version_info >= (3, 12):
     def unified_walk(top: str | Path, **kwargs) -> Iterable[tuple[Path, list[str], list[str]]]:
@@ -752,6 +729,18 @@ class TestPEFile(unittest.TestCase):
         # Ensure the rebased image is the same as the pre-generated one.
         #self.assertEqual(rebased_data, control_file_data)
         pass
+
+    def test_is_driver_and_is_exe_return_bool(self):
+        """Test is_driver and is_exe return False, not set() or 0"""
+
+        pe = pefile.PE(REGRESSION_TESTS_DIR / "cmd.exe")
+        self.assertIs(pe.is_driver(), expr2=False)
+
+        # Without IMAGE_FILE_EXECUTABLE_IMAGE
+        pe.FILE_HEADER.Characteristics &= ~pefile.IMAGE_CHARACTERISTICS[
+            "IMAGE_FILE_EXECUTABLE_IMAGE"
+        ]
+        self.assertIs(pe.is_exe(), expr2=False)
 
     def test_checksum(self):
         """Verify correct calculation of checksum"""
