@@ -1156,6 +1156,35 @@ class SectionStructure(Structure):
             )
         return self.VirtualAddress_adj
 
+    def get_name(self):
+        """Return the section name as bytes, resolving COFF string-table names.
+
+        ``Name`` always retains the raw eight-byte header field. If a slash
+        offset or its string table is malformed, return the literal name with
+        its null padding removed instead. No character encoding is assumed.
+        """
+        name = self.Name.split(b"\0", 1)[0]
+        if not name.startswith(b"/") or not name[1:].isdigit():
+            return name
+
+        header = self.pe.FILE_HEADER
+        if not header.PointerToSymbolTable:
+            return name
+        data = self.pe.__data__
+        # Use NumberOfSymbols to locate the string table, which immediately
+        # follows the symbol table.
+        table = header.PointerToSymbolTable + header.NumberOfSymbols * 18
+        if len(data) < table + 4:
+            return name
+        size = struct.unpack_from("<I", data, table)[0]
+        offset = int(name[1:])
+        if size < 4 or len(data) < table + size or not 4 <= offset < size:
+            return name
+        end = data.find(b"\0", table + offset, table + size)
+        if end < 0:
+            return name
+        return bytes(data[table + offset : end])
+
     def get_data(self, start=None, length=None, ignore_padding=False):
         """Get data chunk from a section.
 
