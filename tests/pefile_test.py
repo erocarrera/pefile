@@ -413,6 +413,32 @@ class TestPEFile(unittest.TestCase):
             )
         )
 
+    def test_load_config_truncated_before_dvrt_fields(self):
+        """A load config too small to hold the DVRT fields must not raise.
+
+        parse_directory_load_config truncates the structure to the number of
+        fields the declared directory size covers, then reads
+        DynamicValueRelocTableOffset (field 38) and
+        DynamicValueRelocTableSection (field 39). Sizes covering only fields
+        36-38 satisfied the previous `fields_counter > 35` check while leaving
+        one or both of those attributes unparsed, raising AttributeError
+        instead of being handled.
+        """
+        # 0x84 -> 36 fields, 0x88 -> 37 fields, 0x8C -> 38 fields
+        for dir_size in (0x84, 0x88, 0x8C):
+            with self.subTest(load_config_size=dir_size):
+                data = bytearray(_create_pe(0x1004, 0x1004))
+
+                load_config = bytearray(dir_size)
+                struct.pack_into("<I", load_config, 0, dir_size)
+                data[0x400 : 0x400 + len(load_config)] = load_config
+
+                pe = pefile.PE(data=bytes(data))
+                load_config_data = pe.parse_directory_load_config(0x1000, dir_size)
+
+                self.assertIsNotNone(load_config_data)
+                self.assertIsNone(load_config_data.dynamic_relocations)
+
     def test_relocated_memory_mapped_image(self):
         """Test different rebasing methods produce the same image"""
 
