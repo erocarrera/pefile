@@ -33,7 +33,7 @@ else:
             yield Path(root), dirs, files
 
 def _load_test_files():
-    """Yield all the test files"""
+    """Yield all the test files."""
 
     not_pe_extensions = (".dmp", ".ABOUT", "empty_file")
 
@@ -55,7 +55,7 @@ def _load_test_files():
 
 @pytest.mark.parametrize(
     "pe_filename",
-    list(_load_test_files()),
+    _load_test_files(),
 )
 def test_pe_image_regression_test(pe_filename, REGEN=False):
     pe = pefile.PE(pe_filename)
