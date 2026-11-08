@@ -218,8 +218,6 @@ class TestPEFile(unittest.TestCase):
             "62d630f6941ad56df3b0a079873a82bc",
         )
 
-        # The kernel32.dll in pefile-tests is a different build from the one
-        # the old value came from. radare2 lists the same 954 exports.
         self.assertEqual(
             pefile.PE(REGRESSION_TESTS_DIR / "kernel32.dll").get_exphash(),
             "247dcd1aa98526819ecf3c09cb12ad83",
