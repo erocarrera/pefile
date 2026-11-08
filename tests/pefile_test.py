@@ -752,7 +752,7 @@ class TestPEFile(unittest.TestCase):
         self.assertFalse(pe.verify_checksum())
         self.assertEqual(pe.generate_checksum(), 0x255E)
 
-        # The optional header of this 97 byte file runs past the end of it.
+        # This 97 byte file is truncated part way through its optional header; the truncation occurs after the CheckSum field, permitting the check to still be possible
         pe = pefile.PE(POCS_TESTS_DIR / "tinydrivXP.sys")
         self.assertTrue(pe.verify_checksum())
 
