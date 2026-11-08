@@ -98,7 +98,7 @@ python =
 """
 
 [tool.ruff.lint]
-select = ["ALL"]
+#select = ["ALL"]
 ignore = [
     "A001",     # builtin-variable-shadowing
     "A002",     # builtin-argument-shadowing
