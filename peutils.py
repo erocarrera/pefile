@@ -484,7 +484,7 @@ def is_suspicious(pe):
 
 def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):
     """The entropy of sections are analyzed to determine if they likely contain compressed data.
-    
+
     The proportion of the total size of these
     (probably) compressed sections to the total file size (excluding any
     overlay) is calculated. If this proportion is greater than a threshold
