@@ -1,6 +1,5 @@
 """peutils, Portable Executable utilities module
 
-
 Copyright (c) 2005-2024 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
@@ -76,7 +75,6 @@ class SignatureDatabase:
         for it. The signature name will be a combination of the
         parameter 'name' and the section number and its name.
         """
-
         section_signatures = []
 
         for idx, section in enumerate(pe.sections, start=1):
@@ -101,7 +99,7 @@ class SignatureDatabase:
                     ep_only=False,
                     section_start_only=True,
                     sig_length=sig_length,
-                )
+                ),
             )
 
         return "\n".join(section_signatures) + "\n"
@@ -112,16 +110,15 @@ class SignatureDatabase:
         Creates a signature whose name will be the parameter 'name'
         and the section number and its name.
         """
-
         offset = pe.get_offset_from_rva(pe.OPTIONAL_HEADER.AddressOfEntryPoint)
 
         return self.__generate_signature(
-            pe, offset, name, ep_only=True, sig_length=sig_length
+            pe, offset, name, ep_only=True, sig_length=sig_length,
         )
 
     @staticmethod
     def __generate_signature(
-        pe, offset, name, ep_only=False, section_start_only=False, sig_length=512
+        pe, offset, name, ep_only=False, section_start_only=False, sig_length=512,
     ):
 
         data = pe.__data__[offset : offset + sig_length]
@@ -144,7 +141,6 @@ class SignatureDatabase:
         form (file_offset, packer_name) specifying where
         in the file the signature was found.
         """
-
         matches = self.__match(pe, ep_only, section_start_only)
 
         # The last match (the most precise) from the
@@ -161,7 +157,6 @@ class SignatureDatabase:
 
     def match_all(self, pe, ep_only=True, section_start_only=False):
         """Matches and returns all the likely matches."""
-
         matches = self.__match(pe, ep_only, section_start_only)
 
         if matches:
@@ -225,7 +220,7 @@ class SignatureDatabase:
         matches = []
         for idx in scan_addresses:
             result = self.__match_signature_tree(
-                signatures, data[idx : idx + self.max_depth]
+                signatures, data[idx : idx + self.max_depth],
             )
             if result:
                 matches.append((idx, result))
@@ -262,7 +257,7 @@ class SignatureDatabase:
         matches = []
         for idx in scan_addresses:
             result = self.__match_signature_tree(
-                signatures, data[idx : idx + self.max_depth]
+                signatures, data[idx : idx + self.max_depth],
             )
             if result:
                 matches.append((idx, result))
@@ -282,7 +277,6 @@ class SignatureDatabase:
         data    is the data being checked against the signature tree
         depth   keeps track of how far we have gone down the tree
         """
-
         matched_names = []
         match = signature_tree
 
@@ -321,8 +315,8 @@ class SignatureDatabase:
                 if data_remaining:
                     matched_names.extend(
                         self.__match_signature_tree(
-                            match_tree_alternate, data_remaining, idx + depth + 1
-                        )
+                            match_tree_alternate, data_remaining, idx + depth + 1,
+                        ),
                     )
 
             match = match_next
@@ -344,7 +338,6 @@ class SignatureDatabase:
 
         Invoking this method on different files combines the signatures.
         """
-
         self.__load(filename=filename, data=data)
 
     def __load(self, filename=None, data=None):
@@ -440,12 +433,11 @@ def is_valid(pe):
 
 
 def is_suspicious(pe):
-    """
-    Unusual locations of import tables
+    """Unusual locations of import tables.
+
     Non-recognized section names
     Presence of long ASCII strings
     """
-
     relocations_overlap_entry_point = False
     sequential_relocs = 0
 
@@ -491,9 +483,9 @@ def is_suspicious(pe):
 
 
 def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):
-    """
-    The entropy of sections are analyzed to determine if they likely contain
-    compressed data (default > 7.4). The proportion of the total size of these
+    """The entropy of sections are analyzed to determine if they likely contain compressed data.
+
+    The proportion of the total size of these
     (probably) compressed sections to the total file size (excluding any
     overlay) is calculated. If this proportion is greater than a threshold
     (default > 0.2) the PE file is likely packed or compressed.
@@ -513,7 +505,6 @@ def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):
         True if file is probably packed or contains compressed data, False otherwise.
 
     """
-
     # Calculate the length of the data up to the end of the last section in the
     # file. Overlay data won't be taken into account
     total_pe_data_length = len(pe.trim())
