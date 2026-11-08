@@ -4094,7 +4094,10 @@ class PE:
             return None
 
         dynamic_relocations = None
-        if fields_counter > 35:
+        # DynamicValueRelocTableOffset is field 38 and
+        # DynamicValueRelocTableSection is field 39, so the truncated structure
+        # must cover at least 39 fields before either can be read.
+        if fields_counter >= 39:
             dynamic_relocations = self.parse_dynamic_relocations(
                 load_config.DynamicValueRelocTableOffset,
                 load_config.DynamicValueRelocTableSection,
