@@ -218,10 +218,10 @@ class TestPEFile(unittest.TestCase):
             "62d630f6941ad56df3b0a079873a82bc",
         )
 
-        #self.assertEqual(
-        #    pefile.PE(REGRESSION_TESTS_DIR / "kernel32.dll").get_exphash(),
-        #    "ce0e98011116b41414acebc1e8c411c9",
-        #)
+        self.assertEqual(
+            pefile.PE(REGRESSION_TESTS_DIR / "kernel32.dll").get_exphash(),
+            "247dcd1aa98526819ecf3c09cb12ad83",
+        )
 
         self.assertEqual(
             pefile.PE(
