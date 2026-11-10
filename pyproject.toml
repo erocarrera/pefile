@@ -155,8 +155,6 @@ ignore = [
     "N806",     # non-lowercase-variable-in-function
     "PERF401",  # manual-list-comprehension
     "PERF402",  # manual-list-copy
-    "PIE790",   # unnecessary-placeholder
-    "PLC0415",  # import-outside-top-level
     "PLR0911",  # too-many-return-statements
     "PLR0912",  # too-many-branches
     "PLR0913",  # too-many-arguments

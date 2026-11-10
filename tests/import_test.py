@@ -1,7 +1,8 @@
 import unittest
 
-import pefile
 from export_test import PE_32, PE_64
+
+import pefile
 
 
 class TestImportRepetitionLimit(unittest.TestCase):

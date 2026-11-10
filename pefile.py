@@ -27,6 +27,7 @@ import mmap
 import os
 import string
 import struct
+import sys
 import time
 import uuid
 from collections import Counter, defaultdict
@@ -7962,8 +7963,6 @@ class PE:
 
 
 def main():
-    import sys
-
     if not sys.argv[1:]:
         print("pefile.py <filename>", "pefile.py exports <filename>", sep="\n")
     elif sys.argv[1] == "exports":
