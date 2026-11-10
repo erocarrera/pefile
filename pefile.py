@@ -849,7 +849,7 @@ class Dump:
 
     def add_header(self, txt):
         """Adds a header element."""
-        self.add_line("{0}{1}{0}\n".format("-" * 10, txt))
+        self.add_line(f"{'-' * 10}{txt}{'-' * 10}\n")
 
     def add_newline(self):
         """Adds a newline."""
@@ -4387,7 +4387,7 @@ class PE:
             if (reloc_offset, reloc_type) in offsets_and_type:
                 self.__warnings.append(
                     "Overlapping offsets in relocation data "
-                    "at RVA: 0x%x" % (reloc_offset + rva)
+                    f"at RVA: {reloc_offset + rva:#x}"
                 )
                 break
 
@@ -4429,7 +4429,7 @@ class PE:
             if reloc_offset in offsets:
                 self.__warnings.append(
                     "Overlapping offsets in relocation data "
-                    "at RVA: 0x%x" % (reloc_offset + rva)
+                    f"at RVA: {reloc_offset + rva:#x}"
                 )
                 break
             offsets.add(reloc_offset)
@@ -5078,10 +5078,10 @@ class PE:
                 # Don't leave any half-escaped characters
                 excerpt = excerpt[: excerpt.rfind("\\u")]
                 versioninfo_string = f"{excerpt} ... ({len(versioninfo_string)} bytes, too long to display)".encode()
+                versioninfo_string = versioninfo_string.decode("ascii").replace("\00", "\\00")
             self.__warnings.append(
-                "Invalid VS_VERSION_INFO block: {}".format(
-                    versioninfo_string.decode("ascii").replace("\00", "\\00")
-                )
+                "Invalid VS_VERSION_INFO block: "
+                f"{versioninfo_string}"
             )
             return
 
@@ -6698,24 +6698,15 @@ class PE:
                             for st_entry in entry.StringTable:
                                 [dump.add_line("  " + line) for line in st_entry.dump()]
                                 dump.add_line(
-                                    "  LangID: {}".format(
-                                        st_entry.LangID.decode(
-                                            encoding, "backslashreplace_"
-                                        )
-                                    )
+                                    "  LangID: "
+                                    f"{st_entry.LangID.decode(encoding, 'backslashreplace_')}"
                                 )
                                 dump.add_newline()
                                 for str_entry in sorted(st_entry.entries.items()):
                                     # try:
                                     dump.add_line(
-                                        "    {}: {}".format(
-                                            str_entry[0].decode(
-                                                encoding, "backslashreplace_"
-                                            ),
-                                            str_entry[1].decode(
-                                                encoding, "backslashreplace_"
-                                            ),
-                                        )
+                                        f"    {str_entry[0].decode(encoding, 'backslashreplace_')}: "
+                                        f"{str_entry[1].decode(encoding, 'backslashreplace_')}"
                                     )
 
                             dump.add_newline()
@@ -6728,12 +6719,9 @@ class PE:
                                         for line in var_entry.dump()
                                     ]
                                     dump.add_line(
-                                        "    {}: {}".format(
-                                            list(var_entry.entry.keys())[0].decode(
-                                                "utf-8", "backslashreplace_"
-                                            ),
-                                            list(var_entry.entry.values())[0],
-                                        )
+                                        "    "
+                                        f"{list(var_entry.entry.keys())[0].decode('utf-8', 'backslashreplace_')}: "
+                                        f"{list(var_entry.entry.values())[0]}"
                                     )
 
                             dump.add_newline()
@@ -6754,9 +6742,7 @@ class PE:
                     )
                     if export.forwarder:
                         dump.add_line(
-                            " forwarder: {}".format(
-                                export.forwarder.decode(encoding, "backslashreplace_")
-                            )
+                            f" forwarder: {export.forwarder.decode(encoding, 'backslashreplace_')}"
                         )
                     else:
                         dump.add_newline()
@@ -6770,11 +6756,8 @@ class PE:
                 # Print the name of the DLL if there are no imports.
                 if not module.imports:
                     dump.add(
-                        "  Name -> {}".format(
-                            self.get_string_at_rva(module.struct.Name).decode(
-                                encoding, "backslashreplace_"
-                            )
-                        )
+                        "  Name -> "
+                        f"{self.get_string_at_rva(module.struct.Name).decode(encoding, 'backslashreplace_')}"
                     )
                     dump.add_newline()
                 dump.add_newline()
@@ -6782,25 +6765,18 @@ class PE:
                     if symbol.import_by_ordinal is True:
                         if symbol.name is not None:
                             dump.add(
-                                "{}.{} Ordinal[{}] (Imported by Ordinal)".format(
-                                    module.dll.decode("utf-8"),
-                                    symbol.name.decode("utf-8"),
-                                    symbol.ordinal,
-                                )
+                                f"{module.dll.decode('utf-8')}.{symbol.name.decode('utf-8')} Ordinal[{symbol.ordinal}] (Imported by Ordinal)"
                             )
                         else:
                             dump.add(
-                                "{} Ordinal[{}] (Imported by Ordinal)".format(
-                                    module.dll.decode("utf-8"), symbol.ordinal
-                                )
+                                f"{module.dll.decode('utf-8')} "
+                                f"Ordinal[{symbol.ordinal}] (Imported by Ordinal)"
                             )
                     else:
                         dump.add(
-                            "{}.{} Hint[{:d}]".format(
-                                module.dll.decode(encoding, "backslashreplace_"),
-                                symbol.name.decode(encoding, "backslashreplace_"),
-                                symbol.hint,
-                            )
+                            f"{module.dll.decode(encoding, 'backslashreplace_')}."
+                            f"{symbol.name.decode(encoding, 'backslashreplace_')} "
+                            f"Hint[{symbol.hint}]"
                         )
 
                     if symbol.bound:
@@ -6821,9 +6797,7 @@ class PE:
                 for bound_imp_ref in bound_imp_desc.entries:
                     dump.add_lines(bound_imp_ref.struct.dump(), 4)
                     dump.add_line(
-                        "DLL: {}".format(
-                            bound_imp_ref.name.decode(encoding, "backslashreplace_")
-                        ),
+                        f"DLL: {bound_imp_ref.name.decode(encoding, 'backslashreplace_')}",
                         4,
                     )
                     dump.add_newline()
@@ -6837,18 +6811,14 @@ class PE:
                 for symbol in module.imports:
                     if symbol.import_by_ordinal is True:
                         dump.add(
-                            "{} Ordinal[{:d}] (Imported by Ordinal)".format(
-                                module.dll.decode(encoding, "backslashreplace_"),
-                                symbol.ordinal,
-                            )
+                            f"{module.dll.decode(encoding, 'backslashreplace_')} "
+                            f"Ordinal[{symbol.ordinal}] (Imported by Ordinal)"
                         )
                     else:
                         dump.add(
-                            "{}.{} Hint[{}]".format(
-                                module.dll.decode(encoding, "backslashreplace_"),
-                                symbol.name.decode(encoding, "backslashreplace_"),
-                                symbol.hint,
-                            )
+                            f"{module.dll.decode(encoding, 'backslashreplace_')}."
+                            f"{symbol.name.decode(encoding, 'backslashreplace_')} "
+                            f"Hint[{symbol.hint}]"
                         )
 
                     if symbol.bound:
@@ -6920,12 +6890,8 @@ class PE:
                                     resource_id.directory.strings.items()
                                 ):
                                     dump.add_line(
-                                        "{:6d}: {}".format(
-                                            idx,
-                                            res_string.encode(
-                                                "unicode-escape", "backslashreplace"
-                                            ).decode("ascii"),
-                                        ),
+                                        f"{idx:6d}: "
+                                        f"{res_string.encode('unicode-escape', 'backslashreplace').decode('ascii')}",
                                         12,
                                     )
 
