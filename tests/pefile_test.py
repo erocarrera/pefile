@@ -689,7 +689,6 @@ class TestPEFile(unittest.TestCase):
 
         # Ensure the overlay data is correct (should not be any in this case).
         #self.assertIsNone(pe.get_overlay())
-        pass
 
     def test_unable_to_read_file(self):
         """Attempting to open a file without read permission for the user
@@ -741,7 +740,6 @@ class TestPEFile(unittest.TestCase):
 
         # Ensure the rebased image is the same as the pre-generated one.
         #self.assertEqual(rebased_data, control_file_data)
-        pass
 
     def test_is_driver_and_is_exe_return_bool(self):
         """Test is_driver and is_exe return False, not set() or 0"""
