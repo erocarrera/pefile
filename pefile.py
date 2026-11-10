@@ -5046,7 +5046,7 @@ class PE:
                 # Don't leave any half-escaped characters
                 excerpt = excerpt[: excerpt.rfind("\\u")]
                 versioninfo_string = f"{excerpt} ... ({len(versioninfo_string)} bytes, too long to display)".encode()
-                versioninfo_string = f"{versioninfo_string.decode("ascii").replace("\00", "\\00")}"
+                versioninfo_string = versioninfo_string.decode("ascii").replace("\00", "\\00")
             self.__warnings.append(
                 "Invalid VS_VERSION_INFO block: "
                 f"{versioninfo_string}"
