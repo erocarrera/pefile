@@ -6673,8 +6673,8 @@ class PE:
                                 for str_entry in sorted(st_entry.entries.items()):
                                     # try:
                                     dump.add_line(
-                                        f"    {str_entry[0].decode(encoding, "backslashreplace_")}: "
-                                        f"{str_entry[1].decode(encoding, "backslashreplace_")}"
+                                        f"    {str_entry[0].decode(encoding, 'backslashreplace_')}: "
+                                        f"{str_entry[1].decode(encoding, 'backslashreplace_')}"
                                     )
 
                             dump.add_newline()
@@ -6688,7 +6688,7 @@ class PE:
                                     ]
                                     dump.add_line(
                                         "    "
-                                        f"{list(var_entry.entry.keys())[0].decode("utf-8", "backslashreplace_")}: "
+                                        f"{list(var_entry.entry.keys())[0].decode('utf-8', 'backslashreplace_')}: "
                                         f"{list(var_entry.entry.values())[0]}"
                                     )
 
@@ -6742,8 +6742,8 @@ class PE:
                             )
                     else:
                         dump.add(
-                            f"{module.dll.decode(encoding, "backslashreplace_")}."
-                            f"{symbol.name.decode(encoding, "backslashreplace_")} "
+                            f"{module.dll.decode(encoding, 'backslashreplace_')}."
+                            f"{symbol.name.decode(encoding, 'backslashreplace_')} "
                             f"Hint[{symbol.hint}]"
                         )
 
@@ -6779,13 +6779,13 @@ class PE:
                 for symbol in module.imports:
                     if symbol.import_by_ordinal is True:
                         dump.add(
-                            f"{module.dll.decode(encoding, "backslashreplace_")} "
+                            f"{module.dll.decode(encoding, 'backslashreplace_')} "
                             f"Ordinal[{symbol.ordinal}] (Imported by Ordinal)"
                         )
                     else:
                         dump.add(
-                            f"{module.dll.decode(encoding, "backslashreplace_")}."
-                            f"{symbol.name.decode(encoding, "backslashreplace_")} "
+                            f"{module.dll.decode(encoding, 'backslashreplace_')}."
+                            f"{symbol.name.decode(encoding, 'backslashreplace_')} "
                             f"Hint[{symbol.hint}]"
                         )
 
