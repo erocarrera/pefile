@@ -83,7 +83,6 @@ class SignatureDatabase:
             if section.SizeOfRawData < sig_length:
                 continue
 
-            # offset = pe.get_offset_from_rva(section.VirtualAddress)
             offset = section.PointerToRawData
 
             section_name = "".join(
@@ -124,7 +123,7 @@ class SignatureDatabase:
 
         data = pe.__data__[offset : offset + sig_length]
 
-        signature_bytes = " ".join(f"{c:02x}" for c in data)
+        signature_bytes = " ".join(f"{b:02x}" for b in data)
 
         return (
             f"[{name}]\n"
@@ -132,7 +131,6 @@ class SignatureDatabase:
             f"ep_only = {'true' if ep_only else 'false'}\n"
             f"section_start_only = {'true' if section_start_only else 'false'}\n"
         )
-
 
     def match(self, pe, ep_only=True, section_start_only=False):
         """Matches and returns the exact match(es).
@@ -176,9 +174,7 @@ class SignatureDatabase:
         # Either the one for ep_only equal to True or
         # to False
         if section_start_only is True:
-
-            # Fetch the data of the executable as it'd
-            # look once loaded in memory
+            # Fetch the data of the executable as it would look once loaded in memory
             try:
                 data = pe.__data__
             except Exception:
@@ -191,9 +187,7 @@ class SignatureDatabase:
             scan_addresses = [section.PointerToRawData for section in pe.sections]
 
         elif ep_only is True:
-
-            # Fetch the data of the executable as it'd
-            # look once loaded in memory
+            # Fetch the data of the executable as it would look once loaded in memory
             try:
                 data = pe.get_memory_mapped_image()
             except Exception:
@@ -210,7 +204,6 @@ class SignatureDatabase:
             scan_addresses = [ep]
 
         else:
-
             data = pe.__data__
 
             signatures = self.signature_tree_eponly_false
@@ -240,17 +233,14 @@ class SignatureDatabase:
         scan_addresses = [0]
 
         # Load the corresponding set of signatures
-        # Either the one for ep_only equal to True or
-        # to False
+        # Either the one for ep_only equal to True or to False
         if section_start_only:
-
             # Load the corresponding tree of signatures
             signatures = self.signature_tree_section_start
 
             # Set the starting address to start scanning from
 
         elif ep_only:
-
             # Load the corresponding tree of signatures
             signatures = self.signature_tree_eponly_true
 
@@ -308,8 +298,7 @@ class SignatureDatabase:
                         names.append(item[0])
                 matched_names.append(names)
 
-            # If a wildcard is found keep scanning the signature
-            # ignoring the byte.
+            # If a wildcard is found keep scanning the signature ignoring the byte
             if "??" in match:
                 match_tree_alternate = match.get("??", None)
                 data_remaining = data[idx + 1 :]
