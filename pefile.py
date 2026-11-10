@@ -6667,7 +6667,7 @@ class PE:
                                 [dump.add_line("  " + line) for line in st_entry.dump()]
                                 dump.add_line(
                                     "  LangID: "
-                                    f"{st_entry.LangID.decode(encoding, "backslashreplace_")}"
+                                    f"{st_entry.LangID.decode(encoding, 'backslashreplace_')}"
                                 )
                                 dump.add_newline()
                                 for str_entry in sorted(st_entry.entries.items()):
