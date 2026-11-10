@@ -6710,7 +6710,7 @@ class PE:
                     )
                     if export.forwarder:
                         dump.add_line(
-                            f" forwarder: {export.forwarder.decode(encoding, "backslashreplace_")}"
+                            f" forwarder: {export.forwarder.decode(encoding, 'backslashreplace_')}"
                         )
                     else:
                         dump.add_newline()
@@ -6725,7 +6725,7 @@ class PE:
                 if not module.imports:
                     dump.add(
                         "  Name -> "
-                        f"{self.get_string_at_rva(module.struct.Name).decode(encoding, "backslashreplace_")}"
+                        f"{self.get_string_at_rva(module.struct.Name).decode(encoding, 'backslashreplace_')}"
                     )
                     dump.add_newline()
                 dump.add_newline()
