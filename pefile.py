@@ -6737,7 +6737,7 @@ class PE:
                             )
                         else:
                             dump.add(
-                                f"{module.dll.decode("utf-8")} "
+                                f"{module.dll.decode('utf-8')} "
                                 f"Ordinal[{symbol.ordinal}] (Imported by Ordinal)"
                             )
                     else:
@@ -6859,7 +6859,7 @@ class PE:
                                 ):
                                     dump.add_line(
                                         f"{idx:6d}: "
-                                        f"{res_string.encode("unicode-escape", "backslashreplace").decode("ascii")}",
+                                        f"{res_string.encode('unicode-escape', 'backslashreplace').decode('ascii')}",
                                         12,
                                     )
 
