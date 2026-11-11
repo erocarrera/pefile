@@ -114,7 +114,6 @@ ignore = [
     "B008",     # function-call-in-default-argument
     "B017",     # assert-raises-exception
     "B904",     # raise-without-from-inside-except
-    "B905",     # zip-without-explicit-strict
     "BLE001",   # blind-except
     "C901",     # complex-structure
     "COM812",   # missing-trailing-comma
@@ -138,7 +137,6 @@ ignore = [
     "D415",     # missing-terminal-punctuation
     "D419",     # empty-docstring
     "E501",     # line-too-long
-    "E731",     # lambda-assignment
     "E741",     # ambiguous-variable-name
     "EM101",    # raw-string-in-exception
     "EM102",    # f-string-in-exception
@@ -172,7 +170,6 @@ ignore = [
     "PTH123",   # builtin-open
     "RET503",   # implicit-return
     "RET505",   # superfluous-else-return
-    "RET508",   # superfluous-else-break
     "RUF005",   # collection-literal-concatenation
     "RUF012",   # mutable-class-default
     "RUF015",   # unnecessary-iterable-allocation-for-first-element
