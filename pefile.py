@@ -6726,7 +6726,7 @@ class PE:
                                     ]
                                     dump.add_line(
                                         "    "
-                                        f"{next(iter(var_entry.entry.keys())).decode("utf-8", "backslashreplace_")}: "
+                                        f"{next(iter(var_entry.entry.keys())).decode('utf-8', 'backslashreplace_')}: "
                                         f"{next(iter(var_entry.entry.values()))}"
                                     )
 
