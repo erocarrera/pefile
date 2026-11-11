@@ -12,24 +12,23 @@ class TestSignatureGeneration(unittest.TestCase):
             for buffer_type in (bytes, bytearray):
                 with self.subTest(
                     bits=32 if data is PE_32 else 64, buffer_type=buffer_type
-                ):
-                    with pefile.PE(data=buffer_type(data), fast_load=True) as pe:
-                        section = pe.sections[0]
-                        pe.OPTIONAL_HEADER.AddressOfEntryPoint = section.VirtualAddress
-                        payload = b"\x00\x41\x80\xff"
-                        self.assertTrue(
-                            pe.set_bytes_at_offset(section.PointerToRawData, payload)
-                        )
-                        database = peutils.SignatureDatabase()
-                        signature = database.generate_ep_signature(
-                            pe, "sample", sig_length=4
-                        )
-                        self.assertIn("signature = 00 41 80 ff\n", signature)
-                        self.assertIn("ep_only = true\n", signature)
-                        database.load(data=signature)
-                        self.assertEqual(
-                            database.match_data(payload), (0, [["sample"]])
-                        )
+                ), pefile.PE(data=buffer_type(data), fast_load=True) as pe:
+                    section = pe.sections[0]
+                    pe.OPTIONAL_HEADER.AddressOfEntryPoint = section.VirtualAddress
+                    payload = b"\x00\x41\x80\xff"
+                    self.assertTrue(
+                        pe.set_bytes_at_offset(section.PointerToRawData, payload)
+                    )
+                    database = peutils.SignatureDatabase()
+                    signature = database.generate_ep_signature(
+                        pe, "sample", sig_length=4
+                    )
+                    self.assertIn("signature = 00 41 80 ff\n", signature)
+                    self.assertIn("ep_only = true\n", signature)
+                    database.load(data=signature)
+                    self.assertEqual(
+                        database.match_data(payload), (0, [["sample"]])
+                    )
 
     def test_section_signature_round_trip(self):
         for data in (PE_32, PE_64):

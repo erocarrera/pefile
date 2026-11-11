@@ -33,7 +33,7 @@ else:
             yield Path(root), dirs, files
 
 def _load_test_files():
-    """Yield all the test files"""
+    """Yield all the test files."""
 
     not_pe_extensions = (".dmp", ".ABOUT", "empty_file")
 
@@ -55,7 +55,7 @@ def _load_test_files():
 
 @pytest.mark.parametrize(
     "pe_filename",
-    list(_load_test_files()),
+    _load_test_files(),
 )
 def test_pe_image_regression_test(pe_filename, REGEN=False):
     pe = pefile.PE(pe_filename)
@@ -218,10 +218,10 @@ class TestPEFile(unittest.TestCase):
             "62d630f6941ad56df3b0a079873a82bc",
         )
 
-        #self.assertEqual(
-        #    pefile.PE(REGRESSION_TESTS_DIR / "kernel32.dll").get_exphash(),
-        #    "ce0e98011116b41414acebc1e8c411c9",
-        #)
+        self.assertEqual(
+            pefile.PE(REGRESSION_TESTS_DIR / "kernel32.dll").get_exphash(),
+            "247dcd1aa98526819ecf3c09cb12ad83",
+        )
 
         self.assertEqual(
             pefile.PE(
@@ -412,6 +412,32 @@ class TestPEFile(unittest.TestCase):
                 for warning in pe.get_warnings()
             )
         )
+
+    def test_load_config_truncated_before_dvrt_fields(self):
+        """A load config too small to hold the DVRT fields must not raise.
+
+        parse_directory_load_config truncates the structure to the number of
+        fields the declared directory size covers, then reads
+        DynamicValueRelocTableOffset (field 38) and
+        DynamicValueRelocTableSection (field 39). Sizes covering only fields
+        36-38 satisfied the previous `fields_counter > 35` check while leaving
+        one or both of those attributes unparsed, raising AttributeError
+        instead of being handled.
+        """
+        # 0x84 -> 36 fields, 0x88 -> 37 fields, 0x8C -> 38 fields
+        for dir_size in (0x84, 0x88, 0x8C):
+            with self.subTest(load_config_size=dir_size):
+                data = bytearray(_create_pe(0x1004, 0x1004))
+
+                load_config = bytearray(dir_size)
+                struct.pack_into("<I", load_config, 0, dir_size)
+                data[0x400 : 0x400 + len(load_config)] = load_config
+
+                pe = pefile.PE(data=bytes(data))
+                load_config_data = pe.parse_directory_load_config(0x1000, dir_size)
+
+                self.assertIsNotNone(load_config_data)
+                self.assertIsNone(load_config_data.dynamic_relocations)
 
     def test_relocated_memory_mapped_image(self):
         """Test different rebasing methods produce the same image"""
@@ -663,7 +689,6 @@ class TestPEFile(unittest.TestCase):
 
         # Ensure the overlay data is correct (should not be any in this case).
         #self.assertIsNone(pe.get_overlay())
-        pass
 
     def test_unable_to_read_file(self):
         """Attempting to open a file without read permission for the user
@@ -715,7 +740,6 @@ class TestPEFile(unittest.TestCase):
 
         # Ensure the rebased image is the same as the pre-generated one.
         #self.assertEqual(rebased_data, control_file_data)
-        pass
 
     def test_is_driver_and_is_exe_return_bool(self):
         """Test is_driver and is_exe return False, not set() or 0"""
@@ -739,31 +763,22 @@ class TestPEFile(unittest.TestCase):
         # Ensure the image's data checksum equals that in the optional header
         self.assertTrue(pe.verify_checksum())
 
-        #control_file = (
-        #    REGRESSION_TESTS_DIR / "checksum/0031709440C539B47E34B524AF3900248DD35274_bad_checksum"
-        #)
-        #pe = pefile.PE(control_file)
-        #self.assertFalse(pe.verify_checksum())
-        #self.assertEqual(pe.generate_checksum(), 0x16C39)
+        # These three files only differ in the Subsystem field (1, 2 and 3),
+        # and all of them carry the checksum of the first one.
+        pe = pefile.PE(POCS_TESTS_DIR / "multiss_drv.sys")
+        self.assertTrue(pe.verify_checksum())
 
-        #control_file = (
-        #    REGRESSION_TESTS_DIR / "checksum/009763E904C053C1803B26EC0D817AF497DA1BB2_bad_checksum"
-        #)
-        #pe = pefile.PE(control_file)
-        #self.assertFalse(pe.verify_checksum())
-        #self.assertEqual(pe.generate_checksum(), 0x249F7)
+        pe = pefile.PE(POCS_TESTS_DIR / "multiss_gui.exe")
+        self.assertFalse(pe.verify_checksum())
+        self.assertEqual(pe.generate_checksum(), 0x255D)
 
-        #control_file = (
-        #    REGRESSION_TESTS_DIR / "checksum/00499E3A70A324160A3FE935F10BFB699ACB0954"
-        #)
-        #pe = pefile.PE(control_file)
-        #self.assertTrue(pe.verify_checksum())
+        pe = pefile.PE(POCS_TESTS_DIR / "multiss_con.exe")
+        self.assertFalse(pe.verify_checksum())
+        self.assertEqual(pe.generate_checksum(), 0x255E)
 
-        #control_file = (
-        #    REGRESSION_TESTS_DIR / "checksum/0011FEECD53D06A6C68C531E0DA7A61C692E76BF"
-        #)
-        #pe = pefile.PE(control_file)
-        #self.assertTrue(pe.verify_checksum())
+        # This 97 byte file is truncated part way through its optional header; the truncation occurs after the CheckSum field, permitting the check to still be possible
+        pe = pefile.PE(POCS_TESTS_DIR / "tinydrivXP.sys")
+        self.assertTrue(pe.verify_checksum())
 
 
 def _low_alignment_resource_pe():

@@ -27,6 +27,7 @@ import mmap
 import os
 import string
 import struct
+import sys
 import time
 import uuid
 from collections import Counter, defaultdict
@@ -849,7 +850,7 @@ class Dump:
 
     def add_header(self, txt):
         """Adds a header element."""
-        self.add_line("{0}{1}{0}\n".format("-" * 10, txt))
+        self.add_line(f"{'-' * 10}{txt}{'-' * 10}\n")
 
     def add_newline(self):
         """Adds a newline."""
@@ -2378,6 +2379,10 @@ class PE:
     at a higher offset than the limit configured by the 'max_offset'
     parameter, which defaults to '0x10000000' (256MiB).
 
+    the 'max_repeated_import_addresses' parameter controls the threshold
+    for repeated addresses in an import table (15 by default). increase it
+    when parsing legitimate tables with many entries sharing an address.
+
     Basic headers information will be available in the attributes:
 
     DOS_HEADER
@@ -2927,9 +2932,11 @@ class PE:
         max_repeated_symbol=120,
         *, # args after this are keyword-only
         max_offset=0x10000000,
+        max_repeated_import_addresses=15,
     ):
         self.max_symbol_exports = max_symbol_exports
         self.max_repeated_symbol = max_repeated_symbol
+        self.max_repeated_import_addresses = max_repeated_import_addresses
 
         self._get_section_by_rva_last_used = None
 
@@ -4094,7 +4101,10 @@ class PE:
             return None
 
         dynamic_relocations = None
-        if fields_counter > 35:
+        # DynamicValueRelocTableOffset is field 38 and
+        # DynamicValueRelocTableSection is field 39, so the truncated structure
+        # must cover at least 39 fields before either can be read.
+        if fields_counter >= 39:
             dynamic_relocations = self.parse_dynamic_relocations(
                 load_config.DynamicValueRelocTableOffset,
                 load_config.DynamicValueRelocTableSection,
@@ -4384,7 +4394,7 @@ class PE:
             if (reloc_offset, reloc_type) in offsets_and_type:
                 self.__warnings.append(
                     "Overlapping offsets in relocation data "
-                    "at RVA: 0x%x" % (reloc_offset + rva)
+                    f"at RVA: {reloc_offset + rva:#x}"
                 )
                 break
 
@@ -4426,7 +4436,7 @@ class PE:
             if reloc_offset in offsets:
                 self.__warnings.append(
                     "Overlapping offsets in relocation data "
-                    "at RVA: 0x%x" % (reloc_offset + rva)
+                    f"at RVA: {reloc_offset + rva:#x}"
                 )
                 break
             offsets.add(reloc_offset)
@@ -5075,10 +5085,10 @@ class PE:
                 # Don't leave any half-escaped characters
                 excerpt = excerpt[: excerpt.rfind("\\u")]
                 versioninfo_string = f"{excerpt} ... ({len(versioninfo_string)} bytes, too long to display)".encode()
+                versioninfo_string = versioninfo_string.decode("ascii").replace("\00", "\\00")
             self.__warnings.append(
-                "Invalid VS_VERSION_INFO block: {}".format(
-                    versioninfo_string.decode("ascii").replace("\00", "\\00")
-                )
+                "Invalid VS_VERSION_INFO block: "
+                f"{versioninfo_string}"
             )
             return
 
@@ -6162,7 +6172,6 @@ class PE:
         expected_size = Structure(format).sizeof()
         MAX_ADDRESS_SPREAD = 128 * 2**20  # 128 MB
         ADDR_4GB = 2**32
-        MAX_REPEATED_ADDRESSES = 15
         repeated_address = 0
         addresses_of_data_set_64 = AddressSet()
         addresses_of_data_set_32 = AddressSet()
@@ -6185,7 +6194,7 @@ class PE:
 
             # if we see too many times the same entry we assume it could be
             # a table containing bogus data (with malicious intent or otherwise)
-            if repeated_address >= MAX_REPEATED_ADDRESSES:
+            if repeated_address >= self.max_repeated_import_addresses:
                 return []
 
             # if the addresses point somewhere but the difference between the highest
@@ -6695,24 +6704,15 @@ class PE:
                             for st_entry in entry.StringTable:
                                 [dump.add_line("  " + line) for line in st_entry.dump()]
                                 dump.add_line(
-                                    "  LangID: {}".format(
-                                        st_entry.LangID.decode(
-                                            encoding, "backslashreplace_"
-                                        )
-                                    )
+                                    "  LangID: "
+                                    f"{st_entry.LangID.decode(encoding, 'backslashreplace_')}"
                                 )
                                 dump.add_newline()
                                 for str_entry in sorted(st_entry.entries.items()):
                                     # try:
                                     dump.add_line(
-                                        "    {}: {}".format(
-                                            str_entry[0].decode(
-                                                encoding, "backslashreplace_"
-                                            ),
-                                            str_entry[1].decode(
-                                                encoding, "backslashreplace_"
-                                            ),
-                                        )
+                                        f"    {str_entry[0].decode(encoding, 'backslashreplace_')}: "
+                                        f"{str_entry[1].decode(encoding, 'backslashreplace_')}"
                                     )
 
                             dump.add_newline()
@@ -6725,12 +6725,9 @@ class PE:
                                         for line in var_entry.dump()
                                     ]
                                     dump.add_line(
-                                        "    {}: {}".format(
-                                            next(iter(var_entry.entry.keys())).decode(
-                                                "utf-8", "backslashreplace_"
-                                            ),
-                                            next(iter(var_entry.entry.values())),
-                                        )
+                                        "    "
+                                        f"{next(iter(var_entry.entry.keys())).decode("utf-8", "backslashreplace_")}: "
+                                        f"{next(iter(var_entry.entry.values()))}"
                                     )
 
                             dump.add_newline()
@@ -6751,9 +6748,7 @@ class PE:
                     )
                     if export.forwarder:
                         dump.add_line(
-                            " forwarder: {}".format(
-                                export.forwarder.decode(encoding, "backslashreplace_")
-                            )
+                            f" forwarder: {export.forwarder.decode(encoding, 'backslashreplace_')}"
                         )
                     else:
                         dump.add_newline()
@@ -6767,11 +6762,8 @@ class PE:
                 # Print the name of the DLL if there are no imports.
                 if not module.imports:
                     dump.add(
-                        "  Name -> {}".format(
-                            self.get_string_at_rva(module.struct.Name).decode(
-                                encoding, "backslashreplace_"
-                            )
-                        )
+                        "  Name -> "
+                        f"{self.get_string_at_rva(module.struct.Name).decode(encoding, 'backslashreplace_')}"
                     )
                     dump.add_newline()
                 dump.add_newline()
@@ -6779,25 +6771,18 @@ class PE:
                     if symbol.import_by_ordinal is True:
                         if symbol.name is not None:
                             dump.add(
-                                "{}.{} Ordinal[{}] (Imported by Ordinal)".format(
-                                    module.dll.decode("utf-8"),
-                                    symbol.name.decode("utf-8"),
-                                    symbol.ordinal,
-                                )
+                                f"{module.dll.decode('utf-8')}.{symbol.name.decode('utf-8')} Ordinal[{symbol.ordinal}] (Imported by Ordinal)"
                             )
                         else:
                             dump.add(
-                                "{} Ordinal[{}] (Imported by Ordinal)".format(
-                                    module.dll.decode("utf-8"), symbol.ordinal
-                                )
+                                f"{module.dll.decode('utf-8')} "
+                                f"Ordinal[{symbol.ordinal}] (Imported by Ordinal)"
                             )
                     else:
                         dump.add(
-                            "{}.{} Hint[{:d}]".format(
-                                module.dll.decode(encoding, "backslashreplace_"),
-                                symbol.name.decode(encoding, "backslashreplace_"),
-                                symbol.hint,
-                            )
+                            f"{module.dll.decode(encoding, 'backslashreplace_')}."
+                            f"{symbol.name.decode(encoding, 'backslashreplace_')} "
+                            f"Hint[{symbol.hint}]"
                         )
 
                     if symbol.bound:
@@ -6818,9 +6803,7 @@ class PE:
                 for bound_imp_ref in bound_imp_desc.entries:
                     dump.add_lines(bound_imp_ref.struct.dump(), 4)
                     dump.add_line(
-                        "DLL: {}".format(
-                            bound_imp_ref.name.decode(encoding, "backslashreplace_")
-                        ),
+                        f"DLL: {bound_imp_ref.name.decode(encoding, 'backslashreplace_')}",
                         4,
                     )
                     dump.add_newline()
@@ -6834,18 +6817,14 @@ class PE:
                 for symbol in module.imports:
                     if symbol.import_by_ordinal is True:
                         dump.add(
-                            "{} Ordinal[{:d}] (Imported by Ordinal)".format(
-                                module.dll.decode(encoding, "backslashreplace_"),
-                                symbol.ordinal,
-                            )
+                            f"{module.dll.decode(encoding, 'backslashreplace_')} "
+                            f"Ordinal[{symbol.ordinal}] (Imported by Ordinal)"
                         )
                     else:
                         dump.add(
-                            "{}.{} Hint[{}]".format(
-                                module.dll.decode(encoding, "backslashreplace_"),
-                                symbol.name.decode(encoding, "backslashreplace_"),
-                                symbol.hint,
-                            )
+                            f"{module.dll.decode(encoding, 'backslashreplace_')}."
+                            f"{symbol.name.decode(encoding, 'backslashreplace_')} "
+                            f"Hint[{symbol.hint}]"
                         )
 
                     if symbol.bound:
@@ -6917,12 +6896,8 @@ class PE:
                                     resource_id.directory.strings.items()
                                 ):
                                     dump.add_line(
-                                        "{:6d}: {}".format(
-                                            idx,
-                                            res_string.encode(
-                                                "unicode-escape", "backslashreplace"
-                                            ).decode("ascii"),
-                                        ),
+                                        f"{idx:6d}: "
+                                        f"{res_string.encode('unicode-escape', 'backslashreplace').decode('ascii')}",
                                         12,
                                     )
 
@@ -7986,8 +7961,6 @@ class PE:
 
 
 def main():
-    import sys
-
     if not sys.argv[1:]:
         print("pefile.py <filename>", "pefile.py exports <filename>", sep="\n")
     elif sys.argv[1] == "exports":
