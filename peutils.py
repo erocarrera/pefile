@@ -391,8 +391,8 @@ class SignatureDatabase:
             section_start_only,
         ) in matches:
             signature = signature.replace("\\n", "").strip()
-            ep_only = True if ep_only.strip().lower() == "true" else False
-            section_start_only = True if section_start_only == "true" else False
+            ep_only = bool(ep_only.strip().lower() == "true")
+            section_start_only = bool(section_start_only == "true")
 
             if section_start_only:
                 tree = self.signature_tree_section_start
