@@ -6726,8 +6726,8 @@ class PE:
                                     ]
                                     dump.add_line(
                                         "    "
-                                        f"{list(var_entry.entry.keys())[0].decode('utf-8', 'backslashreplace_')}: "
-                                        f"{list(var_entry.entry.values())[0]}"
+                                        f"{next(iter(var_entry.entry.keys())).decode('utf-8', 'backslashreplace_')}: "
+                                        f"{next(iter(var_entry.entry.values()))}"
                                     )
 
                             dump.add_newline()
@@ -7054,9 +7054,7 @@ class PE:
                                 var_dict = {}
                                 if hasattr(var_entry, "entry"):
                                     file_info.append(var_entry.dump_dict())
-                                    var_dict[list(var_entry.entry.keys())[0]] = list(
-                                        var_entry.entry.values()
-                                    )[0]
+                                    var_dict[next(iter(var_entry.entry.keys()))] = next(iter(var_entry.entry.values()))
                                     file_info.append(var_dict)
 
                 dump_dict["Version Information"].append(version_info)

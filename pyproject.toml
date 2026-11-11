@@ -175,7 +175,6 @@ ignore = [
     "RET508",   # superfluous-else-break
     "RUF005",   # collection-literal-concatenation
     "RUF012",   # mutable-class-default
-    "RUF015",   # unnecessary-iterable-allocation-for-first-element
     "S101",     # assert
     "S310",     # suspicious-url-open-usage
     "S324",     # hashlib-insecure-hash-function
