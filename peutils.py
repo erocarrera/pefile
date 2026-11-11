@@ -79,7 +79,6 @@ class SignatureDatabase:
         section_signatures = []
 
         for idx, section in enumerate(pe.sections, start=1):
-
             if section.SizeOfRawData < sig_length:
                 continue
 
@@ -105,7 +104,7 @@ class SignatureDatabase:
         return "\n".join(section_signatures) + "\n"
 
     def generate_ep_signature(self, pe, name, sig_length=512):
-        """Generate signatures for the entry point of a PE file.
+        """Generate signature for the entry point of a PE file.
 
         Creates a signature whose name will be the parameter 'name'
         and the section number and its name.
@@ -383,8 +382,7 @@ class SignatureDatabase:
         # Parse all the signatures in the file
         matches = self.parse_sig.findall(sig_data)
 
-        # For each signature, get the details and load it into the
-        # signature tree
+        # For each signature, get the details and load it into the signature tree
         for (
             packer_name,
             signature,
@@ -392,24 +390,9 @@ class SignatureDatabase:
             ep_only,
             section_start_only,
         ) in matches:
-
-            ep_only = ep_only.strip().lower()
-
             signature = signature.replace("\\n", "").strip()
-
-            signature_bytes = [to_byte(b) for b in signature.split()]
-
-            if ep_only == "true":
-                ep_only = True
-            else:
-                ep_only = False
-
-            if section_start_only == "true":
-                section_start_only = True
-            else:
-                section_start_only = False
-
-            depth = 0
+            ep_only = True if ep_only.strip().lower() == "true" else False
+            section_start_only = True if section_start_only == "true" else False
 
             if section_start_only:
                 tree = self.signature_tree_section_start
@@ -420,6 +403,10 @@ class SignatureDatabase:
             else:
                 tree = self.signature_tree_eponly_false
                 self.signature_count_eponly_false += 1
+
+            depth = 0
+
+            signature_bytes = [to_byte(b) for b in signature.split()]
 
             for idx, byte in enumerate(signature_bytes, start=1):
                 if idx == len(signature_bytes):
