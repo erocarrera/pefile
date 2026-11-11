@@ -3404,7 +3404,7 @@ class PE:
             return None
 
         dans_index = self.__data__.find(
-            bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8])),
+            bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8], strict=True)),
             0x40,  # The null DOS stub
             self.OPTIONAL_HEADER.get_file_offset()
         )
@@ -3434,7 +3434,8 @@ class PE:
         raw_data = rich_data[: rich_data.find(b"Rich")]
         result["raw_data"] = raw_data
 
-        ord_ = lambda c: ord(c) if not isinstance(c, int) else c
+        def ord_(c):
+            return ord(c) if not isinstance(c, int) else c
 
         clear_data = bytearray()
         for idx, val in enumerate(raw_data):
@@ -5560,7 +5561,7 @@ class PE:
                     f"({symbol_name}, {symbol_address:#02x}). Assuming corrupt."
                 )
                 break
-            elif len(symbol_counts) > self.max_symbol_exports:
+            if len(symbol_counts) > self.max_symbol_exports:
                 self.__warnings.append(
                     f"Export directory contains more than {self.max_symbol_exports} symbol entries. "
                     "Assuming corrupt."
@@ -5643,7 +5644,7 @@ class PE:
                         f"ordinal entries ({symbol_address:#x}). Assuming corrupt."
                     )
                     break
-                elif len(symbol_counts) > self.max_symbol_exports:
+                if len(symbol_counts) > self.max_symbol_exports:
                     self.__warnings.append(
                         "Export directory contains more than "
                         f"{self.max_symbol_exports} ordinal entries. Assuming corrupt."
