@@ -2331,7 +2331,7 @@ allowed_function_name = (
 
 @lru_cache(maxsize=2048)
 def is_valid_function_name(
-    s: Union[str, bytes, bytearray],
+    s: Union[str, bytes, bytearray],  # noqa: UP007
     relax_allowed_characters: bool = False
 ) -> bool:
     """
@@ -3405,10 +3405,10 @@ class PE:
         if rich_index == -1:
             return None
 
-        if sys.version_info > (3, 9):
+        if sys.version_info >= (3, 10):  # noqa: UP036
             sub = bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8], strict=True))
         else:
-            sub = bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8]))
+            sub = bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8]))  # noqa: B905
 
         dans_index = self.__data__.find(
             sub,
