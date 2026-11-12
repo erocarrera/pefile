@@ -3406,9 +3406,9 @@ class PE:
             return None
 
         if sys.version_info > (3, 9):
-            sub = bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8], strict=True)),
+            sub = bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8], strict=True))
         else:
-            sub = bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8])),
+            sub = bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8]))
 
         dans_index = self.__data__.find(
             sub,
