@@ -22,6 +22,20 @@ To install pefile through pip:
 
 `pip3 install pefile`
 
+### source checkout
+
+this repository contains a large compressed test corpus, and its git history retains older versions of that corpus. a full clone can therefore be much larger than the library itself. use the pip installation above if you only need the library.
+
+to work on the source without downloading the test corpus or its history:
+
+```sh
+git clone --depth 1 --filter=blob:none --sparse https://github.com/erocarrera/pefile.git
+cd pefile
+git sparse-checkout set ordlookup
+```
+
+this checks out the library and its ordinal lookup tables. to include the tests, run `git sparse-checkout set ordlookup tests`; this also downloads the large test corpus. `--depth 1` omits older history, and filtered clones fetch additional file contents when needed.
+
 ## Features
 
 Some of the tasks that pefile makes possible are:
@@ -52,6 +66,22 @@ _pefile_ runs in several pipelines scanning hundreds of thousands of new PE file
 ## Dependencies
 
 _pefile_ is self-contained. The module has no dependencies; it is endianness independent; and it works on Windows, macOS, and Linux.
+
+## Running tests
+
+The test runner lives in `tests/pefile_test.py`. Its PE samples and expected
+dumps come from the separate [pefile-tests](https://github.com/erocarrera/pefile-tests)
+repository. Clone that repository into `pefile-tests/` at the root of this
+checkout, then run:
+
+```shell
+python -m pip install -e ".[dev]"
+python -m pytest tests
+```
+
+CI checks out the corpus in the same location and runs this test module through
+tox. The corpus remains in its own repository so binary samples and expected
+dumps can be updated independently.
 
 ## Projects and products using _pefile_
 
