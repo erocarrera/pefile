@@ -33,6 +33,7 @@ import uuid
 from collections import Counter, defaultdict
 from functools import lru_cache, wraps
 from hashlib import md5, sha1, sha256, sha512
+from typing import Union
 
 import ordlookup
 
@@ -2330,7 +2331,8 @@ allowed_function_name = (
 
 @lru_cache(maxsize=2048)
 def is_valid_function_name(
-    s: str | bytes | bytearray, relax_allowed_characters: bool = False
+    s: Union[str, bytes, bytearray],
+    relax_allowed_characters: bool = False
 ) -> bool:
     """
     MangleChars = "$:?([.)]"        // watcom
@@ -3403,8 +3405,13 @@ class PE:
         if rich_index == -1:
             return None
 
+        if sys.version_info > (3, 9):
+            sub = bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8], strict=True)),
+        else:
+            sub = bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8])),
+
         dans_index = self.__data__.find(
-            bytes(x ^ y for x, y in zip(b"DanS", self.__data__[rich_index + 4 : rich_index + 8], strict=True)),
+            sub,
             0x40,  # The null DOS stub
             self.OPTIONAL_HEADER.get_file_offset()
         )
