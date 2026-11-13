@@ -29,9 +29,9 @@ classifiers = [
 dev = [
     "pytest",
     "coverage",
+    "ruff",
     "tox",
     "tox-gh-actions",
-    "flake8",
 ]
 
 [project.urls]
@@ -96,6 +96,9 @@ python =
     3.14t: py314t
     pypy-3.10: pypy310
 """
+
+[tool.ruff]
+line-length = 127
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -189,3 +192,6 @@ ignore = [
     "TRY003",   # raise-vanilla-args
     "TRY203",   # useless-try-except
 ]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
