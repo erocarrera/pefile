@@ -1228,6 +1228,14 @@ class SectionStructure(Structure):
         # something off the end)
         if self.PointerToRawData is not None and self.SizeOfRawData is not None:
             end = min(end, self.PointerToRawData + self.SizeOfRawData)
+
+        if offset < 0 or end < offset:
+            # The requested range lies outside the section's raw data. A
+            # negative offset or end would make the slice below wrap around
+            # and return bytes from the end of the file as if they were
+            # section data. See https://github.com/erocarrera/pefile/issues/389
+            return b""
+
         return self.pe.__data__[offset:end]
 
     def __setattr__(self, name, val):

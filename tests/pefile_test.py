@@ -386,6 +386,47 @@ class TestPEFile(unittest.TestCase):
             "BSS region (VirtualSize - SizeOfRawData) must be zero-padded",
         )
 
+    def test_section_get_data_before_raw_data_start_returns_empty(self):
+        """Requests for addresses below the section's raw data must not wrap.
+
+        SectionStructure.get_data() computes the file offset as
+        (start - VirtualAddress_adj) + PointerToRawData_adj.  For addresses
+        far enough below the section start the offset goes negative and the
+        slice pe.__data__[offset:end] wraps around, returning bytes from the
+        end of the file as if they were section data (GitHub issue #389).
+        """
+        pe = pefile.PE(data=_create_pe(0x1000, 0x1000))
+        section = pe.sections[0]
+        va = section.get_VirtualAddress_adj()
+        prd = section.get_PointerToRawData_adj()
+
+        # Addresses mapping to a negative file offset, i.e. before the
+        # section's raw data: (start - va) + prd < 0.
+        self.assertEqual(section.get_data(va - prd - 0x40, 8), b"")
+        # A length spanning past the file end must not return tail bytes
+        # either.
+        self.assertEqual(section.get_data(va - prd - 0x08, 0x2000), b"")
+
+        # Sanity: an in-range request still returns the section content.
+        self.assertEqual(
+            section.get_data(va, 8),
+            b"\xCC" * 8,
+            "in-range get_data must be unaffected",
+        )
+
+    def test_section_get_data_beyond_raw_data_end_returns_empty(self):
+        """Requests wholly past the section's raw data must return empty.
+
+        end is clamped to PointerToRawData + SizeOfRawData; when that lands
+        before the requested offset the section holds no bytes for the range.
+        """
+        pe = pefile.PE(data=_create_pe(0x1000, 0x1000))
+        section = pe.sections[0]
+        va = section.get_VirtualAddress_adj()
+
+        start = va + section.SizeOfRawData + 0x100
+        self.assertEqual(section.get_data(start, 8), b"")
+
     def test_truncated_dynamic_relocation_table(self):
         """A Dynamic Value Relocation Table (DVRT) header truncated by the end of the file must not raise.
 
