@@ -707,7 +707,7 @@ class TestPEFile(unittest.TestCase):
         self.assertIsNone(pe.get_overlay())
 
         # Data appended past the end of the mapped content is the overlay.
-        overlay = b"A" * 186
+        overlay = b"A" * 200
         pe = pefile.PE(data=data + overlay)
         self.assertEqual(pe.get_overlay_data_start_offset(), len(data))
         self.assertEqual(pe.get_overlay(), overlay)
