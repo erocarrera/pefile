@@ -292,6 +292,56 @@ class TestPEFile(unittest.TestCase):
         pe.OPTIONAL_HEADER.DATA_DIRECTORY[1].VirtualAddress = 0x1000
         self.assertGreater(len(pe.write()), len(data))
 
+    def test_debug_directory_malformed_ex_dllcharacteristics(self):
+        """A malformed IMAGE_DEBUG_TYPE_EX_DLLCHARACTERISTICS entry (too
+        short to unpack) must not abort parsing with an AttributeError.
+        """
+
+        data = bytearray(0x240)
+        data[0:2] = b"MZ"
+        struct.pack_into("<I", data, 0x3C, 0x40)  # e_lfanew
+        data[0x40:0x44] = b"PE\0\0"
+        struct.pack_into("<HHIIIHH", data, 0x44, 0x14C, 1, 0, 0, 0, 0xE0, 0x102)  # COFF File Header
+        struct.pack_into("<H", data, 0x58, 0x10B)  # Magic; PE32
+        struct.pack_into("<I", data, 0x58 + 0x20, 0x1000)  # SectionAlignment
+        struct.pack_into("<I", data, 0x58 + 0x24, 0x200)  # FileAlignment
+        struct.pack_into("<I", data, 0x58 + 0x38, 0x2000)  # SizeOfImage
+        struct.pack_into("<I", data, 0x58 + 0x3C, 0x200)  # SizeOfHeaders
+        struct.pack_into("<I", data, 0x58 + 0x5C, 16)  # NumberOfRvaAndSizes
+        struct.pack_into("<II", data, 0x58 + 0x60 + 6 * 8, 0x1000, 0x1C)  # DEBUG directory
+
+        section_offset = 0x40 + 4 + 20 + 0xE0
+        data[section_offset : section_offset + 8] = b".text\0\0\0"
+        struct.pack_into(
+            "<IIIIIIHHI",
+            data,
+            section_offset + 8,
+            0x40,  # VirtualSize
+            0x1000,  # VirtualAddress
+            0x40,  # SizeOfRawData
+            0x200,  # PointerToRawData
+            0, 0, 0, 0,
+            0x60000020,  # Characteristics
+        )
+
+        # IMAGE_DEBUG_DIRECTORY with Type 20 (EX_DLLCHARACTERISTICS) whose
+        # SizeOfData (2) is too small to unpack the 4-byte structure.
+        struct.pack_into(
+            "<IIHHIIII",
+            data,
+            0x200,
+            0, 0, 0, 0,
+            20,  # Type: IMAGE_DEBUG_TYPE_EX_DLLCHARACTERISTICS
+            2,  # SizeOfData
+            0x1010,  # AddressOfRawData
+            0x220,  # PointerToRawData
+        )
+
+        pe = pefile.PE(data=bytes(data))
+        self.assertEqual(pe.DIRECTORY_ENTRY_DEBUG[0].struct.Type, 20)
+        self.assertIsNone(pe.DIRECTORY_ENTRY_DEBUG[0].entry)
+        pe.close()
+
     def test_nt_headers_exception(self):
         """pefile should fail parsing invalid data (missing NT headers)"""
 

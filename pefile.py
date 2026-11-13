@@ -4643,14 +4643,15 @@ class PE:
                     dbg_type_offset,
                 )
 
-                ex_dll_characteristics_flags = retrieve_flags(
-                    EX_DLL_CHARACTERISTICS, "IMAGE_DLLCHARACTERISTICS_EX_"
-                )
-                set_flags(
-                    dbg_type,
-                    dbg_type.ExDllCharacteristics,
-                    ex_dll_characteristics_flags,
-                )
+                if dbg_type is not None:
+                    ex_dll_characteristics_flags = retrieve_flags(
+                        EX_DLL_CHARACTERISTICS, "IMAGE_DLLCHARACTERISTICS_EX_"
+                    )
+                    set_flags(
+                        dbg_type,
+                        dbg_type.ExDllCharacteristics,
+                        ex_dll_characteristics_flags,
+                    )
 
             debug.append(DebugData(struct=dbg, entry=dbg_type))
 
