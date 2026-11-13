@@ -7884,6 +7884,15 @@ class PE:
             )
 
         for section in self.sections:
+            # A section that starts within the file but extends past its end
+            # means the file has been truncated or clipped; whatever lies past
+            # the mapped content is missing, so there is no overlay.
+            if (
+                section.PointerToRawData
+                < len(self.__data__)
+                < section.PointerToRawData + section.SizeOfRawData
+            ):
+                return None
             largest_offset_and_size = update_if_sum_is_larger_and_within_file(
                 (section.PointerToRawData, section.SizeOfRawData)
             )

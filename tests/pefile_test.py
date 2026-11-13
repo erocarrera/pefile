@@ -690,6 +690,42 @@ class TestPEFile(unittest.TestCase):
         # Ensure the overlay data is correct (should not be any in this case).
         #self.assertIsNone(pe.get_overlay())
 
+    def test_overlay_on_clipped_file(self):
+        """A clipped (truncated) file has no overlay.
+
+        Regression test for https://github.com/erocarrera/pefile/issues/378
+        Removing a single byte from the end of a valid PE without an overlay
+        made get_overlay_data_start_offset() return the end of an earlier
+        structure, mislabeling most of the file's content as overlay data.
+        """
+
+        data = _create_pe(0x1004, 0x1004)
+
+        # A complete file without appended data has no overlay.
+        pe = pefile.PE(data=data)
+        self.assertIsNone(pe.get_overlay_data_start_offset())
+        self.assertIsNone(pe.get_overlay())
+
+        # Data appended past the end of the mapped content is the overlay.
+        overlay = b"A" * 200
+        pe = pefile.PE(data=data + overlay)
+        self.assertEqual(pe.get_overlay_data_start_offset(), len(data))
+        self.assertEqual(pe.get_overlay(), overlay)
+        self.assertEqual(pe.trim(), data)
+
+        # A file clipped by a single byte has no overlay: the last section
+        # extends past the end of the file, so everything present is content.
+        pe = pefile.PE(data=data[:-1])
+        self.assertIsNone(pe.get_overlay_data_start_offset())
+        self.assertIsNone(pe.get_overlay())
+        self.assertEqual(pe.trim(), data[:-1])
+
+        # Clipping inside the overlay still reports the remaining overlay.
+        pe = pefile.PE(data=(data + overlay)[:-100])
+        self.assertEqual(pe.get_overlay_data_start_offset(), len(data))
+        self.assertEqual(pe.get_overlay(), overlay[:-100])
+        self.assertEqual(pe.trim(), data)
+
     def test_unable_to_read_file(self):
         """Attempting to open a file without read permission for the user
         should result in an error message.
