@@ -1,6 +1,5 @@
 """peutils, Portable Executable utilities module
 
-
 Copyright (c) 2005-2024 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
@@ -47,8 +46,8 @@ class SignatureDatabase:
         #
         # Signatures are stored as trees using dictionaries.
         #
-        # The keys are the byte values while the values for
-        # each key are either:
+        # keys are byte values, or (mask, value) tuples for nibble wildcards.
+        # values for each key are either:
         #
         # * Other dictionaries of the same form for further
         #   bytes in the signature
@@ -66,6 +65,7 @@ class SignatureDatabase:
 
         # The depth (length) of the longest signature
         self.max_depth = 0
+        self.__has_nibble_wildcards = False
 
         self.__load(filename=filename, data=data)
 
@@ -76,23 +76,19 @@ class SignatureDatabase:
         for it. The signature name will be a combination of the
         parameter 'name' and the section number and its name.
         """
-
         section_signatures = []
 
         for idx, section in enumerate(pe.sections, start=1):
-
             if section.SizeOfRawData < sig_length:
                 continue
 
-            # offset = pe.get_offset_from_rva(section.VirtualAddress)
             offset = section.PointerToRawData
 
-            sig_name = "%s Section(%d/%d,%s)" % (
-                name,
-                idx,
-                len(pe.sections),
-                "".join(c for c in section.Name if c in string.printable),
+            section_name = "".join(
+                c for c in section.Name.decode("ascii", errors="ignore")
+                if c in string.printable
             )
+            sig_name = f"{name} Section({idx}/{len(pe.sections)},{section_name})"
 
             section_signatures.append(
                 self.__generate_signature(
@@ -102,40 +98,38 @@ class SignatureDatabase:
                     ep_only=False,
                     section_start_only=True,
                     sig_length=sig_length,
-                )
+                ),
             )
 
         return "\n".join(section_signatures) + "\n"
 
     def generate_ep_signature(self, pe, name, sig_length=512):
-        """Generate signatures for the entry point of a PE file.
+        """Generate signature for the entry point of a PE file.
 
         Creates a signature whose name will be the parameter 'name'
         and the section number and its name.
         """
-
         offset = pe.get_offset_from_rva(pe.OPTIONAL_HEADER.AddressOfEntryPoint)
 
         return self.__generate_signature(
-            pe, offset, name, ep_only=True, sig_length=sig_length
+            pe, offset, name, ep_only=True, sig_length=sig_length,
         )
 
     @staticmethod
     def __generate_signature(
-        pe, offset, name, ep_only=False, section_start_only=False, sig_length=512
+        pe, offset, name, ep_only=False, section_start_only=False, sig_length=512,
     ):
 
         data = pe.__data__[offset : offset + sig_length]
-        signature_bytes = " ".join(f"{ord(c):02x}" for c in data)
 
-        signature = (
+        signature_bytes = " ".join(f"{b:02x}" for b in data)
+
+        return (
             f"[{name}]\n"
             f"signature = {signature_bytes}\n"
             f"ep_only = {'true' if ep_only else 'false'}\n"
             f"section_start_only = {'true' if section_start_only else 'false'}\n"
         )
-
-        return signature
 
     def match(self, pe, ep_only=True, section_start_only=False):
         """Matches and returns the exact match(es).
@@ -145,7 +139,6 @@ class SignatureDatabase:
         form (file_offset, packer_name) specifying where
         in the file the signature was found.
         """
-
         matches = self.__match(pe, ep_only, section_start_only)
 
         # The last match (the most precise) from the
@@ -162,7 +155,6 @@ class SignatureDatabase:
 
     def match_all(self, pe, ep_only=True, section_start_only=False):
         """Matches and returns all the likely matches."""
-
         matches = self.__match(pe, ep_only, section_start_only)
 
         if matches:
@@ -181,9 +173,7 @@ class SignatureDatabase:
         # Either the one for ep_only equal to True or
         # to False
         if section_start_only is True:
-
-            # Fetch the data of the executable as it'd
-            # look once loaded in memory
+            # Fetch the data of the executable as it would look once loaded in memory
             try:
                 data = pe.__data__
             except Exception:
@@ -196,9 +186,7 @@ class SignatureDatabase:
             scan_addresses = [section.PointerToRawData for section in pe.sections]
 
         elif ep_only is True:
-
-            # Fetch the data of the executable as it'd
-            # look once loaded in memory
+            # Fetch the data of the executable as it would look once loaded in memory
             try:
                 data = pe.get_memory_mapped_image()
             except Exception:
@@ -215,7 +203,6 @@ class SignatureDatabase:
             scan_addresses = [ep]
 
         else:
-
             data = pe.__data__
 
             signatures = self.signature_tree_eponly_false
@@ -226,7 +213,7 @@ class SignatureDatabase:
         matches = []
         for idx in scan_addresses:
             result = self.__match_signature_tree(
-                signatures, data[idx : idx + self.max_depth]
+                signatures, data[idx : idx + self.max_depth],
             )
             if result:
                 matches.append((idx, result))
@@ -245,17 +232,14 @@ class SignatureDatabase:
         scan_addresses = [0]
 
         # Load the corresponding set of signatures
-        # Either the one for ep_only equal to True or
-        # to False
+        # Either the one for ep_only equal to True or to False
         if section_start_only:
-
             # Load the corresponding tree of signatures
             signatures = self.signature_tree_section_start
 
             # Set the starting address to start scanning from
 
         elif ep_only:
-
             # Load the corresponding tree of signatures
             signatures = self.signature_tree_eponly_true
 
@@ -263,7 +247,7 @@ class SignatureDatabase:
         matches = []
         for idx in scan_addresses:
             result = self.__match_signature_tree(
-                signatures, data[idx : idx + self.max_depth]
+                signatures, data[idx : idx + self.max_depth],
             )
             if result:
                 matches.append((idx, result))
@@ -283,7 +267,6 @@ class SignatureDatabase:
         data    is the data being checked against the signature tree
         depth   keeps track of how far we have gone down the tree
         """
-
         matched_names = []
         match = signature_tree
 
@@ -314,17 +297,25 @@ class SignatureDatabase:
                         names.append(item[0])
                 matched_names.append(names)
 
-            # If a wildcard is found keep scanning the signature
-            # ignoring the byte.
+            # If a wildcard is found keep scanning the signature ignoring the byte
             if "??" in match:
                 match_tree_alternate = match.get("??", None)
                 data_remaining = data[idx + 1 :]
                 if data_remaining:
                     matched_names.extend(
                         self.__match_signature_tree(
-                            match_tree_alternate, data_remaining, idx + depth + 1
-                        )
+                            match_tree_alternate, data_remaining, idx + depth + 1,
+                        ),
                     )
+
+            if self.__has_nibble_wildcards:
+                for wildcard in ((0xF0, byte & 0xF0), (0x0F, byte & 0x0F)):
+                    if wildcard in match:
+                        matched_names.extend(
+                            self.__match_signature_tree(
+                                match[wildcard], data[idx + 1 :], idx + depth + 1
+                            )
+                        )
 
             match = match_next
 
@@ -345,7 +336,6 @@ class SignatureDatabase:
 
         Invoking this method on different files combines the signatures.
         """
-
         self.__load(filename=filename, data=data)
 
     def __load(self, filename=None, data=None):
@@ -378,6 +368,13 @@ class SignatureDatabase:
 
         # Helper function to parse the signature bytes
         def to_byte(value):
+            if len(value) == 2 and value != "??":
+                if value[0] == "?":
+                    self.__has_nibble_wildcards = True
+                    return (0x0F, int(value[1], 16))
+                if value[1] == "?":
+                    self.__has_nibble_wildcards = True
+                    return (0xF0, int(value[0], 16) << 4)
             if "?" in value:
                 return value
             return int(value, 16)
@@ -385,8 +382,7 @@ class SignatureDatabase:
         # Parse all the signatures in the file
         matches = self.parse_sig.findall(sig_data)
 
-        # For each signature, get the details and load it into the
-        # signature tree
+        # For each signature, get the details and load it into the signature tree
         for (
             packer_name,
             signature,
@@ -394,24 +390,9 @@ class SignatureDatabase:
             ep_only,
             section_start_only,
         ) in matches:
-
-            ep_only = ep_only.strip().lower()
-
             signature = signature.replace("\\n", "").strip()
-
-            signature_bytes = [to_byte(b) for b in signature.split()]
-
-            if ep_only == "true":
-                ep_only = True
-            else:
-                ep_only = False
-
-            if section_start_only == "true":
-                section_start_only = True
-            else:
-                section_start_only = False
-
-            depth = 0
+            ep_only = bool(ep_only.strip().lower() == "true")
+            section_start_only = bool(section_start_only == "true")
 
             if section_start_only:
                 tree = self.signature_tree_section_start
@@ -422,6 +403,10 @@ class SignatureDatabase:
             else:
                 tree = self.signature_tree_eponly_false
                 self.signature_count_eponly_false += 1
+
+            depth = 0
+
+            signature_bytes = [to_byte(b) for b in signature.split()]
 
             for idx, byte in enumerate(signature_bytes, start=1):
                 if idx == len(signature_bytes):
@@ -441,12 +426,11 @@ def is_valid(pe):
 
 
 def is_suspicious(pe):
-    """
-    Unusual locations of import tables
+    """Unusual locations of import tables.
+
     Non-recognized section names
     Presence of long ASCII strings
     """
-
     relocations_overlap_entry_point = False
     sequential_relocs = 0
 
@@ -481,7 +465,7 @@ def is_suspicious(pe):
     # unusual entrypoint, suspicious imports)
     warnings = pe.get_warnings()
     if warnings:
-        warnings_while_parsing
+        warnings_while_parsing = True
 
     # If there are few or none (should come with a standard "density" of strings/kilobytes of data) longer (>8)
     # ASCII sequences that might indicate packed data, (this is similar to the entropy test in some ways but
@@ -492,9 +476,9 @@ def is_suspicious(pe):
 
 
 def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):
-    """
-    The entropy of sections are analyzed to determine if they likely contain
-    compressed data (default > 7.4). The proportion of the total size of these
+    """The entropy of sections are analyzed to determine if they likely contain compressed data.
+
+    The proportion of the total size of these
     (probably) compressed sections to the total file size (excluding any
     overlay) is calculated. If this proportion is greater than a threshold
     (default > 0.2) the PE file is likely packed or compressed.
@@ -514,7 +498,6 @@ def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):
         True if file is probably packed or contains compressed data, False otherwise.
 
     """
-
     # Calculate the length of the data up to the end of the last section in the
     # file. Overlay data won't be taken into account
     total_pe_data_length = len(pe.trim())

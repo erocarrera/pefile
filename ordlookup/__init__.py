@@ -17,9 +17,7 @@ def format_ordinal(ord_val):
 
 
 def ordinal_lookup(libname, ord_val, make_name=False):
-    """
-    Lookup a name for the given ordinal if it's in our database.
-    """
+    """Lookup a name for the given ordinal if it's in our database."""
     names = ords.get(libname.lower())
     if names is None:
         if make_name is True:
