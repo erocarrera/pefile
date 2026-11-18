@@ -64,7 +64,7 @@ include = [
 ]
 
 [tool.tox]
-env_list = ["py39", "py310", "py311", "py312", "py313", "py314", "py314t", "pypy310", "coverage"]
+env_list = ["py38", "py39", "py310", "py311", "py312", "py313", "py314", "py314t", "pypy310", "coverage"]
 
 [tool.tox.env_run_base]
 deps = ["pytest", "coverage"]
