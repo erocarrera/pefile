@@ -897,6 +897,7 @@ def set_format(format):
     __format_str__ = "<"
     __unpacked_data_elms__ = []
     __field_offsets__ = {}
+    __field_sizes__ = {}
     __keys__ = []
     __format_length__ = 0
 
@@ -908,6 +909,7 @@ def set_format(format):
             __unpacked_data_elms__.append(None)
 
             elm_names = elm_name.split(",")
+            elm_size = sizeof_type(elm_type)
             names = []
             for elm_name in elm_names:
                 if elm_name in __keys__:
@@ -916,8 +918,9 @@ def set_format(format):
                     elm_name = f"{elm_name}_{occ_count:d}"
                 names.append(elm_name)
                 __field_offsets__[elm_name] = offset
+                __field_sizes__[elm_name] = elm_size
 
-            offset += sizeof_type(elm_type)
+            offset += elm_size
 
             # Some PE header structures have unions on them, so a certain
             # value might have different names, so each key has a list of
@@ -930,6 +933,7 @@ def set_format(format):
         __format_str__,
         __unpacked_data_elms__,
         __field_offsets__,
+        __field_sizes__,
         __keys__,
         __format_length__,
     )
@@ -959,6 +963,7 @@ class Structure:
             self.__format_str__,
             self.__unpacked_data_elms__,
             self.__field_offsets__,
+            self.__field_sizes__,
             self.__keys__,
             self.__format_length__,
         ) = set_format(d)
@@ -994,6 +999,11 @@ class Structure:
     def sizeof(self):
         """Return size of the structure."""
         return self.__format_length__
+
+    def sizeof_field(self, field):
+        """Return size of the requested field."""
+
+        return self.__field_sizes__[field]
 
     def __unpack__(self, data):
         if len(data) > self.__format_length__:
@@ -1407,7 +1417,7 @@ def set_bitfields_format(format):
         ac.add_subfield(elm_name, elm_bits)
     ac.wrap_up()
 
-    format_str, _, field_offsets, keys, format_length = set_format(tuple(old_fmt))
+    format_str, _, field_offsets, field_sizes, keys, format_length = set_format(tuple(old_fmt))
 
     extended_keys = []
     for idx, val in enumerate(keys):
@@ -1454,6 +1464,7 @@ class StructureWithBitfields(Structure):
             self.__format_str__,
             self.__format_length__,
             self.__field_offsets__,
+            self.__field_sizes__,
             self.__keys__,
             self.__keys_ext__,
             self.__compound_fields__,
