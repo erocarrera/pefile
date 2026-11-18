@@ -63,27 +63,20 @@ include = [
     "/pyproject.toml",
 ]
 
-# Tox configuration, previously in tox.ini
 [tool.tox]
-legacy_tox_ini = """
-[tox]
-envlist = py38,py39,py310,py311,py312,py313,py314,py314t,pypy310,coverage
+env_list = ["py39", "py310", "py311", "py312", "py313", "py314", "py314t", "pypy310", "coverage"]
 
-[testenv]
-deps =
-    pytest
-    coverage
-commands =
-    python -m coverage run -p -m pytest tests
+[tool.tox.env_run_base]
+deps = ["pytest", "coverage"]
+commands = [["python", "-m", "coverage", "run", "-p", "-m", "pytest", "tests"]]
 
-[testenv:coverage]
-basepython = python3.10
-commands =
-    python -m coverage combine
-    python -m coverage report --show-missing --skip-covered --ignore-errors
-    python -m coverage json --ignore-errors
-
-"""
+[tool.tox.env.coverage]
+base_python = "python3.10"
+commands = [
+    ["python", "-m", "coverage", "combine"],
+    ["python", "-m", "coverage", "report", "--show-missing", "--skip-covered", "--ignore-errors"],
+    ["python", "-m", "coverage", "json", "--ignore-errors"],
+]
 
 [tool.ruff.lint]
 select = ["ALL"]
