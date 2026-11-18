@@ -734,10 +734,11 @@ class TestPEFile(unittest.TestCase):
         control_file_pe = REGRESSION_TESTS_DIR / "fake_PE_no_read_permissions_issue_53"
         self.assertRaises(Exception, pefile.PE, control_file_pe)
 
-    def test_driver_check(self):
-        """Test the is_driver check"""
+    def test_is_driver(self):
+        """Test the is_driver check."""
 
-        # A 32 bit driver that imports DbgPrint from ntoskrnl.exe
+        # A 32 bit driver that imports DbgPrint from ntoskrnl.exe.
+        # This is the same file as test_driver.sys, from issue #322.
         control_file_pe = POCS_TESTS_DIR / "driver.sys"
 
         pe_fast = pefile.PE(control_file_pe, fast_load=True)
