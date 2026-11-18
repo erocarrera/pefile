@@ -26,6 +26,20 @@ jobs:
           - "3.14t"
           - "pypy3.10"
         include:
+          - python-version: "3.10"
+            tox-env: py310
+          - python-version: "3.11"
+            tox-env: py311
+          - python-version: "3.12"
+            tox-env: py312
+          - python-version: "3.13"
+            tox-env: py313
+          - python-version: "3.14"
+            tox-env: py314
+          - python-version: "3.14t"
+            tox-env: py314t
+          - python-version: "pypy3.10"
+            tox-env: pypy310
           - os: ubuntu-latest
             python-version: "3.10"
             coverage: 1
@@ -44,7 +58,7 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install flake8 ruff tox tox-gh-actions
+          pip install flake8 ruff tox
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
@@ -64,7 +78,7 @@ jobs:
 
       - name: "Run tox for ${{ matrix.python-version }}"
         run: |
-          python -m tox
+          python -m tox -e ${{ matrix.tox-env }}
 
       - if: ${{matrix.coverage}}
         name: "Upload coverage data"
@@ -95,7 +109,7 @@ jobs:
       - name: "Install dependencies"
         run: |
           python -m pip install --upgrade pip
-          python -m pip install tox tox-gh-actions
+          python -m pip install tox
 
       - name: "Download coverage data"
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
