@@ -33,24 +33,13 @@ else:
             yield Path(root), dirs, files
 
 def _load_test_files():
-    """Yield all the test files."""
-
-    not_pe_extensions = (".dmp", ".ABOUT", "empty_file")
-
-    for dirpath, _, filenames in unified_walk(REGRESSION_TESTS_DIR):
-        for filename in filenames:
-            if not filename.endswith(not_pe_extensions):
-                yield dirpath / filename
-
-    for dirpath, _, filenames in unified_walk(POCS_TESTS_DIR):
-        for filename in filenames:
-            if not filename.endswith(not_pe_extensions):
-                yield dirpath / filename
-
-    for dirpath, _, filenames in unified_walk(LIEF_TESTS_DIR):
-        for filename in filenames:
-            if not filename.endswith(not_pe_extensions):
-                yield dirpath / filename
+    return tuple(
+        dirpath / filename
+        for test_dir in (REGRESSION_TESTS_DIR, POCS_TESTS_DIR, LIEF_TESTS_DIR)
+        for dirpath, _, filenames in unified_walk(test_dir)
+        for filename in filenames
+        if not filename.endswith((".dmp", ".ABOUT", "empty_file"))
+    )
 
 
 @pytest.mark.parametrize(
