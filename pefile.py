@@ -1054,7 +1054,7 @@ class Structure:
                         val_str = f"{val:<8X}"
                     else:
                         val_str = f"0x{val:<8X}"
-                    if key == "TimeDateStamp" or key == "dwTimeStamp":
+                    if key in {"TimeDateStamp", "dwTimeStamp"}:
                         try:
                             val_str += f" [{time.asctime(time.gmtime(val))} UTC]"
                         except ValueError:
@@ -1093,7 +1093,7 @@ class Structure:
             for key in keys:
                 val = getattr(self, key)
                 if isinstance(val, int):
-                    if key == "TimeDateStamp" or key == "dwTimeStamp":
+                    if key in {"TimeDateStamp", "dwTimeStamp"}:
                         try:
                             val = f"0x{val:-8X} [{time.asctime(time.gmtime(val))} UTC]"
                         except ValueError:
@@ -1878,7 +1878,7 @@ class UnwindInfo(StructureWithBitfields):
         if len(data) < self._full_size:
             return None
 
-        if self.Version != 1 and self.Version != 2:
+        if self.Version not in {1, 2}:
             return "Unsupported version of UNWIND_INFO at " + hex(self.__file_offset__)
 
         self.UnwindCodes = []
@@ -6778,7 +6778,8 @@ class PE:
                     if symbol.import_by_ordinal is True:
                         if symbol.name is not None:
                             dump.add(
-                                f"{module.dll.decode('utf-8')}.{symbol.name.decode('utf-8')} Ordinal[{symbol.ordinal}] (Imported by Ordinal)"
+                                f"{module.dll.decode('utf-8')}.{symbol.name.decode('utf-8')} "
+                                f"Ordinal[{symbol.ordinal}] (Imported by Ordinal)"
                             )
                         else:
                             dump.add(
