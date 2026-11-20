@@ -21,6 +21,7 @@ __version__ = "2024.8.26"
 __contact__ = "ero.carrera@gmail.com"
 
 import codecs
+import contextlib
 import copy
 import math
 import mmap
@@ -4858,7 +4859,7 @@ class PE:
                                 string_entry_size = resource_lang.data.struct.Size
                                 string_entry_id = resource_id.id
 
-                                # XXX: has been raising exceptions preventing parsing
+                                # TODO: has been raising exceptions preventing parsing
                                 try:
                                     string_entry_data = self.get_data(
                                         string_entry_rva, string_entry_size
@@ -4923,12 +4924,10 @@ class PE:
                 else:
                     for version_entry in version_entries:
                         rt_version_struct = None
-                        try:
-                            rt_version_struct = version_entry.data.struct
-                        except (AttributeError, IndexError):
+                        with contextlib.suppress(AttributeError, IndexError):
                             # Maybe a malformed directory structure...?
                             # Let's ignore it
-                            pass
+                            rt_version_struct = version_entry.data.struct
 
                         if rt_version_struct is not None:
                             self.parse_version_information(rt_version_struct)

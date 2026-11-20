@@ -117,7 +117,6 @@ ignore = [
     "D403",     # first-word-uncapitalized
     "D404",     # docstring-starts-with-this
     "D415",     # missing-terminal-punctuation
-    "D419",     # empty-docstring
     "E501",     # line-too-long
     "E741",     # ambiguous-variable-name
     "EM101",    # raw-string-in-exception
@@ -128,7 +127,6 @@ ignore = [
     "FBT001",   # boolean-type-hint-positional-argument
     "FBT002",   # boolean-default-value-positional-argument
     "FIX002",   # line-contains-todo
-    "FIX003",   # line-contains-xxx
     "INP001",   # implicit-namespace-package
     "N802",     # invalid-function-name
     "N803",     # invalid-argument-name
@@ -159,7 +157,6 @@ ignore = [
     "S310",     # suspicious-url-open-usage
     "S324",     # hashlib-insecure-hash-function
     "SIM102",   # collapsible-if
-    "SIM105",   # suppressible-exception
     "SIM108",   # if-else-block-instead-of-if-exp
     "SIM115",   # open-file-with-context-handler
     "SIM117",   # multiple-with-statements
