@@ -500,7 +500,7 @@ class TestPEFile(unittest.TestCase):
         # go beyond a subsequent section's start address and if so, it's
         # truncated.
         #control_file = (
-        #    REGRESSION_TESTS_DIR / "924C62EF97E0B4939E9047B866037BB5BDDA92F9DA6D22F5DEEFC540856CDC0D.bin__aleph_overlapping_sections"
+        #    REGRESSION_TESTS_DIR / "924C62EF97E0B4939E9047B866037BB5BDDA92F9DA6D22F5DEEFC540856CDC0D.bin__aleph_overlapping_sections"  # noqa: E501
         #)
         #pe = pefile.PE(control_file)
 
@@ -802,7 +802,8 @@ class TestPEFile(unittest.TestCase):
         self.assertFalse(pe.verify_checksum())
         self.assertEqual(pe.generate_checksum(), 0x255E)
 
-        # This 97 byte file is truncated part way through its optional header; the truncation occurs after the CheckSum field, permitting the check to still be possible
+        # This 97 byte file is truncated part way through its optional header;
+        # the truncation occurs after the CheckSum field, permitting the check to still be possible
         pe = pefile.PE(POCS_TESTS_DIR / "tinydrivXP.sys")
         self.assertTrue(pe.verify_checksum())
 

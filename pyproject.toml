@@ -120,7 +120,6 @@ ignore = [
     "D403",     # first-word-uncapitalized
     "D404",     # docstring-starts-with-this
     "D415",     # missing-terminal-punctuation
-    "E501",     # line-too-long
     "E741",     # ambiguous-variable-name
     "EM101",    # raw-string-in-exception
     "EM102",    # f-string-in-exception
@@ -141,7 +140,6 @@ ignore = [
     "PLR0913",  # too-many-arguments
     "PLR0915",  # too-many-statements
     "PLR0917",  # too-many-positional-arguments
-    "PLR1714",  # repeated-equality-comparison
     "PLR2004",  # magic-value-comparison
     "PLW0642",  # self-or-cls-assignment
     "PLW2901",  # redefined-loop-name
@@ -164,7 +162,6 @@ ignore = [
     "SIM115",   # open-file-with-context-handler
     "SIM117",   # multiple-with-statements
     "T201",     # print
-    "TD001",    # invalid-todo-tag
     "TD002",    # missing-todo-author
     "TD003",    # missing-todo-link
     "TRY002",   # raise-vanilla-class
