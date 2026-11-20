@@ -422,7 +422,7 @@ class SignatureDatabase:
 
 
 def is_valid(pe):
-    """"""
+    """Basic structural and compliance checks."""
 
 
 def is_suspicious(pe):
