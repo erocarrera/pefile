@@ -9,7 +9,7 @@ description = "A Portable Executable (PE) parsing module"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
-requires-python = ">=3.6.0"
+requires-python = ">=3.9.0"
 authors = [
     { name = "Ero Carrera", email = "ero.carrera@gmail.com" },
 ]
