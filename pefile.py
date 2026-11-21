@@ -3913,8 +3913,8 @@ class PE:
                 continue
             if rf.unwindinfo.FunctionEntry not in rva2rt:
                 self.__warnings.append(
-                    f"FunctionEntry of UNWIND_INFO at {rf.struct.get_file_offset():x}"
-                    " points to an entry that does not exist"
+                    f"FunctionEntry of UNWIND_INFO at {rf.struct.get_file_offset():x} "
+                    "points to an entry that does not exist"
                 )
                 continue
             try:
@@ -4874,7 +4874,7 @@ class PE:
                                     )
                                 except PEFormatError:
                                     self.__warnings.append(
-                                        f"Error parsing resource of type RT_STRING at "
+                                        "Error parsing resource of type RT_STRING at "
                                         f"RVA {string_entry_rva:#x} with "
                                         f"size {string_entry_size}"
                                     )
@@ -5571,7 +5571,7 @@ class PE:
             symbol_counts[(symbol_name, symbol_address)] += 1
             if symbol_counts[(symbol_name, symbol_address)] > 10:
                 self.__warnings.append(
-                    f"Export directory contains more than 10 repeated entries "
+                    "Export directory contains more than 10 repeated entries "
                     f"({symbol_name}, {symbol_address:#02x}). Assuming corrupt."
                 )
                 break
@@ -5602,7 +5602,7 @@ class PE:
 
         if not export_parsing_loop_completed_normally:
             self.__warnings.append(
-                f"RVA AddressOfNames in the export directory points to an invalid "
+                "RVA AddressOfNames in the export directory points to an invalid "
                 f"address: {export_dir.AddressOfNames:x}"
             )
 
@@ -6258,8 +6258,8 @@ class PE:
                 and start_rva <= thunk_data.AddressOfData <= rva
             ):
                 self.__warnings.append(
-                    f"Error parsing the import table. "
-                    f"AddressOfData overlaps with THUNK_DATA for "
+                    "Error parsing the import table. "
+                    "AddressOfData overlaps with THUNK_DATA for "
                     f"THUNK at RVA {rva:#x}"
                 )
                 break
@@ -6726,7 +6726,8 @@ class PE:
                                 for str_entry in sorted(st_entry.entries.items()):
                                     # try:
                                     dump.add_line(
-                                        f"    {str_entry[0].decode(encoding, 'backslashreplace_')}: "
+                                        "    "
+                                        f"{str_entry[0].decode(encoding, 'backslashreplace_')}: "
                                         f"{str_entry[1].decode(encoding, 'backslashreplace_')}"
                                     )
 
@@ -7958,7 +7959,7 @@ class PE:
                 and self.FileAlignment_Warning is False
             ):
                 self.__warnings.append(
-                    f"If FileAlignment > 0x200 it should be a power of 2. "
+                    "If FileAlignment > 0x200 it should be a power of 2. "
                     f"Value: {self.OPTIONAL_HEADER.FileAlignment:#x}"
                 )
                 self.FileAlignment_Warning = True
