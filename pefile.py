@@ -1609,7 +1609,11 @@ class ImportData(DataContainer):
                     raise PEFormatError(
                         "The export name provided is longer than the existing one."
                     )
-                self.pe.set_bytes_at_offset(self.name_offset, val)
+                # Pad with NULs so a shorter name doesn't leave the tail of the
+                # old one in the file.
+                self.pe.set_bytes_at_offset(
+                    self.name_offset, val.ljust(len(self.name), b"\0")
+                )
 
         self.__dict__[name] = val
 
@@ -1655,7 +1659,9 @@ class ExportData(DataContainer):
                     raise PEFormatError(
                         "The export name provided is longer than the existing one."
                     )
-                self.pe.set_bytes_at_offset(self.name_offset, val)
+                self.pe.set_bytes_at_offset(
+                    self.name_offset, val.ljust(len(self.name), b"\0")
+                )
             elif name == "forwarder":
                 # Complain if the length of the new name is longer than the
                 # existing one
@@ -1663,7 +1669,9 @@ class ExportData(DataContainer):
                     raise PEFormatError(
                         "The forwarder name provided is longer than the existing one."
                     )
-                self.pe.set_bytes_at_offset(self.forwarder_offset, val)
+                self.pe.set_bytes_at_offset(
+                    self.forwarder_offset, val.ljust(len(self.forwarder), b"\0")
+                )
 
         self.__dict__[name] = val
 
