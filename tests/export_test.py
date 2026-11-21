@@ -87,7 +87,7 @@ EXPECT_NAMES = [
 
 class TestExports(unittest.TestCase):
     def test_exports32(self):
-        """Iterate all exports of the 32 bit binary, and validate that they are all accepted"""
+        """Iterate all exports of the 32 bit binary, and validate that they are all accepted."""
         # Update all the symbol addresses to be __ImageBase+0x01
         for idx, _ in enumerate(EXPECT_NAMES):
             PE_32[0x218 + 4 * idx] = 0x01
@@ -101,7 +101,7 @@ class TestExports(unittest.TestCase):
         self.assertEqual(EXPECT_NAMES, exports)
 
     def test_exports64(self):
-        """Iterate all exports of the 64 bit binary, and validate that they are all accepted"""
+        """Iterate all exports of the 64 bit binary, and validate that they are all accepted."""
         # Update all the symbol addresses to be __ImageBase+0x01
         for idx, _ in enumerate(EXPECT_NAMES):
             PE_64[0x228 + 4 * idx] = 0x01

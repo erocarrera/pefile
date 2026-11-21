@@ -114,7 +114,6 @@ ignore = [
     "D205",     # missing-blank-line-after-summary
     "D212",     # multi-line-summary-first-line
     "D213",     # multi-line-summary-second-line
-    "D400",     # missing-trailing-period
     "D401",     # non-imperative-mood
     "D402",     # signature-in-docstring
     "D403",     # first-word-uncapitalized

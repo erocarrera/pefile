@@ -282,7 +282,7 @@ class TestPEFile(unittest.TestCase):
         self.assertGreater(len(pe.write()), len(data))
 
     def test_nt_headers_exception(self):
-        """pefile should fail parsing invalid data (missing NT headers)"""
+        """pefile should fail parsing invalid data (missing NT headers)."""
 
         # Take a known good file.
         control_file = REGRESSION_TESTS_DIR / "MSVBVM60.DLL"
@@ -470,7 +470,7 @@ class TestPEFile(unittest.TestCase):
                 self.assertIsNone(load_config_data.dynamic_relocations)
 
     def test_relocated_memory_mapped_image(self):
-        """Test different rebasing methods produce the same image"""
+        """Test different rebasing methods produce the same image."""
 
         # Take a known good file
         control_file = REGRESSION_TESTS_DIR / "MSVBVM60.DLL"
@@ -687,7 +687,7 @@ class TestPEFile(unittest.TestCase):
         pass
 
     def test_get_overlay_and_trimming(self):
-        """Test method to retrieve overlay data and trim the PE"""
+        """Test method to retrieve overlay data and trim the PE."""
 
         #control_file_pe = REGRESSION_TESTS_DIR / "0x90_with_overlay_data.exe"
         #pe = pefile.PE(control_file_pe)
@@ -791,7 +791,7 @@ class TestPEFile(unittest.TestCase):
         self.assertFalse(pe.is_driver())
 
     def test_rebased_image(self):
-        """Test correctness of rebased images"""
+        """Test correctness of rebased images."""
 
         # Take a known good file.
         #control_file = (
@@ -809,7 +809,7 @@ class TestPEFile(unittest.TestCase):
         #self.assertEqual(rebased_data, control_file_data)
 
     def test_is_driver_and_is_exe_return_bool(self):
-        """Test is_driver and is_exe return False, not set() or 0"""
+        """Test is_driver and is_exe return False, not set() or 0."""
 
         pe = pefile.PE(REGRESSION_TESTS_DIR / "cmd.exe")
         self.assertIs(pe.is_driver(), expr2=False)
@@ -821,7 +821,7 @@ class TestPEFile(unittest.TestCase):
         self.assertIs(pe.is_exe(), expr2=False)
 
     def test_checksum(self):
-        """Verify correct calculation of checksum"""
+        """Verify correct calculation of checksum."""
 
         # Take a known good file
         control_file = REGRESSION_TESTS_DIR / "MSVBVM60.DLL"
