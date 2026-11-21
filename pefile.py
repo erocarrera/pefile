@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-"""pefile, Portable Executable reader module
+"""pefile, Portable Executable reader module.
 
 All the PE file basic structures are available with their default names as
 attributes of the instance returned.
@@ -1526,7 +1526,7 @@ class StructureWithBitfields(Structure):
                 offst += sf[StructureWithBitfields.BTF_BITCNT_IDX]
 
     def _pack_bitfield_attributes(self):
-        """Pack attributes into a compound bitfield"""
+        """Pack attributes into a compound bitfield."""
         for i in self.__compound_fields__:
             cf_name = self.__keys__[i][0]
             offst, acc_val = 0, 0
@@ -1832,7 +1832,7 @@ class BoundImportRefData(DataContainer):
 
 
 class ExceptionsDirEntryData(DataContainer):
-    """Holds the data related to SEH (and stack unwinding, in particular)
+    """Holds the data related to SEH (and stack unwinding, in particular).
 
     struct      an instance of RUNTIME_FUNTION
     unwindinfo  an instance of UNWIND_INFO
@@ -1841,8 +1841,8 @@ class ExceptionsDirEntryData(DataContainer):
 
 class UnwindInfo(StructureWithBitfields):
     """Handles the complexities of UNWIND_INFO structure:
-    * variable number of UWIND_CODEs
-    * optional ExceptionHandler and FunctionEntry fields
+    * variable number of UWIND_CODEs.
+    * optional ExceptionHandler and FunctionEntry fields.
     """
 
     def __init__(self, file_offset=0):
@@ -2035,7 +2035,7 @@ class PrologEpilogOp:
 
 
 class PrologEpilogOpPushReg(PrologEpilogOp):
-    """UWOP_PUSH_NONVOL"""
+    """UWOP_PUSH_NONVOL."""
 
     def _get_format(self, unw_code):
         return "UNWIND_CODE_PUSH_NONVOL", ("B,CodeOffset", "B:4,UnwindOp", "B:4,Reg")
@@ -2045,7 +2045,7 @@ class PrologEpilogOpPushReg(PrologEpilogOp):
 
 
 class PrologEpilogOpAllocLarge(PrologEpilogOp):
-    """UWOP_ALLOC_LARGE"""
+    """UWOP_ALLOC_LARGE."""
 
     def _get_format(self, unw_code):
         return (
@@ -2073,7 +2073,7 @@ class PrologEpilogOpAllocLarge(PrologEpilogOp):
 
 
 class PrologEpilogOpAllocSmall(PrologEpilogOp):
-    """UWOP_ALLOC_SMALL"""
+    """UWOP_ALLOC_SMALL."""
 
     def _get_format(self, unw_code):
         return (
@@ -2089,7 +2089,7 @@ class PrologEpilogOpAllocSmall(PrologEpilogOp):
 
 
 class PrologEpilogOpSetFP(PrologEpilogOp):
-    """UWOP_SET_FPREG"""
+    """UWOP_SET_FPREG."""
 
     def initialize(self, unw_code, data, unw_info, file_offset):
         super().initialize(unw_code, data, unw_info, file_offset)
@@ -2106,7 +2106,7 @@ class PrologEpilogOpSetFP(PrologEpilogOp):
 
 
 class PrologEpilogOpSaveReg(PrologEpilogOp):
-    """UWOP_SAVE_NONVOL"""
+    """UWOP_SAVE_NONVOL."""
 
     def length_in_code_structures(self, unwcode, unw_info):
         return 2
@@ -2125,7 +2125,7 @@ class PrologEpilogOpSaveReg(PrologEpilogOp):
 
 
 class PrologEpilogOpSaveRegFar(PrologEpilogOp):
-    """UWOP_SAVE_NONVOL_FAR"""
+    """UWOP_SAVE_NONVOL_FAR."""
 
     def length_in_code_structures(self, unw_code, unw_info):
         return 3
@@ -2144,7 +2144,7 @@ class PrologEpilogOpSaveRegFar(PrologEpilogOp):
 
 
 class PrologEpilogOpSaveXMM(PrologEpilogOp):
-    """UWOP_SAVE_XMM128"""
+    """UWOP_SAVE_XMM128."""
 
     def _get_format(self, unw_code):
         return (
@@ -2163,7 +2163,7 @@ class PrologEpilogOpSaveXMM(PrologEpilogOp):
 
 
 class PrologEpilogOpSaveXMMFar(PrologEpilogOp):
-    """UWOP_SAVE_XMM128_FAR"""
+    """UWOP_SAVE_XMM128_FAR."""
 
     def _get_format(self, unw_code):
         return (
@@ -2182,14 +2182,14 @@ class PrologEpilogOpSaveXMMFar(PrologEpilogOp):
 
 
 class PrologEpilogOpPushFrame(PrologEpilogOp):
-    """UWOP_PUSH_MACHFRAME"""
+    """UWOP_PUSH_MACHFRAME."""
 
     def __str__(self):
         return ".PUSHFRAME" + (" <code>" if self.struct.OpInfo else "")
 
 
 class PrologEpilogOpEpilogMarker(PrologEpilogOp):
-    """UWOP_EPILOG"""
+    """UWOP_EPILOG."""
 
     def initialize(self, unw_code, data, unw_info, file_offset):
         self._long_offst = True
@@ -2251,7 +2251,7 @@ class PrologEpilogOpEpilogMarker(PrologEpilogOp):
 
 
 class PrologEpilogOpsFactory:
-    """A factory for creating unwind codes based on the value of UnwindOp"""
+    """A factory for creating unwind codes based on the value of UnwindOp."""
 
     _class_dict = {
         UWOP_PUSH_NONVOL: PrologEpilogOpPushReg,
@@ -2347,7 +2347,7 @@ def is_valid_function_name(
     MangleChars = "$:?([.)]"        // watcom
                   "@$%?"            // microsoft
                   "@$%&";           // borland
-    Source: ida.cfg
+    Source: ida.cfg.
 
     "_" is also used in mangled names
     "<>" C++ templates, e.g. functions in wincorlib.dll
@@ -3391,7 +3391,8 @@ class PE:
             self.full_load()
 
     def parse_rich_header(self):
-        """Parses the Rich Header
+        """Parses the Rich Header.
+
         https://www.ntcore.com/files/richsign.htm
 
         Structure:
@@ -3841,7 +3842,7 @@ class PE:
                 directories.remove(directory_index)
 
     def parse_exceptions_directory(self, rva, size):
-        """Parses exception directory
+        """Parses exception directory.
 
         All the code related to handling exception directories is documented in
         https://auscitte.github.io/posts/Exception-Directory-pefile#implementation-details
@@ -6581,7 +6582,7 @@ class PE:
         return self.dump_info()
 
     def has_relocs(self):
-        """Checks if the PE file has a relocation directory"""
+        """Checks if the PE file has a relocation directory."""
         return hasattr(self, "DIRECTORY_ENTRY_BASERELOC")
 
     def has_dynamic_relocs(self):
@@ -7281,7 +7282,7 @@ class PE:
 
     @staticmethod
     def get_dword_from_data(data, offset):
-        """Convert four bytes of data to a double word (little endian)
+        """Convert four bytes of data to a double word (little endian).
 
         'offset' is assumed to index into a dword array. So setting it to
         N will return a dword out of the data starting at offset N*4.
@@ -7307,7 +7308,7 @@ class PE:
             return None
 
     def get_dword_from_offset(self, offset):
-        """Return the double word value at the given file offset. (little endian)"""
+        """Return the double word value at the given file offset (little endian)."""
 
         if offset + 4 > len(self.__data__):
             return None
@@ -7328,12 +7329,12 @@ class PE:
 
     @staticmethod
     def get_data_from_word(word):
-        """Return a two byte string representing the word value. (little endian)."""
+        """Return a two byte string representing the word value (little endian)."""
         return struct.pack("<H", word)
 
     @staticmethod
     def get_word_from_data(data, offset):
-        """Convert two bytes of data to a word (little endian)
+        """Convert two bytes of data to a word (little endian).
 
         'offset' is assumed to index into a word array. So setting it to
         N will return a dword out of the data starting at offset N*2.
@@ -7359,7 +7360,7 @@ class PE:
             return None
 
     def get_word_from_offset(self, offset):
-        """Return the word value at the given file offset. (little endian)"""
+        """Return the word value at the given file offset (little endian)."""
 
         if offset + 2 > len(self.__data__):
             return None
@@ -7385,7 +7386,7 @@ class PE:
 
     @staticmethod
     def get_qword_from_data(data, offset):
-        """Convert eight bytes of data to a word (little endian)
+        """Convert eight bytes of data to a word (little endian).
 
         'offset' is assumed to index into a word array. So setting it to
         N will return a dword out of the data starting at offset N*8.
@@ -7411,7 +7412,7 @@ class PE:
             return None
 
     def get_qword_from_offset(self, offset):
-        """Return the quad-word value at the given file offset. (little endian)"""
+        """Return the quad-word value at the given file offset (little endian)."""
 
         if offset + 8 > len(self.__data__):
             return None

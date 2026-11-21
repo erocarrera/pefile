@@ -1,4 +1,4 @@
-"""peutils, Portable Executable utilities module
+"""peutils, Portable Executable utilities module.
 
 Copyright (c) 2005-2024 Ero Carrera <ero.carrera@gmail.com>
 
