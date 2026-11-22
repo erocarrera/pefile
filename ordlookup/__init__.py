@@ -45,8 +45,7 @@ def imphash_format_ordinal(ord_val):
 
 
 def imphash_ordinal_lookup(libname, ord_val, make_name=False):
-    """
-    Lookup a name for the given ordinal using the imphash-specific database.
+    """Lookup a name for the given ordinal using the imphash-specific database.
 
     This uses ordinal tables that are frozen to the state when the original
     implementation was written so that imphash values remain compatible with

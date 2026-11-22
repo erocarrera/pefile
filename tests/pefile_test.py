@@ -282,7 +282,7 @@ class TestPEFile(unittest.TestCase):
         self.assertGreater(len(pe.write()), len(data))
 
     def test_nt_headers_exception(self):
-        """pefile should fail parsing invalid data (missing NT headers)."""
+        """Parsing invalid data should fail (missing NT headers)."""
 
         # Take a known good file.
         control_file = REGRESSION_TESTS_DIR / "MSVBVM60.DLL"
@@ -295,9 +295,7 @@ class TestPEFile(unittest.TestCase):
         self.assertRaises(pefile.PEFormatError, pefile.PE, data=corrupted_data)
 
     def test_dos_header_exception_large_data(self):
-        """pefile should fail parsing 10KiB of invalid data
-        (missing DOS header).
-        """
+        """Parsing 10KiB of invalid data should fail (missing DOS header)."""
 
         # Generate 10 KiB of zeroes
         data = b"\0" * (1024 * 10)
@@ -307,9 +305,7 @@ class TestPEFile(unittest.TestCase):
         self.assertRaises(pefile.PEFormatError, pefile.PE, data=data)
 
     def test_dos_header_exception_small_data(self):
-        """pefile should fail parsing 64 bytes of invalid data
-        (missing DOS header).
-        """
+        """Parsing 64 bytes of invalid data should fail (missing DOS header)."""
 
         # Generate 64 bytes of zeroes
         data = b"\0" * 64
@@ -319,7 +315,7 @@ class TestPEFile(unittest.TestCase):
         self.assertRaises(pefile.PEFormatError, pefile.PE, data=data)
 
     def test_empty_file_exception(self):
-        """pefile should fail parsing empty files."""
+        """Empty files should fail parsing."""
 
         # Take a known good file
         control_file = REGRESSION_TESTS_DIR / "empty_file"
