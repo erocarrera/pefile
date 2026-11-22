@@ -60,7 +60,7 @@ class TestImportRepetitionLimit(unittest.TestCase):
 
 class TestImportRename(unittest.TestCase):
     def test_rename_import_to_shorter_name(self):
-        """A shorter replacement name must not keep the tail of the old one"""
+        """A shorter replacement name must not keep the tail of the old one."""
         for data in (PE_32, PE_64):
             with self.subTest(bits=32 if data is PE_32 else 64):
                 with pefile.PE(data=bytes(data), fast_load=True) as pe:
@@ -69,12 +69,14 @@ class TestImportRename(unittest.TestCase):
                     address = rva + 400
                     table_data = address.to_bytes(size, "little") + bytes(size)
                     self.assertTrue(pe.set_bytes_at_rva(rva, table_data))
-                    self.assertTrue(pe.set_bytes_at_rva(address, b"\x00\x00CreateFileW\x00"))
+                    # IMAGE_IMPORT_BY_NAME is a 2-byte Hint followed by the name.
+                    hint = bytes(2)
+                    self.assertTrue(pe.set_bytes_at_rva(address, hint + b"CreateFileW\x00"))
                     imports = pe.parse_imports(rva, rva, 0)
                     self.assertEqual(imports[0].name, b"CreateFileW")
 
                     imports[0].name = b"Sleep"
-                    self.assertEqual(pe.get_string_at_rva(address + 2), b"Sleep")
+                    self.assertEqual(pe.get_string_at_rva(address + len(hint)), b"Sleep")
 
 
 if __name__ == "__main__":

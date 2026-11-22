@@ -101,15 +101,15 @@ class TestExports(unittest.TestCase):
         self.assertEqual(EXPECT_NAMES, exports)
 
     def test_rename_export_to_shorter_name(self):
-        """A shorter replacement name must not keep the tail of the old one"""
+        """A shorter replacement name must not keep the tail of the old one."""
         data = bytearray(PE_32)
-        for idx, _ in enumerate(EXPECT_NAMES):
+        for idx in range(len(EXPECT_NAMES)):
             data[0x218 + 4 * idx] = 0x01
         pe = pefile.PE(data=data)
-        pe.DIRECTORY_ENTRY_EXPORT.symbols[0].name = b"AB"
+        pe.DIRECTORY_ENTRY_EXPORT.symbols[0].name = b"XY"
 
         pe = pefile.PE(data=pe.write())
-        self.assertEqual(pe.DIRECTORY_ENTRY_EXPORT.symbols[0].name, b"AB")
+        self.assertEqual(pe.DIRECTORY_ENTRY_EXPORT.symbols[0].name, b"XY")
         self.assertEqual(pe.DIRECTORY_ENTRY_EXPORT.symbols[1].name, b'TST"')
 
     def test_exports64(self):
