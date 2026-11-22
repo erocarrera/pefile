@@ -2342,8 +2342,8 @@ def is_valid_function_name(
     relax_allowed_characters: bool = False
 ) -> bool:
     """MangleChars = "$:?([.)]"        // watcom
-                  "@$%?"            // microsoft
-                  "@$%&";           // borland
+                     "@$%?"            // microsoft
+                     "@$%&";           // borland
     Source: ida.cfg.
 
     "_" is also used in mangled names
