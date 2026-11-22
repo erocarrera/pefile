@@ -737,7 +737,7 @@ class AddressSet(set):
 
 
 class UnicodeStringWrapperPostProcessor:
-    """This class attempts to help the process of identifying strings
+    """Attempt to help the process of identifying strings
     that might be plain Unicode or Pascal. A list of strings will be
     wrapped on it with the hope the overlappings will help make the
     decision about their type.
@@ -1433,8 +1433,7 @@ def set_bitfields_format(format):
 
 
 class StructureWithBitfields(Structure):
-    """
-    Extends Structure's functionality with support for bitfields such as:
+    """Extends Structure's functionality with support for bitfields such as:
         ('B:4,LowerHalf', 'B:4,UpperHalf')
     To this end, two lists are maintained:
         * self.__keys__ that contains compound fields, for example
@@ -2277,8 +2276,7 @@ class PrologEpilogOpsFactory:
 
 
 def human_readable_size(value: int) -> str:
-    """
-    Convert bytes into a human readable string using binary prefixes (KiB, MiB, etc.).
+    """Convert bytes into a human readable string using binary prefixes (KiB, MiB, etc.).
 
     value should be a positive integer representing the number of bytes.
     """
@@ -2343,8 +2341,7 @@ def is_valid_function_name(
     s: Union[str, bytes, bytearray],  # noqa: UP007
     relax_allowed_characters: bool = False
 ) -> bool:
-    """
-    MangleChars = "$:?([.)]"        // watcom
+    """MangleChars = "$:?([.)]"        // watcom
                   "@$%?"            // microsoft
                   "@$%&";           // borland
     Source: ida.cfg.
@@ -7745,7 +7742,7 @@ class PE:
         return self.OPTIONAL_HEADER.CheckSum == self.generate_checksum()
 
     def generate_checksum(self):
-        """This will ensure that the data representing the PE image
+        """Ensure that the data representing the PE image
         is updated with any changes that might have been made by
         assigning values to header fields as those are not automatically
         updated upon assignment.

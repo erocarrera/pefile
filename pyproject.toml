@@ -112,13 +112,9 @@ ignore = [
     "D202",     # blank-line-after-function
     "D203",     # incorrect-blank-line-before-class
     "D205",     # missing-blank-line-after-summary
-    "D212",     # multi-line-summary-first-line
+    #"D212",     # multi-line-summary-first-line
     "D213",     # multi-line-summary-second-line
     "D401",     # non-imperative-mood
-    "D402",     # signature-in-docstring
-    "D403",     # first-word-uncapitalized
-    "D404",     # docstring-starts-with-this
-    "D415",     # missing-terminal-punctuation
     "E741",     # ambiguous-variable-name
     "EM101",    # raw-string-in-exception
     "EM102",    # f-string-in-exception
