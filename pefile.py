@@ -25,7 +25,6 @@ import contextlib
 import copy
 import math
 import mmap
-import os
 import string
 import struct
 import sys
@@ -34,6 +33,7 @@ import uuid
 from collections import Counter, defaultdict
 from functools import lru_cache, wraps
 from hashlib import md5, sha1, sha256, sha512
+from pathlib import Path
 from typing import Union
 
 import ordlookup
@@ -3067,12 +3067,12 @@ class PE:
         """
 
         if fname is not None:
-            stat = os.stat(fname)
+            stat = Path(fname).stat()
             if stat.st_size == 0:
                 raise PEFormatError("The file is empty")
             fd = None
             try:
-                fd = open(fname, "rb")
+                fd = Path(fname).open("rb")
                 self.fileno = fd.fileno()
                 if hasattr(mmap, "MAP_PRIVATE"):
                     # Unix
@@ -3595,7 +3595,7 @@ class PE:
         if not filename:
             return new_file_data
 
-        with open(filename, "wb+") as f:
+        with Path(filename).open("wb+") as f:
             f.write(new_file_data)
 
     def parse_sections(self, offset, max_offset=0x10000000):

@@ -4,10 +4,10 @@ Copyright (c) 2005-2024 Ero Carrera <ero.carrera@gmail.com>
 
 All rights reserved.
 """
-import os
 import re
 import string
 import urllib.request
+from pathlib import Path
 
 import pefile
 
@@ -342,7 +342,7 @@ class SignatureDatabase:
 
         if filename is not None:
             # If the path does not exist, attempt to open a URL
-            if not os.path.exists(filename):
+            if not Path(filename).exists():
                 try:
                     sig_f = urllib.request.urlopen(filename)
                     sig_data = sig_f.read()
@@ -353,7 +353,7 @@ class SignatureDatabase:
             else:
                 # Get the data for a file
                 try:
-                    with open(filename) as f:
+                    with Path(filename).open() as f:
                         sig_data = f.read()
                 except OSError:
                     # Let this be raised back to the user...

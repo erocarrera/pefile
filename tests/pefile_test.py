@@ -55,11 +55,11 @@ def test_pe_image_regression_test(pe_filename, REGEN=False):
     control_data_filename = f"{pe_filename}.dmp"
 
     if REGEN:
-        with open(control_data_filename, "wb") as control_data_f:
+        with Path(control_data_filename).open("wb") as control_data_f:
             control_data_f.write(pe_file_data.encode("utf-8", "backslashreplace"))
         return
 
-    with open(control_data_filename, "rb") as control_data_f:
+    with Path(control_data_filename).open("rb") as control_data_f:
         control_data = control_data_f.read()
 
     pe_file_data_hash = sha256(
