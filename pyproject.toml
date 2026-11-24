@@ -140,6 +140,7 @@ ignore = [
     "PT009",    # pytest-unittest-assertion
     "PT027",    # pytest-unittest-raises-assertion
     "PT028",    # pytest-parameter-with-default-argument
+    "PTH123",   # builtin-open
     "RET503",   # implicit-return
     "RET505",   # superfluous-else-return
     "RUF005",   # collection-literal-concatenation

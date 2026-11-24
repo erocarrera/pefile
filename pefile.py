@@ -3072,7 +3072,7 @@ class PE:
                 raise PEFormatError("The file is empty")
             fd = None
             try:
-                fd = Path(fname).open("rb")
+                fd = open(fname, "rb")
                 self.fileno = fd.fileno()
                 if hasattr(mmap, "MAP_PRIVATE"):
                     # Unix
@@ -3595,7 +3595,7 @@ class PE:
         if not filename:
             return new_file_data
 
-        with Path(filename).open("wb+") as f:
+        with open(filename, "wb+") as f:
             f.write(new_file_data)
 
     def parse_sections(self, offset, max_offset=0x10000000):
