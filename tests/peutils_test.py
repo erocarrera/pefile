@@ -1,9 +1,8 @@
 import unittest
 
-from export_test import PE_32, PE_64
-
 import pefile
 import peutils
+from tests import PE_32, PE_64
 
 
 class TestSignatureGeneration(unittest.TestCase):
