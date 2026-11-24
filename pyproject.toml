@@ -113,7 +113,6 @@ ignore = [
     "D205",     # missing-blank-line-after-summary
     "D213",     # multi-line-summary-second-line
     "D401",     # non-imperative-mood
-    "E741",     # ambiguous-variable-name
     "EM101",    # raw-string-in-exception
     "EM102",    # f-string-in-exception
     "ERA001",   # commented-out-code
