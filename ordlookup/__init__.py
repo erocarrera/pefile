@@ -1,9 +1,9 @@
-from . import imphash_oleaut32, imphash_ws2_32, oleaut32, ws2_32, wsock32
 
-"""
-A small module containing a database of ordinal to symbol mappings for DLLs
+"""A small module containing a database of ordinal to symbol mappings for DLLs
 which frequently get linked without symbolic information.
 """
+
+from . import imphash_oleaut32, imphash_ws2_32, oleaut32, ws2_32, wsock32
 
 ords = {
     b"oleaut32.dll": oleaut32.ord_names,

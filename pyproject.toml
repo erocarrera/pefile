@@ -106,7 +106,6 @@ ignore = [
     "D101",     # undocumented-public-class
     "D102",     # undocumented-public-method
     "D103",     # undocumented-public-function
-    "D104",     # undocumented-public-package
     "D105",     # undocumented-magic-method
     "D107",     # undocumented-public-init
     "D202",     # blank-line-after-function
