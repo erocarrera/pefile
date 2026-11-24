@@ -122,7 +122,6 @@ ignore = [
     "FBT001",   # boolean-type-hint-positional-argument
     "FBT002",   # boolean-default-value-positional-argument
     "FIX002",   # line-contains-todo
-    "INP001",   # implicit-namespace-package
     "N802",     # invalid-function-name
     "N803",     # invalid-argument-name
     "N806",     # non-lowercase-variable-in-function
