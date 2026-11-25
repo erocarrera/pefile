@@ -34,7 +34,7 @@ import uuid
 from collections import Counter, defaultdict
 from functools import lru_cache, wraps
 from hashlib import md5, sha1, sha256, sha512
-from typing import Union
+from typing import Optional, Self, Union
 
 import ordlookup
 
@@ -45,7 +45,7 @@ codecs.register_error("backslashreplace_", codecs.lookup_error("backslashreplace
 # We don't use copy.deepcopy as it's _really_ slow, and for the data we retrieve
 # copy.copy is sufficient.
 # https://stackoverflow.com/questions/54909357
-def lru_cache_copy(maxsize=128, typed=False):
+def lru_cache_copy(maxsize: int=128, typed: bool=False):
     def decorator(f):
         cached_function = lru_cache(maxsize, typed)(f)
 
@@ -123,7 +123,7 @@ OPTIONAL_HEADER_MAGIC_PE = 0x10B
 OPTIONAL_HEADER_MAGIC_PE_PLUS = 0x20B
 
 
-def two_way_dict(pairs):
+def two_way_dict(pairs: list[tuple[str, int]]) -> dict[Union[int, str], Union[int, str]]:
     return dict([(e[1], e[0]) for e in pairs] + pairs)
 
 
@@ -667,7 +667,7 @@ def get_sublang_name_for_lang(lang_value, sublang_value):
 
 
 # Ange Albertini's code to process resources' strings
-def parse_strings(data, counter, strings):
+def parse_strings(data, counter, strings) -> None:
     i = 0
     error_count = 0
     while i < len(data):
@@ -688,7 +688,7 @@ def parse_strings(data, counter, strings):
         counter += 1
 
 
-def retrieve_flags(flag_dict, flag_filter):
+def retrieve_flags(flag_dict: dict[Union[int, str], Union[int, str]], flag_filter: str):
     """Read the flags from a dictionary and return them in a usable form.
 
     Will return a list of (flag, value) for all flags in "flag_dict"
@@ -702,7 +702,7 @@ def retrieve_flags(flag_dict, flag_filter):
     ]
 
 
-def set_flags(obj, flag_field, flags):
+def set_flags(obj: "SectionStructure | Structure | Self | None", flag_field, flags) -> None:
     """Will process the flags and set attributes in the object accordingly.
 
     The object "obj" will gain attributes named after the flags provided in
@@ -722,12 +722,12 @@ def power_of_two(val):
 
 
 class AddressSet(set):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.min = None
         self.max = None
 
-    def add(self, value):
+    def add(self, value) -> None:
         super().add(value)
         self.min = value if self.min is None else min(self.min, value)
         self.max = value if self.max is None else max(self.max, value)
@@ -743,7 +743,7 @@ class UnicodeStringWrapperPostProcessor:
     decision about their type.
     """
 
-    def __init__(self, pe, rva_ptr):
+    def __init__(self, pe: Self, rva_ptr) -> None:
         self.pe = pe
         self.rva_ptr = rva_ptr
         self.string = None
@@ -761,11 +761,11 @@ class UnicodeStringWrapperPostProcessor:
             return ""
         return self.string.decode(*args)
 
-    def invalidate(self):
+    def invalidate(self) -> None:
         """Make this instance None, to express it's no known string type."""
         self = None
 
-    def render_pascal_16(self):
+    def render_pascal_16(self) -> None:
         try:
             self.string = self.pe.get_string_u_at_rva(
                 self.rva_ptr + 2, max_length=self.get_pascal_16_length()
@@ -790,7 +790,7 @@ class UnicodeStringWrapperPostProcessor:
 
         return struct.unpack("<H", data)[0]
 
-    def ask_unicode_16(self, next_rva_ptr):
+    def ask_unicode_16(self, next_rva_ptr) -> bool:
         """The next RVA is taken to be the one immediately following this one.
 
         Such RVA could indicate the natural end of the string and will be checked
@@ -802,7 +802,7 @@ class UnicodeStringWrapperPostProcessor:
 
         return False
 
-    def render_unicode_16(self):
+    def render_unicode_16(self) -> None:
         try:
             self.string = self.pe.get_string_u_at_rva(self.rva_ptr)
         except PEFormatError:
@@ -815,20 +815,20 @@ class UnicodeStringWrapperPostProcessor:
 class PEFormatError(Exception):
     """Generic PE format error exception."""
 
-    def __init__(self, value):
+    def __init__(self, value: str) -> None:
         self.value = value
 
-    def __str__(self):
+    def __str__(self) -> str:
         return repr(self.value)
 
 
 class Dump:
     """Convenience class for dumping the PE information."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.text = []
 
-    def add_lines(self, txt, indent=0):
+    def add_lines(self, txt: list[str], indent: int=0) -> None:
         """Adds a list of lines.
 
         The list can be indented with the optional argument 'indent'.
@@ -836,29 +836,29 @@ class Dump:
         for line in txt:
             self.add_line(line, indent)
 
-    def add_line(self, txt, indent=0):
+    def add_line(self, txt: str, indent: int=0) -> None:
         """Adds a line.
 
         The line can be indented with the optional argument 'indent'.
         """
         self.add(txt + "\n", indent)
 
-    def add(self, txt, indent=0):
+    def add(self, txt: str, indent=0) -> None:
         """Adds some text, no newline will be appended.
 
         The text can be indented with the optional argument 'indent'.
         """
         self.text.append(f"{' ' * indent}{txt}")
 
-    def add_header(self, txt):
+    def add_header(self, txt: str) -> None:
         """Adds a header element."""
         self.add_line(f"{'-' * 10}{txt}{'-' * 10}\n")
 
-    def add_newline(self):
+    def add_newline(self) -> None:
         """Adds a newline."""
         self.text.append("\n")
 
-    def get_text(self):
+    def get_text(self) -> str:
         """Get the text in its current state."""
         return "".join(f"{b}" for b in self.text)
 
@@ -883,7 +883,7 @@ STRUCT_SIZEOF_TYPES = {
 
 
 @lru_cache(maxsize=2048)
-def sizeof_type(t):
+def sizeof_type(t) -> int:
     count = 1
     _t = t
     if t[0] in string.digits:
@@ -943,7 +943,7 @@ class Structure:
     of the structure.
     """
 
-    def __init__(self, format, name=None, file_offset=None):
+    def __init__(self, format, name=None, file_offset=None) -> None:
         # Format is forced little endian, for big endian non-Intel platforms
         self.__format_str__ = "<"
         self.__unpacked_data_elms__ = []
@@ -985,10 +985,10 @@ class Structure:
     def get_file_offset(self):
         return self.__file_offset__
 
-    def set_file_offset(self, offset):
+    def set_file_offset(self, offset) -> None:
         self.__file_offset__ = offset
 
-    def all_zeroes(self):
+    def all_zeroes(self) -> bool:
         """Returns true if the unpacked data is all zeros."""
         return self.__all_zeroes__
 
@@ -996,7 +996,7 @@ class Structure:
         """Return size of the structure."""
         return self.__format_length__
 
-    def __unpack__(self, data):
+    def __unpack__(self, data) -> None:
         if len(data) > self.__format_length__:
             data = data[: self.__format_length__]
 
@@ -1014,7 +1014,7 @@ class Structure:
             for key in self.__keys__[idx]:
                 setattr(self, key, val)
 
-    def __pack__(self):
+    def __pack__(self) -> bytes:
         new_values = []
 
         for idx, val in enumerate(self.__unpacked_data_elms__):
@@ -1029,13 +1029,13 @@ class Structure:
 
         return struct.pack(self.__format_str__, *new_values)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "\n".join(self.dump())
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return f"<Structure: {' '.join([' '.join(s.split()) for s in self.dump()])}>"
 
-    def dump(self, indentation=0):
+    def dump(self, indentation=0) -> list[str]:
         """Returns a string representation of the structure."""
 
         dump = [f"[{self.name}]"]
@@ -1116,7 +1116,7 @@ class Structure:
 class SectionStructure(Structure):
     """Convenience section handling class."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, **kwargs) -> None:
         if "pe" in kwargs:
             self.pe = kwargs["pe"]
             del kwargs["pe"]
@@ -1188,7 +1188,7 @@ class SectionStructure(Structure):
             return name
         return bytes(data[table + offset : end])
 
-    def get_data(self, start=None, length=None, ignore_padding=False):
+    def get_data(self, start=None, length=None, ignore_padding: bool=False):
         """Get data chunk from a section.
 
         Allows to query data from the section by passing the
@@ -1239,7 +1239,7 @@ class SectionStructure(Structure):
 
         return self.pe.__data__[offset:end]
 
-    def __setattr__(self, name, val):
+    def __setattr__(self, name, val) -> None:
         if name == "Characteristics":
             section_flags = retrieve_flags(SECTION_CHARACTERISTICS, "IMAGE_SCN_")
 
@@ -1310,32 +1310,32 @@ class SectionStructure(Structure):
     def contains(self, rva):
         return self.contains_rva(rva)
 
-    def get_entropy(self):
+    def get_entropy(self) -> Union[float, int]:
         """Calculate and return the entropy for the section."""
         return self.entropy_H(self.get_data())
 
-    def get_hash_md5(self):
+    def get_hash_md5(self) -> str:
         """Get the MD5 hex-digest of the section's data."""
         if md5 is not None:
             return md5(self.get_data()).hexdigest()
 
-    def get_hash_sha1(self):
+    def get_hash_sha1(self) -> str:
         """Get the SHA-1 hex-digest of the section's data."""
         if sha1 is not None:
             return sha1(self.get_data()).hexdigest()
 
-    def get_hash_sha256(self):
+    def get_hash_sha256(self) -> str:
         """Get the SHA-256 hex-digest of the section's data."""
         if sha256 is not None:
             return sha256(self.get_data()).hexdigest()
 
-    def get_hash_sha512(self):
+    def get_hash_sha512(self) -> str:
         """Get the SHA-512 hex-digest of the section's data."""
         if sha512 is not None:
             return sha512(self.get_data()).hexdigest()
 
     @staticmethod
-    def entropy_H(data):
+    def entropy_H(data) -> Union[float, int]:
         """Calculate the entropy of a chunk of data."""
         if not data:
             return 0.0
@@ -1351,9 +1351,9 @@ class SectionStructure(Structure):
 
 
 @lru_cache(maxsize=2048)
-def set_bitfields_format(format):
+def set_bitfields_format(format: Union[tuple[str, tuple[str, str, str]], tuple[str, tuple[str, str, str, str, str, str]]]):
     class Accumulator:
-        def __init__(self, fmt, comp_fields):
+        def __init__(self, fmt, comp_fields) -> None:
             self._subfields = []
             # add a prefix to distinguish the artificially created compound field
             # from regular fields
@@ -1363,7 +1363,7 @@ def set_bitfields_format(format):
             self._comp_fields = comp_fields
             self._format = fmt
 
-        def wrap_up(self):
+        def wrap_up(self) -> None:
             if self._type is None:
                 return
             self._format.append(self._type + "," + self._name)
@@ -1372,11 +1372,11 @@ def set_bitfields_format(format):
             self._type = None
             self._subfields = []
 
-        def new_type(self, tp):
+        def new_type(self, tp) -> None:
             self._bits_left = STRUCT_SIZEOF_TYPES[tp] * 8
             self._type = tp
 
-        def add_subfield(self, name, bitcnt):
+        def add_subfield(self, name, bitcnt: int) -> None:
             self._name += name
             self._bits_left -= bitcnt
             self._subfields.append((name, bitcnt))
@@ -1384,10 +1384,10 @@ def set_bitfields_format(format):
         def get_type(self):
             return self._type
 
-        def get_name(self):
+        def get_name(self) -> str:
             return self._name
 
-        def get_bits_left(self):
+        def get_bits_left(self) -> int:
             return self._bits_left
 
     old_fmt = []
@@ -1457,7 +1457,7 @@ class StructureWithBitfields(Structure):
     CF_TYPE_IDX = 0
     CF_SUBFLD_IDX = 1
 
-    def __init__(self, format, name=None, file_offset=None):
+    def __init__(self, format, name=None, file_offset=None) -> None:
         (
             self.__format_str__,
             self.__format_length__,
@@ -1473,13 +1473,13 @@ class StructureWithBitfields(Structure):
         self.__file_offset__ = file_offset
         self.name = name if name is not None else format[0]
 
-    def __unpack__(self, data):
+    def __unpack__(self, data) -> None:
         # calling the original routine to deal with special cases/spurious data
         # structures
         super().__unpack__(data)
         self._unpack_bitfield_attributes()
 
-    def __pack__(self):
+    def __pack__(self) -> bytes:
         self._pack_bitfield_attributes()
         try:
             data = super().__pack__()
@@ -1487,7 +1487,7 @@ class StructureWithBitfields(Structure):
             self._unpack_bitfield_attributes()
         return data
 
-    def dump(self, indentation=0):
+    def dump(self, indentation: int=0) -> list[str]:
         tk = self.__keys__
         self.__keys__ = self.__keys_ext__
         try:
@@ -1505,7 +1505,7 @@ class StructureWithBitfields(Structure):
             self.__keys__ = tk
         return ret
 
-    def _unpack_bitfield_attributes(self):
+    def _unpack_bitfield_attributes(self) -> None:
         """Replace compound attributes corresponding to bitfields with separate
         sub-fields.
         """
@@ -1524,7 +1524,7 @@ class StructureWithBitfields(Structure):
                 )
                 offst += sf[StructureWithBitfields.BTF_BITCNT_IDX]
 
-    def _pack_bitfield_attributes(self):
+    def _pack_bitfield_attributes(self) -> None:
         """Pack attributes into a compound bitfield."""
         for i in self.__compound_fields__:
             cf_name = self.__keys__[i][0]
@@ -1542,7 +1542,7 @@ class StructureWithBitfields(Structure):
 class DataContainer:
     """Generic data container."""
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         bare_setattr = super().__setattr__
         for key, value in kwargs.items():
             bare_setattr(key, value)
@@ -1566,7 +1566,7 @@ class ImportData(DataContainer):
                 the address.
     """
 
-    def __setattr__(self, name, val):
+    def __setattr__(self, name, val) -> None:
         # If the instance doesn't yet have an ordinal attribute it's not fully
         # initialized so can't do any of the following
         if (
@@ -1638,7 +1638,7 @@ class ExportData(DataContainer):
                 None otherwise.
     """
 
-    def __setattr__(self, name, val):
+    def __setattr__(self, name, val) -> None:
         # If the instance doesn't yet have an ordinal attribute it's not fully
         # initialized so can't do any of the following
         if (
@@ -1774,7 +1774,7 @@ class RelocationData(DataContainer):
     rva:        RVA of the relocation
     """
 
-    def __setattr__(self, name, val):
+    def __setattr__(self, name, val) -> None:
         # If the instance doesn't yet have a struct attribute it's not fully
         # initialized so can't do any of the following
         if hasattr(self, "struct"):
@@ -1852,7 +1852,7 @@ class UnwindInfo(StructureWithBitfields):
     * optional ExceptionHandler and FunctionEntry fields.
     """
 
-    def __init__(self, file_offset=0):
+    def __init__(self, file_offset: int=0) -> None:
         super().__init__(
             (
                 "UNWIND_INFO",
@@ -1876,7 +1876,7 @@ class UnwindInfo(StructureWithBitfields):
         self._chained_entry = None
         self._finished_unpacking = False
 
-    def unpack_in_stages(self, data):
+    def unpack_in_stages(self, data) -> Optional[str]:
         """Unpacks the UNWIND_INFO "in two calls", with the first call establishing
         a full size of the structure and the second, performing the actual unpacking.
         """
@@ -1936,7 +1936,7 @@ class UnwindInfo(StructureWithBitfields):
 
         return None
 
-    def dump(self, indentation=0):
+    def dump(self, indentation: int=0) -> list[str]:
         # Because __keys_ext__ are shared among all the instances with the same
         # format string, we have to add and subsequently remove the optional field
         # each time.
@@ -1976,7 +1976,7 @@ class UnwindInfo(StructureWithBitfields):
                 self.__keys_ext__.pop()
         return ret
 
-    def __setattr__(self, name, val):
+    def __setattr__(self, name, val) -> None:
         if name == "Flags":
             set_flags(self, val, unwind_info_flags)
         elif "UNW_FLAG_" in name and hasattr(self, name):
@@ -1989,7 +1989,7 @@ class UnwindInfo(StructureWithBitfields):
     def sizeof(self):
         return self._full_size
 
-    def __pack__(self):
+    def __pack__(self) -> bytearray:
         data = bytearray(self._full_size)
         data[0 : super().sizeof()] = super().__pack__()
         cur_offset = super().sizeof()
@@ -2010,7 +2010,7 @@ class UnwindInfo(StructureWithBitfields):
     def get_chained_function_entry(self):
         return self._chained_entry
 
-    def set_chained_function_entry(self, entry):
+    def set_chained_function_entry(self, entry) -> None:
         if self._chained_entry is not None:
             raise PEFormatError("Chained function entry cannot be changed")
         self._chained_entry = entry
@@ -2021,30 +2021,30 @@ class PrologEpilogOp:
     There is a subclass of PrologEpilogOp for each member of UNWIND_OP_CODES enum.
     """
 
-    def initialize(self, unw_code, data, unw_info, file_offset):
+    def initialize(self, unw_code, data, unw_info, file_offset) -> None:
         self.struct = StructureWithBitfields(
             self._get_format(unw_code), file_offset=file_offset
         )
         self.struct.__unpack__(data)
 
-    def length_in_code_structures(self, unw_code, unw_info):
+    def length_in_code_structures(self, unw_code, unw_info) -> int:
         """Computes how many UNWIND_CODE structures UNWIND_CODE occupies.
         May be called before initialize() and, for that reason, should not rely on
         the values of instance attributes.
         """
         return 1
 
-    def is_valid(self):
+    def is_valid(self) -> bool:
         return True
 
-    def _get_format(self, unw_code):
+    def _get_format(self, unw_code) -> tuple[str, tuple[str, str, str]]:
         return "UNWIND_CODE", ("B,CodeOffset", "B:4,UnwindOp", "B:4,OpInfo")
 
 
 class PrologEpilogOpPushReg(PrologEpilogOp):
     """UWOP_PUSH_NONVOL."""
 
-    def _get_format(self, unw_code):
+    def _get_format(self, unw_code) -> tuple[str, tuple[str, str, str]]:
         return "UNWIND_CODE_PUSH_NONVOL", ("B,CodeOffset", "B:4,UnwindOp", "B:4,Reg")
 
     def __str__(self):
@@ -2054,7 +2054,7 @@ class PrologEpilogOpPushReg(PrologEpilogOp):
 class PrologEpilogOpAllocLarge(PrologEpilogOp):
     """UWOP_ALLOC_LARGE."""
 
-    def _get_format(self, unw_code):
+    def _get_format(self, unw_code) -> tuple[str, tuple[str, str, str, str]]:
         return (
             "UNWIND_CODE_ALLOC_LARGE",
             (
@@ -2065,7 +2065,7 @@ class PrologEpilogOpAllocLarge(PrologEpilogOp):
             ),
         )
 
-    def length_in_code_structures(self, unw_code, unw_info):
+    def length_in_code_structures(self, unw_code, unw_info) -> int:
         return 2 if unw_code.OpInfo == 0 else 3
 
     def get_alloc_size(self):
@@ -2075,14 +2075,14 @@ class PrologEpilogOpAllocLarge(PrologEpilogOp):
             else self.struct.AllocSize
         )
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ".ALLOCSTACK " + hex(self.get_alloc_size())
 
 
 class PrologEpilogOpAllocSmall(PrologEpilogOp):
     """UWOP_ALLOC_SMALL."""
 
-    def _get_format(self, unw_code):
+    def _get_format(self, unw_code) -> tuple[str, tuple[str, str, str]]:
         return (
             "UNWIND_CODE_ALLOC_SMALL",
             ("B,CodeOffset", "B:4,UnwindOp", "B:4,AllocSizeInQwordsMinus8"),
@@ -2091,14 +2091,14 @@ class PrologEpilogOpAllocSmall(PrologEpilogOp):
     def get_alloc_size(self):
         return self.struct.AllocSizeInQwordsMinus8 * 8 + 8
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ".ALLOCSTACK " + hex(self.get_alloc_size())
 
 
 class PrologEpilogOpSetFP(PrologEpilogOp):
     """UWOP_SET_FPREG."""
 
-    def initialize(self, unw_code, data, unw_info, file_offset):
+    def initialize(self, unw_code, data, unw_info, file_offset) -> None:
         super().initialize(unw_code, data, unw_info, file_offset)
         self._frame_register = unw_info.FrameRegister
         self._frame_offset = unw_info.FrameOffset * 16
@@ -2115,13 +2115,13 @@ class PrologEpilogOpSetFP(PrologEpilogOp):
 class PrologEpilogOpSaveReg(PrologEpilogOp):
     """UWOP_SAVE_NONVOL."""
 
-    def length_in_code_structures(self, unwcode, unw_info):
+    def length_in_code_structures(self, unwcode, unw_info) -> int:
         return 2
 
     def get_offset(self):
         return self.struct.OffsetInQwords * 8
 
-    def _get_format(self, unw_code):
+    def _get_format(self, unw_code) -> tuple[str, tuple[str, str, str, str]]:
         return (
             "UNWIND_CODE_SAVE_NONVOL",
             ("B,CodeOffset", "B:4,UnwindOp", "B:4,Reg", "H,OffsetInQwords"),
@@ -2134,13 +2134,13 @@ class PrologEpilogOpSaveReg(PrologEpilogOp):
 class PrologEpilogOpSaveRegFar(PrologEpilogOp):
     """UWOP_SAVE_NONVOL_FAR."""
 
-    def length_in_code_structures(self, unw_code, unw_info):
+    def length_in_code_structures(self, unw_code, unw_info) -> int:
         return 3
 
     def get_offset(self):
         return self.struct.Offset
 
-    def _get_format(self, unw_code):
+    def _get_format(self, unw_code) -> tuple[str, tuple[str, str, str, str]]:
         return (
             "UNWIND_CODE_SAVE_NONVOL_FAR",
             ("B,CodeOffset", "B:4,UnwindOp", "B:4,Reg", "I,Offset"),
@@ -2153,52 +2153,52 @@ class PrologEpilogOpSaveRegFar(PrologEpilogOp):
 class PrologEpilogOpSaveXMM(PrologEpilogOp):
     """UWOP_SAVE_XMM128."""
 
-    def _get_format(self, unw_code):
+    def _get_format(self, unw_code) -> tuple[str, tuple[str, str, str, str]]:
         return (
             "UNWIND_CODE_SAVE_XMM128",
             ("B,CodeOffset", "B:4,UnwindOp", "B:4,Reg", "H,OffsetIn2Qwords"),
         )
 
-    def length_in_code_structures(self, unw_code, unw_info):
+    def length_in_code_structures(self, unw_code, unw_info) -> int:
         return 2
 
     def get_offset(self):
         return self.struct.OffsetIn2Qwords * 16
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ".SAVEXMM128 XMM" + str(self.struct.Reg) + ", " + hex(self.get_offset())
 
 
 class PrologEpilogOpSaveXMMFar(PrologEpilogOp):
     """UWOP_SAVE_XMM128_FAR."""
 
-    def _get_format(self, unw_code):
+    def _get_format(self, unw_code) -> tuple[str, tuple[str, str, str, str]]:
         return (
             "UNWIND_CODE_SAVE_XMM128_FAR",
             ("B,CodeOffset", "B:4,UnwindOp", "B:4,Reg", "I,Offset"),
         )
 
-    def length_in_code_structures(self, unw_code, unw_info):
+    def length_in_code_structures(self, unw_code, unw_info) -> int:
         return 3
 
     def get_offset(self):
         return self.struct.Offset
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ".SAVEXMM128 XMM" + str(self.struct.Reg) + ", " + hex(self.struct.Offset)
 
 
 class PrologEpilogOpPushFrame(PrologEpilogOp):
     """UWOP_PUSH_MACHFRAME."""
 
-    def __str__(self):
+    def __str__(self) -> str:
         return ".PUSHFRAME" + (" <code>" if self.struct.OpInfo else "")
 
 
 class PrologEpilogOpEpilogMarker(PrologEpilogOp):
     """UWOP_EPILOG."""
 
-    def initialize(self, unw_code, data, unw_info, file_offset):
+    def initialize(self, unw_code, data, unw_info, file_offset) -> None:
         self._long_offst = True
         self._first = not hasattr(unw_info, "SizeOfEpilog")
         super().initialize(unw_code, data, unw_info, file_offset)
@@ -2207,7 +2207,7 @@ class PrologEpilogOpEpilogMarker(PrologEpilogOp):
             self._long_offst = unw_code.OpInfo & 1 == 0
         self._epilog_size = unw_info.SizeOfEpilog
 
-    def _get_format(self, unw_code):
+    def _get_format(self, unw_code) -> tuple[Union[str, tuple[str, str, str], tuple[str, str, str, str, str, str]], tuple[str, tuple[str, str, str]]]:
         # check if it is the first epilog code among encountered; then its record
         # will contain size of the epilog
         if self._first:
@@ -2230,7 +2230,7 @@ class PrologEpilogOpEpilogMarker(PrologEpilogOp):
                 ("B,OffsetLow", "B:4,UnwindOp", "B:4,OffsetHigh"),
             )
 
-    def length_in_code_structures(self, unw_code, unw_info):
+    def length_in_code_structures(self, unw_code, unw_info) -> int:
         return (
             2
             if not hasattr(unw_info, "SizeOfEpilog") and (unw_code.OpInfo & 1) == 0
@@ -2245,7 +2245,7 @@ class PrologEpilogOpEpilogMarker(PrologEpilogOp):
     def is_valid(self):
         return self.get_offset() > 0
 
-    def __str__(self):
+    def __str__(self) -> str:
         # the EPILOG sequence may have a terminating all-zeros entry
         return (
             "EPILOG: size="
@@ -2274,7 +2274,7 @@ class PrologEpilogOpsFactory:
     }
 
     @staticmethod
-    def create(unwcode):
+    def create(unwcode: StructureWithBitfields):
         code = unwcode.UnwindOp
         return (
             PrologEpilogOpsFactory._class_dict[code]()
@@ -2325,7 +2325,7 @@ allowed_filename = (
 ).encode()
 
 
-def is_valid_dos_filename(s):
+def is_valid_dos_filename(s) -> bool:
     if s is None or not isinstance(s, (str, bytes, bytearray)):
         return False
     # Allow path separators as import names can contain directories.
@@ -2346,7 +2346,7 @@ allowed_function_name = (
 
 @lru_cache(maxsize=2048)
 def is_valid_function_name(
-    s: Union[str, bytes, bytearray],  # noqa: UP007
+    s: Union[str, bytes, bytearray],
     relax_allowed_characters: bool = False
 ) -> bool:
     """MangleChars = "$:?([.)]"        // watcom
@@ -2941,7 +2941,7 @@ class PE:
 
     def __init__(
         self,
-        name=None,
+        name: Optional[str]=None,
         data=None,
         fast_load=None,
         max_symbol_exports=MAX_SYMBOL_EXPORT_COUNT,
@@ -2949,7 +2949,7 @@ class PE:
         *, # args after this are keyword-only
         max_offset=0x10000000,
         max_repeated_import_addresses=15,
-    ):
+    ) -> None:
         self.max_symbol_exports = max_symbol_exports
         self.max_repeated_symbol = max_repeated_symbol
         self.max_repeated_import_addresses = max_repeated_import_addresses
@@ -2996,13 +2996,13 @@ class PE:
             self.close()
             raise
 
-    def __enter__(self):
+    def __enter__(self) -> Self:
         return self
 
-    def __exit__(self, type, value, traceback):
+    def __exit__(self, type, value, traceback) -> None:
         self.close()
 
-    def _close_data(self):
+    def _close_data(self) -> None:
         if (
             self.__from_file is True
             and hasattr(self, "__data__")
@@ -3014,10 +3014,10 @@ class PE:
             self.__data__.close()
             del self.__data__
 
-    def close(self):
+    def close(self) -> None:
         self._close_data()
 
-    def __unpack_data__(self, format, data, file_offset):
+    def __unpack_data__(self, format, data, file_offset) -> Optional[Structure]:
         """Apply structure format to raw data.
 
         Returns an unpacked structure object if successful, None otherwise.
@@ -3038,7 +3038,7 @@ class PE:
 
         return structure
 
-    def __unpack_data_with_bitfields__(self, format, data, file_offset):
+    def __unpack_data_with_bitfields__(self, format, data, file_offset) -> Optional[StructureWithBitfields]:
         """Apply structure format to raw data.
 
         Returns an unpacked structure object if successful, None otherwise.
@@ -3059,7 +3059,7 @@ class PE:
 
         return structure
 
-    def __parse__(self, fname, data, fast_load, max_offset):
+    def __parse__(self, fname: Optional[str], data, fast_load, max_offset) -> None:
         """Parse a Portable Executable file.
 
         Loads a PE file, parsing all its structures and making them available
@@ -3395,7 +3395,7 @@ class PE:
         if not fast_load:
             self.full_load()
 
-    def parse_rich_header(self):
+    def parse_rich_header(self) -> Optional[dict[str, bytes]]:
         """Parses the Rich Header.
 
         https://www.ntcore.com/files/richsign.htm
@@ -3456,7 +3456,7 @@ class PE:
         raw_data = rich_data[: rich_data.find(b"Rich")]
         result["raw_data"] = raw_data
 
-        def ord_(c):
+        def ord_(c) -> int:
             return ord(c) if not isinstance(c, int) else c
 
         clear_data = bytearray()
@@ -3505,7 +3505,7 @@ class PE:
 
         return self.__warnings
 
-    def show_warnings(self):
+    def show_warnings(self) -> None:
         """Print the list of warnings.
 
         Non-critical problems found when parsing the PE file are
@@ -3516,7 +3516,7 @@ class PE:
         for warning in self.__warnings:
             print(">", warning)
 
-    def full_load(self):
+    def full_load(self) -> None:
         """Process the data directories.
 
         This method will load the data directories which might not have
@@ -3541,7 +3541,7 @@ class PE:
         else:
             self.RICH_HEADER = None
 
-    def write(self, filename=None):
+    def write(self, filename=None) -> Optional[bytearray]:
         """Write the PE file.
 
         This function will process all headers and components
@@ -3596,7 +3596,7 @@ class PE:
         with open(filename, "wb+") as f:
             f.write(new_file_data)
 
-    def parse_sections(self, offset, max_offset=0x10000000):
+    def parse_sections(self, offset, max_offset: int=0x10000000):
         """Fetch the PE file sections.
 
         The sections will be readily available in the "sections" attribute.
@@ -3745,8 +3745,8 @@ class PE:
             return offset
 
     def parse_data_directories(
-        self, directories=None, forwarded_exports_only=False, import_dllnames_only=False
-    ):
+        self, directories=None, forwarded_exports_only: bool=False, import_dllnames_only: bool=False
+    ) -> None:
         """Parse and process the PE file's data directories.
 
         If the optional argument 'directories' is given, only
@@ -4051,7 +4051,7 @@ class PE:
 
         return bound_imports
 
-    def parse_directory_tls(self, rva, size):
+    def parse_directory_tls(self, rva, size) -> Optional[TlsData]:
         """Parse the thread local storage (TLS) table."""
 
         # By default let's pretend the format is a 32-bit PE. It may help
@@ -4079,7 +4079,7 @@ class PE:
 
         return TlsData(struct=tls_struct)
 
-    def parse_directory_load_config(self, rva, size):
+    def parse_directory_load_config(self, rva, size) -> Optional[LoadConfigData]:
         """Parse the load configuration table."""
 
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
@@ -4670,7 +4670,7 @@ class PE:
 
         return debug
 
-    def parse_resources_directory(self, rva, size=0, base_rva=None, level=0, dirs=None):
+    def parse_resources_directory(self, rva, size: int=0, base_rva=None, level=0, dirs=None) -> Optional[ResourceDirData]:
         """Parse the resources directory.
 
         Given the RVA of the resources directory, it will process all
@@ -4958,7 +4958,7 @@ class PE:
         )
 
 
-    def parse_resource_data_entry(self, rva):
+    def parse_resource_data_entry(self, rva) -> Optional[Structure]:
         """Parse a data entry from the resources directory."""
         try:
             # If the RVA is invalid all would blow up. Some EXEs seem to be
@@ -4980,7 +4980,7 @@ class PE:
         )
 
 
-    def parse_resource_entry(self, rva):
+    def parse_resource_entry(self, rva) -> Optional[Structure]:
         """Parse a directory entry from the resources directory."""
 
         try:
@@ -5009,7 +5009,7 @@ class PE:
 
         return resource
 
-    def parse_version_information(self, version_struct):
+    def parse_version_information(self, version_struct) -> None:
         """Parse version information structure.
 
         The data will be made available in three attributes of the PE object.
@@ -5433,7 +5433,7 @@ class PE:
 
         self.FileInfo.append(finfo)
 
-    def parse_export_directory(self, rva, size, forwarded_only=False):
+    def parse_export_directory(self, rva, size, forwarded_only: bool=False) -> Optional[ExportDirData]:
         """Parse the export directory.
 
         Given the RVA of the export directory, it will process all
@@ -5817,7 +5817,7 @@ class PE:
 
         return import_descs
 
-    def get_rich_header_hash(self, algorithm="md5"):
+    def get_rich_header_hash(self, algorithm: str="md5") -> str:
         if not hasattr(self, "RICH_HEADER") or self.RICH_HEADER is None:
             return ""
 
@@ -5832,7 +5832,7 @@ class PE:
 
         raise Exception("Invalid hashing algorithm specified")
 
-    def get_imphash(self, usedforsecurity=True):
+    def get_imphash(self, usedforsecurity: bool=True) -> str:
         """Return the imphash of the PE file.
 
         Creates a hash based on imported symbol names and their specific order within
@@ -5887,7 +5887,7 @@ class PE:
 
         return md5(",".join(impstrs).encode(), usedforsecurity=usedforsecurity).hexdigest()
 
-    def get_exphash(self):
+    def get_exphash(self) -> str:
         """Return the exphash of the PE file.
 
         Similar to imphash, but based on exported symbol names and their specific order.
@@ -5913,7 +5913,7 @@ class PE:
 
         return md5(",".join(export_list).encode()).hexdigest()
 
-    def parse_import_directory(self, rva, size, dllnames_only=False):
+    def parse_import_directory(self, rva, size, dllnames_only: bool=False):
         """Walk and parse the import directory."""
         import_descs = []
         error_count = 0
@@ -6025,7 +6025,7 @@ class PE:
         first_thunk,
         forwarder_chain,
         max_length=None,
-        contains_addresses=False,
+        contains_addresses: bool=False,
     ):
         """Parse the imported symbols.
 
@@ -6173,7 +6173,7 @@ class PE:
 
         return imported_symbols
 
-    def get_import_table(self, rva, max_length=None, contains_addresses=False):
+    def get_import_table(self, rva, max_length=None, contains_addresses: bool=False):
         # We need the ordinal flag for a simple heuristic
         # we're implementing within the loop
         if self.PE_TYPE == OPTIONAL_HEADER_MAGIC_PE:
@@ -6300,7 +6300,7 @@ class PE:
 
         return table
 
-    def get_memory_mapped_image(self, max_virtual_address=0x10000000, ImageBase=None):
+    def get_memory_mapped_image(self, max_virtual_address: int=0x10000000, ImageBase=None):
         """Returns the data corresponding to the memory layout of the PE file.
 
         The data includes the PE header and the sections loaded at offsets
@@ -6404,7 +6404,7 @@ class PE:
 
         return resources_strings
 
-    def get_data(self, rva=0, length=None):
+    def get_data(self, rva: int=0, length=None):
         """Get data regardless of the section where it lies on.
 
         Given a RVA and the size of the chunk to retrieve, this method
@@ -6486,7 +6486,7 @@ class PE:
 
         return s.get_offset_from_rva(rva)
 
-    def get_string_at_rva(self, rva, max_length=MAX_STRING_LENGTH):
+    def get_string_at_rva(self, rva, max_length: int=MAX_STRING_LENGTH):
         """Get an ASCII string located at the given address."""
 
         if rva is None:
@@ -6498,7 +6498,7 @@ class PE:
         return self.get_string_from_data(0, s.get_data(rva, length=max_length))
 
     @staticmethod
-    def get_bytes_from_data(offset, data):
+    def get_bytes_from_data(offset: int, data):
         """Get bytes from data."""
         if offset > len(data):
             return b""
@@ -6507,7 +6507,7 @@ class PE:
             return bytes(d)
         return d
 
-    def get_string_from_data(self, offset, data):
+    def get_string_from_data(self, offset: int, data):
         """Get an ASCII string from data."""
         s = self.get_bytes_from_data(offset, data)
         end = s.find(b"\0")
@@ -6515,7 +6515,7 @@ class PE:
             s = s[:end]
         return s
 
-    def get_string_u_at_rva(self, rva, max_length=2**16, encoding=None):
+    def get_string_u_at_rva(self, rva, max_length: int=2**16, encoding=None):
         """Get a Unicode string located at the given address."""
 
         if max_length == 0:
@@ -6567,7 +6567,7 @@ class PE:
 
         return None
 
-    def get_section_by_rva(self, rva):
+    def get_section_by_rva(self, rva: int):
         """Get the section containing the given address."""
 
         # if we look a lot of times at RVA in the same section, "cache" the last used section
@@ -6585,18 +6585,18 @@ class PE:
     def __str__(self):
         return self.dump_info()
 
-    def has_relocs(self):
+    def has_relocs(self) -> bool:
         """Checks if the PE file has a relocation directory."""
         return hasattr(self, "DIRECTORY_ENTRY_BASERELOC")
 
-    def has_dynamic_relocs(self):
+    def has_dynamic_relocs(self) -> bool:
         return bool(hasattr(self, "DIRECTORY_ENTRY_LOAD_CONFIG") and self.DIRECTORY_ENTRY_LOAD_CONFIG.dynamic_relocations)
 
-    def print_info(self, encoding="utf-8"):
+    def print_info(self, encoding: str="utf-8") -> None:
         """Print all the PE header information in a human readable form."""
         print(self.dump_info(encoding=encoding))
 
-    def dump_info(self, dump=None, encoding="ascii"):
+    def dump_info(self, dump=None, encoding: str="ascii"):
         """Dump all the PE header information into a human readable string."""
 
         if dump is None:
@@ -7280,12 +7280,12 @@ class PE:
     ##
 
     @staticmethod
-    def get_data_from_dword(dword):
+    def get_data_from_dword(dword) -> bytes:
         """Return a four byte string representing the double word value (little endian)."""
         return struct.pack("<L", dword & 0xFFFFFFFF)
 
     @staticmethod
-    def get_dword_from_data(data, offset):
+    def get_dword_from_data(data, offset: int):
         """Convert four bytes of data to a double word (little endian).
 
         'offset' is assumed to index into a dword array. So setting it to
@@ -7319,11 +7319,11 @@ class PE:
 
         return self.get_dword_from_data(self.__data__[offset : offset + 4], 0)
 
-    def set_dword_at_rva(self, rva, dword):
+    def set_dword_at_rva(self, rva, dword) -> bool:
         """Set the double word value at the file offset corresponding to the given RVA."""
         return self.set_bytes_at_rva(rva, self.get_data_from_dword(dword))
 
-    def set_dword_at_offset(self, offset, dword):
+    def set_dword_at_offset(self, offset, dword) -> bool:
         """Set the double word value at the given file offset."""
         return self.set_bytes_at_offset(offset, self.get_data_from_dword(dword))
 
@@ -7332,12 +7332,12 @@ class PE:
     ##
 
     @staticmethod
-    def get_data_from_word(word):
+    def get_data_from_word(word) -> bytes:
         """Return a two byte string representing the word value (little endian)."""
         return struct.pack("<H", word)
 
     @staticmethod
-    def get_word_from_data(data, offset):
+    def get_word_from_data(data, offset: int):
         """Convert two bytes of data to a word (little endian).
 
         'offset' is assumed to index into a word array. So setting it to
@@ -7371,11 +7371,11 @@ class PE:
 
         return self.get_word_from_data(self.__data__[offset : offset + 2], 0)
 
-    def set_word_at_rva(self, rva, word):
+    def set_word_at_rva(self, rva, word) -> bool:
         """Set the word value at the file offset corresponding to the given RVA."""
         return self.set_bytes_at_rva(rva, self.get_data_from_word(word))
 
-    def set_word_at_offset(self, offset, word):
+    def set_word_at_offset(self, offset, word) -> bool:
         """Set the word value at the given file offset."""
         return self.set_bytes_at_offset(offset, self.get_data_from_word(word))
 
@@ -7384,12 +7384,12 @@ class PE:
     ##
 
     @staticmethod
-    def get_data_from_qword(word):
+    def get_data_from_qword(word) -> bytes:
         """Return an eight byte string representing the quad-word value (little endian)."""
         return struct.pack("<Q", word)
 
     @staticmethod
-    def get_qword_from_data(data, offset):
+    def get_qword_from_data(data, offset: int):
         """Convert eight bytes of data to a word (little endian).
 
         'offset' is assumed to index into a word array. So setting it to
@@ -7423,11 +7423,11 @@ class PE:
 
         return self.get_qword_from_data(self.__data__[offset : offset + 8], 0)
 
-    def set_qword_at_rva(self, rva, qword):
+    def set_qword_at_rva(self, rva, qword) -> bool:
         """Set the quad-word value at the file offset corresponding to the given RVA."""
         return self.set_bytes_at_rva(rva, self.get_data_from_qword(qword))
 
-    def set_qword_at_offset(self, offset, qword):
+    def set_qword_at_offset(self, offset, qword) -> bool:
         """Set the quad-word value at the given file offset."""
         return self.set_bytes_at_offset(offset, self.get_data_from_qword(qword))
 
@@ -7435,7 +7435,7 @@ class PE:
     # Set bytes
     ##
 
-    def set_bytes_at_rva(self, rva, data):
+    def set_bytes_at_rva(self, rva, data: bytes) -> bool:
         """Overwrite, with the given string, the bytes at the file offset corresponding
         to the given RVA.
 
@@ -7452,7 +7452,7 @@ class PE:
 
         return self.set_bytes_at_offset(offset, data)
 
-    def set_bytes_at_offset(self, offset, data):
+    def set_bytes_at_offset(self, offset, data: bytes) -> bool:
         """Overwrite the bytes at the given file offset with the given string.
 
         Return True if successful, False otherwise. It can fail if the
@@ -7469,7 +7469,7 @@ class PE:
 
         return True
 
-    def set_data_bytes(self, offset: int, data: bytes):
+    def set_data_bytes(self, offset: int, data: bytes) -> None:
         if not isinstance(self.__data__, bytearray):
             new_data = bytearray(self.__data__)
             self._close_data()
@@ -7477,7 +7477,7 @@ class PE:
 
         self.__data__[offset : offset + len(data)] = data
 
-    def merge_modified_section_data(self):
+    def merge_modified_section_data(self) -> None:
         """Update the PE image content with any individual section data that has been
         modified.
         """
@@ -7490,7 +7490,7 @@ class PE:
             ):
                 self.set_data_bytes(section_data_start, section.get_data())
 
-    def relocate_image(self, new_ImageBase):
+    def relocate_image(self, new_ImageBase) -> None:
         """Apply the relocation information to the image using the provided image base.
 
         This method will apply the relocation information to the image. Given the new
@@ -7791,7 +7791,7 @@ class PE:
         # The length is of the original data, not the padded one
         return checksum + len(self.__data__)
 
-    def is_exe(self):
+    def is_exe(self) -> bool:
         """Check whether the file is a standard executable.
 
         This will return true only if the file has the IMAGE_FILE_EXECUTABLE_IMAGE flag
@@ -7807,7 +7807,7 @@ class PE:
             and not self.is_driver()
         )
 
-    def is_dll(self):
+    def is_dll(self) -> bool:
         """Check whether the file is a standard DLL.
 
         This will return true only if the image has the IMAGE_FILE_DLL flag set.
@@ -7817,7 +7817,7 @@ class PE:
 
         return bool(DLL_flag & self.FILE_HEADER.Characteristics)
 
-    def is_driver(self):
+    def is_driver(self) -> bool:
         """Check whether the file is a Windows driver.
 
         This will return true only if there are reliable indicators of the image
@@ -7875,7 +7875,7 @@ class PE:
             )
         )
 
-    def get_overlay_data_start_offset(self):
+    def get_overlay_data_start_offset(self) -> Optional[int]:
         """Get the offset of data appended to the file and not contained within
         the area described in the headers.
         """
@@ -7993,7 +7993,7 @@ class PE:
         return cache_adjust_SectionAlignment(val, section_alignment, file_alignment)
 
 
-def main():
+def main() -> None:
     if not sys.argv[1:]:
         print("pefile.py <filename>", "pefile.py exports <filename>", sep="\n")
     elif sys.argv[1] == "exports":

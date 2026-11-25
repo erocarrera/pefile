@@ -34,7 +34,7 @@ class SignatureDatabase:
     signature database will be downloaded from that location.
     """
 
-    def __init__(self, filename=None, data=None):
+    def __init__(self, filename=None, data=None) -> None:
 
         # RegExp to match a signature block
         self.parse_sig = re.compile(
@@ -69,7 +69,7 @@ class SignatureDatabase:
 
         self.__load(filename=filename, data=data)
 
-    def generate_section_signatures(self, pe, name, sig_length=512):
+    def generate_section_signatures(self, pe, name, sig_length: int=512):
         """Generates signatures for all the sections in a PE file.
 
         If the section contains any data a signature will be created
@@ -103,7 +103,7 @@ class SignatureDatabase:
 
         return "\n".join(section_signatures) + "\n"
 
-    def generate_ep_signature(self, pe, name, sig_length=512):
+    def generate_ep_signature(self, pe, name, sig_length: int=512) -> str:
         """Generate signature for the entry point of a PE file.
 
         Creates a signature whose name will be the parameter 'name'
@@ -117,8 +117,8 @@ class SignatureDatabase:
 
     @staticmethod
     def __generate_signature(
-        pe, offset, name, ep_only=False, section_start_only=False, sig_length=512,
-    ):
+        pe, offset, name: str, ep_only=False, section_start_only=False, sig_length=512,
+    ) -> str:
 
         data = pe.__data__[offset : offset + sig_length]
 
@@ -131,7 +131,7 @@ class SignatureDatabase:
             f"section_start_only = {'true' if section_start_only else 'false'}\n"
         )
 
-    def match(self, pe, ep_only=True, section_start_only=False):
+    def match(self, pe, ep_only: bool=True, section_start_only: bool=False):
         """Matches and returns the exact match/matches.
 
         If ep_only is True the result will be a string with
@@ -153,7 +153,7 @@ class SignatureDatabase:
 
         return None
 
-    def match_all(self, pe, ep_only=True, section_start_only=False):
+    def match_all(self, pe, ep_only: bool=True, section_start_only: bool=False):
         """Matches and returns all the likely matches."""
         matches = self.__match(pe, ep_only, section_start_only)
 
@@ -167,7 +167,7 @@ class SignatureDatabase:
 
         return None
 
-    def __match(self, pe, ep_only, section_start_only):
+    def __match(self, pe, ep_only: bool, section_start_only: bool):
 
         # Load the corresponding set of signatures
         # Either the one for ep_only equal to True or
@@ -226,7 +226,7 @@ class SignatureDatabase:
 
         return matches
 
-    def match_data(self, code_data, ep_only=True, section_start_only=False):
+    def match_data(self, code_data, ep_only: bool=True, section_start_only: bool=False):
 
         data = code_data
         scan_addresses = [0]
@@ -331,14 +331,14 @@ class SignatureDatabase:
 
         return matched_names
 
-    def load(self, filename=None, data=None):
+    def load(self, filename=None, data=None) -> None:
         """Load a PEiD signature file.
 
         Invoking this method on different files combines the signatures.
         """
         self.__load(filename=filename, data=data)
 
-    def __load(self, filename=None, data=None):
+    def __load(self, filename=None, data=None) -> None:
 
         if filename is not None:
             # If the path does not exist, attempt to open a URL
@@ -421,11 +421,11 @@ class SignatureDatabase:
             self.max_depth = max(self.max_depth, depth)
 
 
-def is_valid(pe):
+def is_valid(pe) -> None:
     """Basic structural and compliance checks."""
 
 
-def is_suspicious(pe):
+def is_suspicious(pe) -> None:
     """Unusual locations of import tables.
 
     Non-recognized section names
@@ -475,7 +475,7 @@ def is_suspicious(pe):
 
 
 
-def is_probably_packed(pe, section_entropy=7.4, packed_threshold=0.2):
+def is_probably_packed(pe, section_entropy: float=7.4, packed_threshold: float=0.2) -> bool:
     """The entropy of sections are analyzed to determine if they likely contain compressed data.
 
     The proportion of the total size of these
