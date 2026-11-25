@@ -3109,7 +3109,7 @@ class PE:
                     byte != 0 and byte_count / len(self.__data__) > 0.15
                 ):
                     self.__warnings.append(
-                        f"Byte 0x{byte:02x} makes up {100.0 * byte_count / len(self.__data__):.4f}% of the file's contents. "
+                        f"Byte {byte:#04x} makes up {100.0 * byte_count / len(self.__data__):.4f}% of the file's contents. "
                         "This may indicate truncation / malformation."
                     )
 
@@ -3257,7 +3257,7 @@ class PE:
             raise PEFormatError("No Optional Header found, invalid PE32 or PE32+ file.")
         if self.PE_TYPE is None:
             self.__warnings.append(
-                f"Invalid type 0x{self.OPTIONAL_HEADER.Magic:04x} in Optional Header."
+                f"Invalid type {self.OPTIONAL_HEADER.Magic:#06x} in Optional Header."
             )
 
         dll_characteristics_flags = retrieve_flags(
@@ -5409,7 +5409,7 @@ class PE:
 
                             if isinstance(word1, int) and isinstance(word2, int):
                                 var_struct.entry = {
-                                    var_string: f"0x{word1:04x} 0x{word2:04x}"
+                                    var_string: f"{word1:#06x} {word2:#06x}"
                                 }
 
                         var_offset = self.dword_align(
