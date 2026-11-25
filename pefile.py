@@ -7881,7 +7881,7 @@ class PE:
 
         for idx, directory in enumerate(self.OPTIONAL_HEADER.DATA_DIRECTORY):
 
-            if not include_certificate and idx == DIRECTORY_ENTRY['IMAGE_DIRECTORY_ENTRY_SECURITY']:
+            if not include_certificate and idx == DIRECTORY_ENTRY["IMAGE_DIRECTORY_ENTRY_SECURITY"]:
                 # For the Security / Certificate Table, the VirtualAddress is
                 # a file offset instead of an RVA
                 largest_offset_and_size = update_if_sum_is_larger_and_within_file(
