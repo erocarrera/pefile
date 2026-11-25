@@ -27,8 +27,9 @@ classifiers = [
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
     "coverage",
+    "pyrefly",
+    "pytest",
     "ruff",
     "tox",
 ]
@@ -77,6 +78,11 @@ commands = [
     ["python", "-m", "coverage", "report", "--show-missing", "--skip-covered", "--ignore-errors"],
     ["python", "-m", "coverage", "json", "--ignore-errors"],
 ]
+
+[tool.pyrefly]
+python-version = "3.10"
+project-includes = ["pefile.py", "peutils.py", "ordlookup/**/*.py"]
+preset = "basic"
 
 [tool.ruff]
 line-length = 127
@@ -161,6 +167,9 @@ ignore = [
     "TRY003",   # raise-vanilla-args
     "TRY203",   # useless-try-except
 ]
+
+[tool.ruff.lint.per-file-ignores]
+"pefile.py" = ["E501", "UP007", "UP045"]  # line-too-long; non-pep604-annotation-union; non-pep604-annotation-optional;
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
