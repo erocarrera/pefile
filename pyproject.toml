@@ -114,7 +114,6 @@ ignore = [
     "D213",     # multi-line-summary-second-line
     "D401",     # non-imperative-mood
     "EM101",    # raw-string-in-exception
-    "EM102",    # f-string-in-exception
     "ERA001",   # commented-out-code
     "EXE001",   # shebang-not-executable
     "F841",     # unused-variable
