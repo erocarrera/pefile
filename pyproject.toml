@@ -29,9 +29,8 @@ classifiers = [
 dev = [
     "pytest",
     "coverage",
+    "ruff",
     "tox",
-    "tox-gh-actions",
-    "flake8",
 ]
 
 [project.urls]
@@ -64,38 +63,23 @@ include = [
     "/pyproject.toml",
 ]
 
-# Tox configuration, previously in tox.ini
 [tool.tox]
-legacy_tox_ini = """
-[tox]
-envlist = py38,py39,py310,py311,py312,py313,py314,py314t,pypy310,coverage
+env_list = ["py38", "py39", "py310", "py311", "py312", "py313", "py314", "py314t", "pypy310", "coverage"]
 
-[testenv]
-deps =
-    pytest
-    coverage
-commands =
-    python -m coverage run -p -m pytest tests
+[tool.tox.env_run_base]
+deps = ["pytest", "coverage"]
+commands = [["python", "-m", "coverage", "run", "-p", "-m", "pytest", "tests"]]
 
-[testenv:coverage]
-basepython = python3.10
-commands =
-    python -m coverage combine
-    python -m coverage report --show-missing --skip-covered --ignore-errors
-    python -m coverage json --ignore-errors
+[tool.tox.env.coverage]
+base_python = "python3.10"
+commands = [
+    ["python", "-m", "coverage", "combine"],
+    ["python", "-m", "coverage", "report", "--show-missing", "--skip-covered", "--ignore-errors"],
+    ["python", "-m", "coverage", "json", "--ignore-errors"],
+]
 
-[gh-actions]
-python =
-    3.8: py38
-    3.9: py39
-    3.10: py310
-    3.11: py311
-    3.12: py312
-    3.13: py313
-    3.14: py314
-    3.14t: py314t
-    pypy-3.10: pypy310
-"""
+[tool.ruff]
+line-length = 127
 
 [tool.ruff.lint]
 select = ["ALL"]
@@ -122,22 +106,13 @@ ignore = [
     "D101",     # undocumented-public-class
     "D102",     # undocumented-public-method
     "D103",     # undocumented-public-function
-    "D104",     # undocumented-public-package
     "D105",     # undocumented-magic-method
     "D107",     # undocumented-public-init
     "D202",     # blank-line-after-function
+    "D203",     # incorrect-blank-line-before-class
     "D205",     # missing-blank-line-after-summary
-    "D212",     # multi-line-summary-first-line
     "D213",     # multi-line-summary-second-line
-    "D400",     # missing-trailing-period
     "D401",     # non-imperative-mood
-    "D402",     # signature-in-docstring
-    "D403",     # first-word-uncapitalized
-    "D404",     # docstring-starts-with-this
-    "D415",     # missing-terminal-punctuation
-    "D419",     # empty-docstring
-    "E501",     # line-too-long
-    "E741",     # ambiguous-variable-name
     "EM101",    # raw-string-in-exception
     "EM102",    # f-string-in-exception
     "ERA001",   # commented-out-code
@@ -146,8 +121,6 @@ ignore = [
     "FBT001",   # boolean-type-hint-positional-argument
     "FBT002",   # boolean-default-value-positional-argument
     "FIX002",   # line-contains-todo
-    "FIX003",   # line-contains-xxx
-    "INP001",   # implicit-namespace-package
     "N802",     # invalid-function-name
     "N803",     # invalid-argument-name
     "N806",     # non-lowercase-variable-in-function
@@ -158,7 +131,6 @@ ignore = [
     "PLR0913",  # too-many-arguments
     "PLR0915",  # too-many-statements
     "PLR0917",  # too-many-positional-arguments
-    "PLR1714",  # repeated-equality-comparison
     "PLR2004",  # magic-value-comparison
     "PLW0642",  # self-or-cls-assignment
     "PLW2901",  # redefined-loop-name
@@ -177,15 +149,16 @@ ignore = [
     "S310",     # suspicious-url-open-usage
     "S324",     # hashlib-insecure-hash-function
     "SIM102",   # collapsible-if
-    "SIM105",   # suppressible-exception
     "SIM108",   # if-else-block-instead-of-if-exp
     "SIM115",   # open-file-with-context-handler
     "SIM117",   # multiple-with-statements
     "T201",     # print
-    "TD001",    # invalid-todo-tag
     "TD002",    # missing-todo-author
     "TD003",    # missing-todo-link
     "TRY002",   # raise-vanilla-class
     "TRY003",   # raise-vanilla-args
     "TRY203",   # useless-try-except
 ]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10

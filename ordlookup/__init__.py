@@ -1,9 +1,9 @@
-from . import imphash_oleaut32, imphash_ws2_32, oleaut32, ws2_32, wsock32
 
-"""
-A small module containing a database of ordinal to symbol mappings for DLLs
+"""A small module containing a database of ordinal to symbol mappings for DLLs
 which frequently get linked without symbolic information.
 """
+
+from . import imphash_oleaut32, imphash_ws2_32, oleaut32, ws2_32, wsock32
 
 ords = {
     b"oleaut32.dll": oleaut32.ord_names,
@@ -45,8 +45,7 @@ def imphash_format_ordinal(ord_val):
 
 
 def imphash_ordinal_lookup(libname, ord_val, make_name=False):
-    """
-    Lookup a name for the given ordinal using the imphash-specific database.
+    """Lookup a name for the given ordinal using the imphash-specific database.
 
     This uses ordinal tables that are frozen to the state when the original
     implementation was written so that imphash values remain compatible with

@@ -1,4 +1,4 @@
-"""peutils, Portable Executable utilities module
+"""peutils, Portable Executable utilities module.
 
 Copyright (c) 2005-2024 Ero Carrera <ero.carrera@gmail.com>
 
@@ -17,7 +17,7 @@ __contact__ = "ero.carrera@gmail.com"
 
 
 class SignatureDatabase:
-    """This class loads and keeps a parsed PEiD signature database.
+    """Load and store a parsed PEiD signature database.
 
     Usage:
 
@@ -132,7 +132,7 @@ class SignatureDatabase:
         )
 
     def match(self, pe, ep_only=True, section_start_only=False):
-        """Matches and returns the exact match(es).
+        """Matches and returns the exact match/matches.
 
         If ep_only is True the result will be a string with
         the packer name. Otherwise it will be a list of the
@@ -422,7 +422,7 @@ class SignatureDatabase:
 
 
 def is_valid(pe):
-    """"""
+    """Basic structural and compliance checks."""
 
 
 def is_suspicious(pe):

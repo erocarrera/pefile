@@ -1,8 +1,7 @@
 import unittest
 
-from export_test import PE_32, PE_64
-
 import pefile
+from tests import PE_32, PE_64
 
 
 class TestImportRepetitionLimit(unittest.TestCase):
@@ -56,6 +55,27 @@ class TestImportRepetitionLimit(unittest.TestCase):
                 19,
             )
             self.assertEqual(self.parse_repeated_imports(data, 19), [])
+
+
+class TestImportRename(unittest.TestCase):
+    def test_rename_import_to_shorter_name(self):
+        """A shorter replacement name must not keep the tail of the old one."""
+        for data in (PE_32, PE_64):
+            with self.subTest(bits=32 if data is PE_32 else 64):
+                with pefile.PE(data=bytes(data), fast_load=True) as pe:
+                    size = 4 if pe.PE_TYPE == pefile.OPTIONAL_HEADER_MAGIC_PE else 8
+                    rva = pe.sections[0].VirtualAddress
+                    address = rva + 400
+                    table_data = address.to_bytes(size, "little") + bytes(size)
+                    self.assertTrue(pe.set_bytes_at_rva(rva, table_data))
+                    # IMAGE_IMPORT_BY_NAME is a 2-byte Hint followed by the name.
+                    hint = bytes(2)
+                    self.assertTrue(pe.set_bytes_at_rva(address, hint + b"CreateFileW\x00"))
+                    imports = pe.parse_imports(rva, rva, 0)
+                    self.assertEqual(imports[0].name, b"CreateFileW")
+
+                    imports[0].name = b"Sleep"
+                    self.assertEqual(pe.get_string_at_rva(address + len(hint)), b"Sleep")
 
 
 if __name__ == "__main__":

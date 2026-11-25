@@ -33,24 +33,13 @@ else:
             yield Path(root), dirs, files
 
 def _load_test_files():
-    """Yield all the test files."""
-
-    not_pe_extensions = (".dmp", ".ABOUT", "empty_file")
-
-    for dirpath, _, filenames in unified_walk(REGRESSION_TESTS_DIR):
-        for filename in filenames:
-            if not filename.endswith(not_pe_extensions):
-                yield dirpath / filename
-
-    for dirpath, _, filenames in unified_walk(POCS_TESTS_DIR):
-        for filename in filenames:
-            if not filename.endswith(not_pe_extensions):
-                yield dirpath / filename
-
-    for dirpath, _, filenames in unified_walk(LIEF_TESTS_DIR):
-        for filename in filenames:
-            if not filename.endswith(not_pe_extensions):
-                yield dirpath / filename
+    return tuple(
+        dirpath / filename
+        for test_dir in (REGRESSION_TESTS_DIR, POCS_TESTS_DIR, LIEF_TESTS_DIR)
+        for dirpath, _, filenames in unified_walk(test_dir)
+        for filename in filenames
+        if not filename.endswith((".dmp", ".ABOUT", "empty_file"))
+    )
 
 
 @pytest.mark.parametrize(
@@ -341,9 +330,48 @@ class TestPEFile(unittest.TestCase):
         self.assertEqual(pe.DIRECTORY_ENTRY_DEBUG[0].struct.Type, 20)
         self.assertIsNone(pe.DIRECTORY_ENTRY_DEBUG[0].entry)
         pe.close()
+    def test_old_style_delay_import_phmod(self):
+        """The VA fields of an old style delay import descriptor are each
+        converted to an RVA, phmod must not take the value of pUnloadIAT.
+        """
+
+        data = bytearray(0x400)
+        data[0:2] = b"MZ"
+        struct.pack_into("<I", data, 0x3C, 0x40)
+        data[0x40:0x44] = b"PE\0\0"
+        struct.pack_into("<HHIIIHH", data, 0x44, 0x14C, 1, 0, 0, 0, 0xE0, 0x102)
+        opt = 0x58
+        struct.pack_into(
+            "<HBBIIIIII", data, opt, 0x10B, 0, 0, 0x200, 0, 0, 0x1000, 0x1000, 0
+        )
+        struct.pack_into("<III", data, opt + 28, 0x400000, 0x1000, 0x200)
+        struct.pack_into("<I", data, opt + 56, 0x2000)
+        struct.pack_into("<I", data, opt + 60, 0x200)
+        struct.pack_into("<H", data, opt + 68, 2)
+        struct.pack_into("<I", data, opt + 92, 16)
+        # IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT
+        struct.pack_into("<II", data, opt + 96 + 13 * 8, 0x1000, 0x40)
+        sec = opt + 0xE0
+        data[sec : sec + 8] = b".data\0\0\0"
+        struct.pack_into("<IIII", data, sec + 8, 0x1000, 0x1000, 0x200, 0x200)
+        struct.pack_into("<I", data, sec + 36, 0xC0000040)
+        # grAttrs 0, then szName, phmod, pIAT, pINT, pBoundIAT, pUnloadIAT as VAs
+        va = 0x401000
+        fields = (0, va + 0x100, va + 0x180, va + 0x80, va + 0xA0, 0, va + 0xC0, 0)
+        struct.pack_into("<8I", data, 0x200, *fields)
+        struct.pack_into("<I", data, 0x200 + 0x80, va + 0x140)
+        struct.pack_into("<I", data, 0x200 + 0xA0, va + 0x140)
+        data[0x300:0x309] = b"test.dll\0"
+        data[0x342:0x346] = b"Foo\0"
+
+        pe = pefile.PE(data=bytes(data))
+        delay_import = pe.DIRECTORY_ENTRY_DELAY_IMPORT[0]
+        self.assertEqual(delay_import.dll, b"test.dll")
+        self.assertEqual(delay_import.struct.phmod, 0x1180)
+        self.assertEqual(delay_import.struct.pUnloadIAT, 0x10C0)
 
     def test_nt_headers_exception(self):
-        """pefile should fail parsing invalid data (missing NT headers)"""
+        """Parsing invalid data should fail (missing NT headers)."""
 
         # Take a known good file.
         control_file = REGRESSION_TESTS_DIR / "MSVBVM60.DLL"
@@ -356,9 +384,7 @@ class TestPEFile(unittest.TestCase):
         self.assertRaises(pefile.PEFormatError, pefile.PE, data=corrupted_data)
 
     def test_dos_header_exception_large_data(self):
-        """pefile should fail parsing 10KiB of invalid data
-        (missing DOS header).
-        """
+        """Parsing 10KiB of invalid data should fail (missing DOS header)."""
 
         # Generate 10 KiB of zeroes
         data = b"\0" * (1024 * 10)
@@ -368,9 +394,7 @@ class TestPEFile(unittest.TestCase):
         self.assertRaises(pefile.PEFormatError, pefile.PE, data=data)
 
     def test_dos_header_exception_small_data(self):
-        """pefile should fail parsing 64 bytes of invalid data
-        (missing DOS header).
-        """
+        """Parsing 64 bytes of invalid data should fail (missing DOS header)."""
 
         # Generate 64 bytes of zeroes
         data = b"\0" * 64
@@ -380,7 +404,7 @@ class TestPEFile(unittest.TestCase):
         self.assertRaises(pefile.PEFormatError, pefile.PE, data=data)
 
     def test_empty_file_exception(self):
-        """pefile should fail parsing empty files."""
+        """Empty files should fail parsing."""
 
         # Take a known good file
         control_file = REGRESSION_TESTS_DIR / "empty_file"
@@ -436,6 +460,47 @@ class TestPEFile(unittest.TestCase):
             "BSS region (VirtualSize - SizeOfRawData) must be zero-padded",
         )
 
+    def test_section_get_data_before_raw_data_start_returns_empty(self):
+        """Requests for addresses below the section's raw data must not wrap.
+
+        SectionStructure.get_data() computes the file offset as
+        (start - VirtualAddress_adj) + PointerToRawData_adj.  For addresses
+        far enough below the section start the offset goes negative and the
+        slice pe.__data__[offset:end] wraps around, returning bytes from the
+        end of the file as if they were section data (GitHub issue #389).
+        """
+        pe = pefile.PE(data=_create_pe(0x1000, 0x1000))
+        section = pe.sections[0]
+        va = section.get_VirtualAddress_adj()
+        prd = section.get_PointerToRawData_adj()
+
+        # Addresses mapping to a negative file offset, i.e. before the
+        # section's raw data: (start - va) + prd < 0.
+        self.assertEqual(section.get_data(va - prd - 0x40, 8), b"")
+        # A length spanning past the file end must not return tail bytes
+        # either.
+        self.assertEqual(section.get_data(va - prd - 0x08, 0x2000), b"")
+
+        # Sanity: an in-range request still returns the section content.
+        self.assertEqual(
+            section.get_data(va, 8),
+            b"\xCC" * 8,
+            "in-range get_data must be unaffected",
+        )
+
+    def test_section_get_data_beyond_raw_data_end_returns_empty(self):
+        """Requests wholly past the section's raw data must return empty.
+
+        end is clamped to PointerToRawData + SizeOfRawData; when that lands
+        before the requested offset the section holds no bytes for the range.
+        """
+        pe = pefile.PE(data=_create_pe(0x1000, 0x1000))
+        section = pe.sections[0]
+        va = section.get_VirtualAddress_adj()
+
+        start = va + section.SizeOfRawData + 0x100
+        self.assertEqual(section.get_data(start, 8), b"")
+
     def test_truncated_dynamic_relocation_table(self):
         """A Dynamic Value Relocation Table (DVRT) header truncated by the end of the file must not raise.
 
@@ -490,7 +555,7 @@ class TestPEFile(unittest.TestCase):
                 self.assertIsNone(load_config_data.dynamic_relocations)
 
     def test_relocated_memory_mapped_image(self):
-        """Test different rebasing methods produce the same image"""
+        """Test different rebasing methods produce the same image."""
 
         # Take a known good file
         control_file = REGRESSION_TESTS_DIR / "MSVBVM60.DLL"
@@ -561,7 +626,7 @@ class TestPEFile(unittest.TestCase):
         # go beyond a subsequent section's start address and if so, it's
         # truncated.
         #control_file = (
-        #    REGRESSION_TESTS_DIR / "924C62EF97E0B4939E9047B866037BB5BDDA92F9DA6D22F5DEEFC540856CDC0D.bin__aleph_overlapping_sections"
+        #    REGRESSION_TESTS_DIR / "924C62EF97E0B4939E9047B866037BB5BDDA92F9DA6D22F5DEEFC540856CDC0D.bin__aleph_overlapping_sections"  # noqa: E501
         #)
         #pe = pefile.PE(control_file)
 
@@ -707,7 +772,7 @@ class TestPEFile(unittest.TestCase):
         pass
 
     def test_get_overlay_and_trimming(self):
-        """Test method to retrieve overlay data and trim the PE"""
+        """Test method to retrieve overlay data and trim the PE."""
 
         #control_file_pe = REGRESSION_TESTS_DIR / "0x90_with_overlay_data.exe"
         #pe = pefile.PE(control_file_pe)
@@ -784,10 +849,11 @@ class TestPEFile(unittest.TestCase):
         control_file_pe = REGRESSION_TESTS_DIR / "fake_PE_no_read_permissions_issue_53"
         self.assertRaises(Exception, pefile.PE, control_file_pe)
 
-    def test_driver_check(self):
-        """Test the is_driver check"""
+    def test_is_driver(self):
+        """Test the is_driver check."""
 
-        # A 32 bit driver that imports DbgPrint from ntoskrnl.exe
+        # A 32 bit driver that imports DbgPrint from ntoskrnl.exe.
+        # This is the same file as test_driver.sys, from issue #322.
         control_file_pe = POCS_TESTS_DIR / "driver.sys"
 
         pe_fast = pefile.PE(control_file_pe, fast_load=True)
@@ -810,7 +876,7 @@ class TestPEFile(unittest.TestCase):
         self.assertFalse(pe.is_driver())
 
     def test_rebased_image(self):
-        """Test correctness of rebased images"""
+        """Test correctness of rebased images."""
 
         # Take a known good file.
         #control_file = (
@@ -828,7 +894,7 @@ class TestPEFile(unittest.TestCase):
         #self.assertEqual(rebased_data, control_file_data)
 
     def test_is_driver_and_is_exe_return_bool(self):
-        """Test is_driver and is_exe return False, not set() or 0"""
+        """Test is_driver and is_exe return False, not set() or 0."""
 
         pe = pefile.PE(REGRESSION_TESTS_DIR / "cmd.exe")
         self.assertIs(pe.is_driver(), expr2=False)
@@ -840,7 +906,7 @@ class TestPEFile(unittest.TestCase):
         self.assertIs(pe.is_exe(), expr2=False)
 
     def test_checksum(self):
-        """Verify correct calculation of checksum"""
+        """Verify correct calculation of checksum."""
 
         # Take a known good file
         control_file = REGRESSION_TESTS_DIR / "MSVBVM60.DLL"
@@ -862,7 +928,8 @@ class TestPEFile(unittest.TestCase):
         self.assertFalse(pe.verify_checksum())
         self.assertEqual(pe.generate_checksum(), 0x255E)
 
-        # This 97 byte file is truncated part way through its optional header; the truncation occurs after the CheckSum field, permitting the check to still be possible
+        # This 97 byte file is truncated part way through its optional header;
+        # the truncation occurs after the CheckSum field, permitting the check to still be possible
         pe = pefile.PE(POCS_TESTS_DIR / "tinydrivXP.sys")
         self.assertTrue(pe.verify_checksum())
 

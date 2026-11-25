@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-"""pefile, Portable Executable reader module
+"""pefile, Portable Executable reader module.
 
 All the PE file basic structures are available with their default names as
 attributes of the instance returned.
@@ -21,6 +21,7 @@ __version__ = "2024.8.26"
 __contact__ = "ero.carrera@gmail.com"
 
 import codecs
+import contextlib
 import copy
 import math
 import mmap
@@ -666,7 +667,7 @@ def get_sublang_name_for_lang(lang_value, sublang_value):
 
 
 # Ange Albertini's code to process resources' strings
-def parse_strings(data, counter, l):
+def parse_strings(data, counter, strings):
     i = 0
     error_count = 0
     while i < len(data):
@@ -678,7 +679,7 @@ def parse_strings(data, counter, l):
         i += 2
         if 0 < len_ * 2 <= len(data):
             try:
-                l[counter] = data[i : i + len_ * 2].decode("utf-16le")
+                strings[counter] = data[i : i + len_ * 2].decode("utf-16le")
             except UnicodeDecodeError:
                 error_count += 1
             if error_count >= 3:
@@ -736,7 +737,7 @@ class AddressSet(set):
 
 
 class UnicodeStringWrapperPostProcessor:
-    """This class attempts to help the process of identifying strings
+    """Attempt to help the process of identifying strings
     that might be plain Unicode or Pascal. A list of strings will be
     wrapped on it with the hope the overlappings will help make the
     decision about their type.
@@ -1053,7 +1054,7 @@ class Structure:
                         val_str = f"{val:<8X}"
                     else:
                         val_str = f"0x{val:<8X}"
-                    if key == "TimeDateStamp" or key == "dwTimeStamp":
+                    if key in {"TimeDateStamp", "dwTimeStamp"}:
                         try:
                             val_str += f" [{time.asctime(time.gmtime(val))} UTC]"
                         except ValueError:
@@ -1092,7 +1093,7 @@ class Structure:
             for key in keys:
                 val = getattr(self, key)
                 if isinstance(val, int):
-                    if key == "TimeDateStamp" or key == "dwTimeStamp":
+                    if key in {"TimeDateStamp", "dwTimeStamp"}:
                         try:
                             val = f"0x{val:-8X} [{time.asctime(time.gmtime(val))} UTC]"
                         except ValueError:
@@ -1228,6 +1229,14 @@ class SectionStructure(Structure):
         # something off the end)
         if self.PointerToRawData is not None and self.SizeOfRawData is not None:
             end = min(end, self.PointerToRawData + self.SizeOfRawData)
+
+        if offset < 0 or end < offset:
+            # The requested range lies outside the section's raw data. A
+            # negative offset or end would make the slice below wrap around
+            # and return bytes from the end of the file as if they were
+            # section data. See https://github.com/erocarrera/pefile/issues/389
+            return b""
+
         return self.pe.__data__[offset:end]
 
     def __setattr__(self, name, val):
@@ -1424,8 +1433,7 @@ def set_bitfields_format(format):
 
 
 class StructureWithBitfields(Structure):
-    """
-    Extends Structure's functionality with support for bitfields such as:
+    """Extends Structure's functionality with support for bitfields such as:
         ('B:4,LowerHalf', 'B:4,UpperHalf')
     To this end, two lists are maintained:
         * self.__keys__ that contains compound fields, for example
@@ -1517,7 +1525,7 @@ class StructureWithBitfields(Structure):
                 offst += sf[StructureWithBitfields.BTF_BITCNT_IDX]
 
     def _pack_bitfield_attributes(self):
-        """Pack attributes into a compound bitfield"""
+        """Pack attributes into a compound bitfield."""
         for i in self.__compound_fields__:
             cf_name = self.__keys__[i][0]
             offst, acc_val = 0, 0
@@ -1600,7 +1608,11 @@ class ImportData(DataContainer):
                     raise PEFormatError(
                         "The export name provided is longer than the existing one."
                     )
-                self.pe.set_bytes_at_offset(self.name_offset, val)
+                # Pad with NULs so a shorter name doesn't leave the tail of the
+                # old one in the file.
+                self.pe.set_bytes_at_offset(
+                    self.name_offset, val.ljust(len(self.name), b"\0")
+                )
 
         self.__dict__[name] = val
 
@@ -1646,7 +1658,9 @@ class ExportData(DataContainer):
                     raise PEFormatError(
                         "The export name provided is longer than the existing one."
                     )
-                self.pe.set_bytes_at_offset(self.name_offset, val)
+                self.pe.set_bytes_at_offset(
+                    self.name_offset, val.ljust(len(self.name), b"\0")
+                )
             elif name == "forwarder":
                 # Complain if the length of the new name is longer than the
                 # existing one
@@ -1654,7 +1668,9 @@ class ExportData(DataContainer):
                     raise PEFormatError(
                         "The forwarder name provided is longer than the existing one."
                     )
-                self.pe.set_bytes_at_offset(self.forwarder_offset, val)
+                self.pe.set_bytes_at_offset(
+                    self.forwarder_offset, val.ljust(len(self.forwarder), b"\0")
+                )
 
         self.__dict__[name] = val
 
@@ -1823,7 +1839,7 @@ class BoundImportRefData(DataContainer):
 
 
 class ExceptionsDirEntryData(DataContainer):
-    """Holds the data related to SEH (and stack unwinding, in particular)
+    """Holds the data related to SEH (and stack unwinding, in particular).
 
     struct      an instance of RUNTIME_FUNTION
     unwindinfo  an instance of UNWIND_INFO
@@ -1832,8 +1848,8 @@ class ExceptionsDirEntryData(DataContainer):
 
 class UnwindInfo(StructureWithBitfields):
     """Handles the complexities of UNWIND_INFO structure:
-    * variable number of UWIND_CODEs
-    * optional ExceptionHandler and FunctionEntry fields
+    * variable number of UWIND_CODEs.
+    * optional ExceptionHandler and FunctionEntry fields.
     """
 
     def __init__(self, file_offset=0):
@@ -1877,7 +1893,7 @@ class UnwindInfo(StructureWithBitfields):
         if len(data) < self._full_size:
             return None
 
-        if self.Version != 1 and self.Version != 2:
+        if self.Version not in {1, 2}:
             return "Unsupported version of UNWIND_INFO at " + hex(self.__file_offset__)
 
         self.UnwindCodes = []
@@ -2026,7 +2042,7 @@ class PrologEpilogOp:
 
 
 class PrologEpilogOpPushReg(PrologEpilogOp):
-    """UWOP_PUSH_NONVOL"""
+    """UWOP_PUSH_NONVOL."""
 
     def _get_format(self, unw_code):
         return "UNWIND_CODE_PUSH_NONVOL", ("B,CodeOffset", "B:4,UnwindOp", "B:4,Reg")
@@ -2036,7 +2052,7 @@ class PrologEpilogOpPushReg(PrologEpilogOp):
 
 
 class PrologEpilogOpAllocLarge(PrologEpilogOp):
-    """UWOP_ALLOC_LARGE"""
+    """UWOP_ALLOC_LARGE."""
 
     def _get_format(self, unw_code):
         return (
@@ -2064,7 +2080,7 @@ class PrologEpilogOpAllocLarge(PrologEpilogOp):
 
 
 class PrologEpilogOpAllocSmall(PrologEpilogOp):
-    """UWOP_ALLOC_SMALL"""
+    """UWOP_ALLOC_SMALL."""
 
     def _get_format(self, unw_code):
         return (
@@ -2080,7 +2096,7 @@ class PrologEpilogOpAllocSmall(PrologEpilogOp):
 
 
 class PrologEpilogOpSetFP(PrologEpilogOp):
-    """UWOP_SET_FPREG"""
+    """UWOP_SET_FPREG."""
 
     def initialize(self, unw_code, data, unw_info, file_offset):
         super().initialize(unw_code, data, unw_info, file_offset)
@@ -2097,7 +2113,7 @@ class PrologEpilogOpSetFP(PrologEpilogOp):
 
 
 class PrologEpilogOpSaveReg(PrologEpilogOp):
-    """UWOP_SAVE_NONVOL"""
+    """UWOP_SAVE_NONVOL."""
 
     def length_in_code_structures(self, unwcode, unw_info):
         return 2
@@ -2116,7 +2132,7 @@ class PrologEpilogOpSaveReg(PrologEpilogOp):
 
 
 class PrologEpilogOpSaveRegFar(PrologEpilogOp):
-    """UWOP_SAVE_NONVOL_FAR"""
+    """UWOP_SAVE_NONVOL_FAR."""
 
     def length_in_code_structures(self, unw_code, unw_info):
         return 3
@@ -2135,7 +2151,7 @@ class PrologEpilogOpSaveRegFar(PrologEpilogOp):
 
 
 class PrologEpilogOpSaveXMM(PrologEpilogOp):
-    """UWOP_SAVE_XMM128"""
+    """UWOP_SAVE_XMM128."""
 
     def _get_format(self, unw_code):
         return (
@@ -2154,7 +2170,7 @@ class PrologEpilogOpSaveXMM(PrologEpilogOp):
 
 
 class PrologEpilogOpSaveXMMFar(PrologEpilogOp):
-    """UWOP_SAVE_XMM128_FAR"""
+    """UWOP_SAVE_XMM128_FAR."""
 
     def _get_format(self, unw_code):
         return (
@@ -2173,14 +2189,14 @@ class PrologEpilogOpSaveXMMFar(PrologEpilogOp):
 
 
 class PrologEpilogOpPushFrame(PrologEpilogOp):
-    """UWOP_PUSH_MACHFRAME"""
+    """UWOP_PUSH_MACHFRAME."""
 
     def __str__(self):
         return ".PUSHFRAME" + (" <code>" if self.struct.OpInfo else "")
 
 
 class PrologEpilogOpEpilogMarker(PrologEpilogOp):
-    """UWOP_EPILOG"""
+    """UWOP_EPILOG."""
 
     def initialize(self, unw_code, data, unw_info, file_offset):
         self._long_offst = True
@@ -2242,7 +2258,7 @@ class PrologEpilogOpEpilogMarker(PrologEpilogOp):
 
 
 class PrologEpilogOpsFactory:
-    """A factory for creating unwind codes based on the value of UnwindOp"""
+    """A factory for creating unwind codes based on the value of UnwindOp."""
 
     _class_dict = {
         UWOP_PUSH_NONVOL: PrologEpilogOpPushReg,
@@ -2268,8 +2284,7 @@ class PrologEpilogOpsFactory:
 
 
 def human_readable_size(value: int) -> str:
-    """
-    Convert bytes into a human readable string using binary prefixes (KiB, MiB, etc.).
+    """Convert bytes into a human readable string using binary prefixes (KiB, MiB, etc.).
 
     value should be a positive integer representing the number of bytes.
     """
@@ -2334,11 +2349,10 @@ def is_valid_function_name(
     s: Union[str, bytes, bytearray],  # noqa: UP007
     relax_allowed_characters: bool = False
 ) -> bool:
-    """
-    MangleChars = "$:?([.)]"        // watcom
-                  "@$%?"            // microsoft
-                  "@$%&";           // borland
-    Source: ida.cfg
+    """MangleChars = "$:?([.)]"        // watcom
+                     "@$%?"            // microsoft
+                     "@$%&";           // borland
+    Source: ida.cfg.
 
     "_" is also used in mangled names
     "<>" C++ templates, e.g. functions in wincorlib.dll
@@ -3095,7 +3109,7 @@ class PE:
                     byte != 0 and byte_count / len(self.__data__) > 0.15
                 ):
                     self.__warnings.append(
-                        f"Byte 0x{byte:02x} makes up {100.0 * byte_count / len(self.__data__):.4f}% of the file's contents. "
+                        f"Byte {byte:#04x} makes up {100.0 * byte_count / len(self.__data__):.4f}% of the file's contents. "
                         "This may indicate truncation / malformation."
                     )
 
@@ -3243,7 +3257,7 @@ class PE:
             raise PEFormatError("No Optional Header found, invalid PE32 or PE32+ file.")
         if self.PE_TYPE is None:
             self.__warnings.append(
-                f"Invalid type 0x{self.OPTIONAL_HEADER.Magic:04x} in Optional Header."
+                f"Invalid type {self.OPTIONAL_HEADER.Magic:#06x} in Optional Header."
             )
 
         dll_characteristics_flags = retrieve_flags(
@@ -3382,7 +3396,8 @@ class PE:
             self.full_load()
 
     def parse_rich_header(self):
-        """Parses the Rich Header
+        """Parses the Rich Header.
+
         https://www.ntcore.com/files/richsign.htm
 
         Structure:
@@ -3563,15 +3578,13 @@ class PE:
                                 offsets = st_entry.entries_offsets[key]
                                 lengths = st_entry.entries_lengths[key]
 
+                                encoded_data = value.decode("utf-8").encode("utf-16le")
+
                                 if len(value) > lengths[1]:
-                                    l = value.decode("utf-8").encode("utf-16le")
                                     file_data[
                                         offsets[1] : offsets[1] + lengths[1] * 2
-                                    ] = l[: lengths[1] * 2]
+                                    ] = encoded_data[: lengths[1] * 2]
                                 else:
-                                    encoded_data = value.decode("utf-8").encode(
-                                        "utf-16le"
-                                    )
                                     file_data[
                                         offsets[1] : offsets[1] + len(encoded_data)
                                     ] = encoded_data
@@ -3832,7 +3845,7 @@ class PE:
                 directories.remove(directory_index)
 
     def parse_exceptions_directory(self, rva, size):
-        """Parses exception directory
+        """Parses exception directory.
 
         All the code related to handling exception directories is documented in
         https://auscitte.github.io/posts/Exception-Directory-pefile#implementation-details
@@ -3904,8 +3917,8 @@ class PE:
                 continue
             if rf.unwindinfo.FunctionEntry not in rva2rt:
                 self.__warnings.append(
-                    f"FunctionEntry of UNWIND_INFO at {rf.struct.get_file_offset():x}"
-                    " points to an entry that does not exist"
+                    f"FunctionEntry of UNWIND_INFO at {rf.struct.get_file_offset():x} "
+                    "points to an entry that does not exist"
                 )
                 continue
             try:
@@ -4859,14 +4872,14 @@ class PE:
                                 string_entry_size = resource_lang.data.struct.Size
                                 string_entry_id = resource_id.id
 
-                                # XXX: has been raising exceptions preventing parsing
+                                # TODO: has been raising exceptions preventing parsing
                                 try:
                                     string_entry_data = self.get_data(
                                         string_entry_rva, string_entry_size
                                     )
                                 except PEFormatError:
                                     self.__warnings.append(
-                                        f"Error parsing resource of type RT_STRING at "
+                                        "Error parsing resource of type RT_STRING at "
                                         f"RVA {string_entry_rva:#x} with "
                                         f"size {string_entry_size}"
                                     )
@@ -4924,12 +4937,10 @@ class PE:
                 else:
                     for version_entry in version_entries:
                         rt_version_struct = None
-                        try:
-                            rt_version_struct = version_entry.data.struct
-                        except (AttributeError, IndexError):
+                        with contextlib.suppress(AttributeError, IndexError):
                             # Maybe a malformed directory structure...?
                             # Let's ignore it
-                            pass
+                            rt_version_struct = version_entry.data.struct
 
                         if rt_version_struct is not None:
                             self.parse_version_information(rt_version_struct)
@@ -5397,7 +5408,7 @@ class PE:
 
                             if isinstance(word1, int) and isinstance(word2, int):
                                 var_struct.entry = {
-                                    var_string: f"0x{word1:04x} 0x{word2:04x}"
+                                    var_string: f"{word1:#06x} {word2:#06x}"
                                 }
 
                         var_offset = self.dword_align(
@@ -5565,7 +5576,7 @@ class PE:
             symbol_counts[(symbol_name, symbol_address)] += 1
             if symbol_counts[(symbol_name, symbol_address)] > 10:
                 self.__warnings.append(
-                    f"Export directory contains more than 10 repeated entries "
+                    "Export directory contains more than 10 repeated entries "
                     f"({symbol_name}, {symbol_address:#02x}). Assuming corrupt."
                 )
                 break
@@ -5596,7 +5607,7 @@ class PE:
 
         if not export_parsing_loop_completed_normally:
             self.__warnings.append(
-                f"RVA AddressOfNames in the export directory points to an invalid "
+                "RVA AddressOfNames in the export directory points to an invalid "
                 f"address: {export_dir.AddressOfNames:x}"
             )
 
@@ -5744,7 +5755,7 @@ class PE:
                 import_desc.pUnloadIAT = self.normalize_import_va(
                     import_desc.pUnloadIAT
                 )
-                import_desc.phmod = self.normalize_import_va(import_desc.pUnloadIAT)
+                import_desc.phmod = self.normalize_import_va(import_desc.phmod)
                 import_desc.szName = self.normalize_import_va(import_desc.szName)
                 contains_addresses = True
 
@@ -6252,8 +6263,8 @@ class PE:
                 and start_rva <= thunk_data.AddressOfData <= rva
             ):
                 self.__warnings.append(
-                    f"Error parsing the import table. "
-                    f"AddressOfData overlaps with THUNK_DATA for "
+                    "Error parsing the import table. "
+                    "AddressOfData overlaps with THUNK_DATA for "
                     f"THUNK at RVA {rva:#x}"
                 )
                 break
@@ -6575,7 +6586,7 @@ class PE:
         return self.dump_info()
 
     def has_relocs(self):
-        """Checks if the PE file has a relocation directory"""
+        """Checks if the PE file has a relocation directory."""
         return hasattr(self, "DIRECTORY_ENTRY_BASERELOC")
 
     def has_dynamic_relocs(self):
@@ -6720,7 +6731,8 @@ class PE:
                                 for str_entry in sorted(st_entry.entries.items()):
                                     # try:
                                     dump.add_line(
-                                        f"    {str_entry[0].decode(encoding, 'backslashreplace_')}: "
+                                        "    "
+                                        f"{str_entry[0].decode(encoding, 'backslashreplace_')}: "
                                         f"{str_entry[1].decode(encoding, 'backslashreplace_')}"
                                     )
 
@@ -6780,7 +6792,8 @@ class PE:
                     if symbol.import_by_ordinal is True:
                         if symbol.name is not None:
                             dump.add(
-                                f"{module.dll.decode('utf-8')}.{symbol.name.decode('utf-8')} Ordinal[{symbol.ordinal}] (Imported by Ordinal)"
+                                f"{module.dll.decode('utf-8')}.{symbol.name.decode('utf-8')} "
+                                f"Ordinal[{symbol.ordinal}] (Imported by Ordinal)"
                             )
                         else:
                             dump.add(
@@ -7273,7 +7286,7 @@ class PE:
 
     @staticmethod
     def get_dword_from_data(data, offset):
-        """Convert four bytes of data to a double word (little endian)
+        """Convert four bytes of data to a double word (little endian).
 
         'offset' is assumed to index into a dword array. So setting it to
         N will return a dword out of the data starting at offset N*4.
@@ -7299,7 +7312,7 @@ class PE:
             return None
 
     def get_dword_from_offset(self, offset):
-        """Return the double word value at the given file offset. (little endian)"""
+        """Return the double word value at the given file offset (little endian)."""
 
         if offset + 4 > len(self.__data__):
             return None
@@ -7320,12 +7333,12 @@ class PE:
 
     @staticmethod
     def get_data_from_word(word):
-        """Return a two byte string representing the word value. (little endian)."""
+        """Return a two byte string representing the word value (little endian)."""
         return struct.pack("<H", word)
 
     @staticmethod
     def get_word_from_data(data, offset):
-        """Convert two bytes of data to a word (little endian)
+        """Convert two bytes of data to a word (little endian).
 
         'offset' is assumed to index into a word array. So setting it to
         N will return a dword out of the data starting at offset N*2.
@@ -7351,7 +7364,7 @@ class PE:
             return None
 
     def get_word_from_offset(self, offset):
-        """Return the word value at the given file offset. (little endian)"""
+        """Return the word value at the given file offset (little endian)."""
 
         if offset + 2 > len(self.__data__):
             return None
@@ -7377,7 +7390,7 @@ class PE:
 
     @staticmethod
     def get_qword_from_data(data, offset):
-        """Convert eight bytes of data to a word (little endian)
+        """Convert eight bytes of data to a word (little endian).
 
         'offset' is assumed to index into a word array. So setting it to
         N will return a dword out of the data starting at offset N*8.
@@ -7403,7 +7416,7 @@ class PE:
             return None
 
     def get_qword_from_offset(self, offset):
-        """Return the quad-word value at the given file offset. (little endian)"""
+        """Return the quad-word value at the given file offset (little endian)."""
 
         if offset + 8 > len(self.__data__):
             return None
@@ -7736,7 +7749,7 @@ class PE:
         return self.OPTIONAL_HEADER.CheckSum == self.generate_checksum()
 
     def generate_checksum(self):
-        """This will ensure that the data representing the PE image
+        """Ensure that the data representing the PE image
         is updated with any changes that might have been made by
         assigning values to header fields as those are not automatically
         updated upon assignment.
@@ -7951,7 +7964,7 @@ class PE:
                 and self.FileAlignment_Warning is False
             ):
                 self.__warnings.append(
-                    f"If FileAlignment > 0x200 it should be a power of 2. "
+                    "If FileAlignment > 0x200 it should be a power of 2. "
                     f"Value: {self.OPTIONAL_HEADER.FileAlignment:#x}"
                 )
                 self.FileAlignment_Warning = True
