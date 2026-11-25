@@ -3083,8 +3083,8 @@ class PE:
                 self.__from_file = True
             except OSError as excp:
                 msg = str(excp)
-                msg = f": {msg}" if msg else ""
-                msg = f"Unable to access file '{fname}'{msg}"
+                msg = f"{msg}" if msg else ""
+                msg = f"Unable to access file '{fname}': {msg}"
                 raise Exception(msg)
             finally:
                 if fd is not None:
