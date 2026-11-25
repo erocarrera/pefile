@@ -667,7 +667,7 @@ def get_sublang_name_for_lang(lang_value, sublang_value):
 
 
 # Ange Albertini's code to process resources' strings
-def parse_strings(data, counter, l):
+def parse_strings(data, counter, strings):
     i = 0
     error_count = 0
     while i < len(data):
@@ -679,7 +679,7 @@ def parse_strings(data, counter, l):
         i += 2
         if 0 < len_ * 2 <= len(data):
             try:
-                l[counter] = data[i : i + len_ * 2].decode("utf-16le")
+                strings[counter] = data[i : i + len_ * 2].decode("utf-16le")
             except UnicodeDecodeError:
                 error_count += 1
             if error_count >= 3:
@@ -3578,15 +3578,13 @@ class PE:
                                 offsets = st_entry.entries_offsets[key]
                                 lengths = st_entry.entries_lengths[key]
 
+                                encoded_data = value.decode("utf-8").encode("utf-16le")
+
                                 if len(value) > lengths[1]:
-                                    l = value.decode("utf-8").encode("utf-16le")
                                     file_data[
                                         offsets[1] : offsets[1] + lengths[1] * 2
-                                    ] = l[: lengths[1] * 2]
+                                    ] = encoded_data[: lengths[1] * 2]
                                 else:
-                                    encoded_data = value.decode("utf-8").encode(
-                                        "utf-16le"
-                                    )
                                     file_data[
                                         offsets[1] : offsets[1] + len(encoded_data)
                                     ] = encoded_data
