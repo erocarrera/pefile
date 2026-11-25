@@ -25,7 +25,6 @@ import contextlib
 import copy
 import math
 import mmap
-import os
 import string
 import struct
 import sys
@@ -34,6 +33,7 @@ import uuid
 from collections import Counter, defaultdict
 from functools import lru_cache, wraps
 from hashlib import md5, sha1, sha256, sha512
+from pathlib import Path
 from typing import Union
 
 import ordlookup
@@ -3067,7 +3067,7 @@ class PE:
         """
 
         if fname is not None:
-            stat = os.stat(fname)
+            stat = Path(fname).stat()
             if stat.st_size == 0:
                 raise PEFormatError("The file is empty")
             fd = None
