@@ -3082,11 +3082,10 @@ class PE:
                     self.__data__ = mmap.mmap(self.fileno, 0, access=mmap.ACCESS_READ)
                 self.__from_file = True
             except OSError as excp:
-                exception_msg = f"{excp}"
-                exception_msg = exception_msg and (f": {exception_msg}")
-                raise Exception(
-                    f"Unable to access file '{fname}'{exception_msg}"
-                )
+                msg = str(excp)
+                msg = f": {msg}" if msg else ""
+                msg = f"Unable to access file '{fname}'{msg}"
+                raise Exception(msg)
             finally:
                 if fd is not None:
                     fd.close()
@@ -5872,9 +5871,8 @@ class PE:
                         entry_dll_lower, imp.ordinal, make_name=True
                     )
                     if not funcname:
-                        raise PEFormatError(
-                            f"Unable to look up ordinal {entry.dll}:{imp.ordinal:04x}"
-                        )
+                        msg = f"Unable to look up ordinal {entry.dll}:{imp.ordinal:04x}"
+                        raise PEFormatError(msg)
                 else:
                     funcname = imp.name
 
@@ -6482,7 +6480,8 @@ class PE:
             if rva < len(self.__data__):
                 return rva
 
-            raise PEFormatError(f"data at RVA {rva:#x} can't be fetched")
+            msg = f"data at RVA {rva:#x} can't be fetched"
+            raise PEFormatError(msg)
 
         return s.get_offset_from_rva(rva)
 
