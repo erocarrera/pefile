@@ -119,7 +119,6 @@ ignore = [
     "D205",     # missing-blank-line-after-summary
     "D213",     # multi-line-summary-second-line
     "D401",     # non-imperative-mood
-    "E741",     # ambiguous-variable-name
     "EM101",    # raw-string-in-exception
     "EM102",    # f-string-in-exception
     "ERA001",   # commented-out-code
@@ -128,7 +127,6 @@ ignore = [
     "FBT001",   # boolean-type-hint-positional-argument
     "FBT002",   # boolean-default-value-positional-argument
     "FIX002",   # line-contains-todo
-    "INP001",   # implicit-namespace-package
     "N802",     # invalid-function-name
     "N803",     # invalid-argument-name
     "N806",     # non-lowercase-variable-in-function

@@ -281,6 +281,95 @@ class TestPEFile(unittest.TestCase):
         pe.OPTIONAL_HEADER.DATA_DIRECTORY[1].VirtualAddress = 0x1000
         self.assertGreater(len(pe.write()), len(data))
 
+    def test_debug_directory_malformed_ex_dllcharacteristics(self):
+        """A malformed IMAGE_DEBUG_TYPE_EX_DLLCHARACTERISTICS entry (too
+        short to unpack) must not abort parsing with an AttributeError.
+        """
+
+        data = bytearray(0x240)
+        data[0:2] = b"MZ"
+        struct.pack_into("<I", data, 0x3C, 0x40)  # e_lfanew
+        data[0x40:0x44] = b"PE\0\0"
+        struct.pack_into("<HHIIIHH", data, 0x44, 0x14C, 1, 0, 0, 0, 0xE0, 0x102)  # COFF File Header
+        struct.pack_into("<H", data, 0x58, 0x10B)  # Magic; PE32
+        struct.pack_into("<I", data, 0x58 + 0x20, 0x1000)  # SectionAlignment
+        struct.pack_into("<I", data, 0x58 + 0x24, 0x200)  # FileAlignment
+        struct.pack_into("<I", data, 0x58 + 0x38, 0x2000)  # SizeOfImage
+        struct.pack_into("<I", data, 0x58 + 0x3C, 0x200)  # SizeOfHeaders
+        struct.pack_into("<I", data, 0x58 + 0x5C, 16)  # NumberOfRvaAndSizes
+        struct.pack_into("<II", data, 0x58 + 0x60 + 6 * 8, 0x1000, 0x1C)  # DEBUG directory
+
+        section_offset = 0x40 + 4 + 20 + 0xE0
+        data[section_offset : section_offset + 8] = b".text\0\0\0"
+        struct.pack_into(
+            "<IIIIIIHHI",
+            data,
+            section_offset + 8,
+            0x40,  # VirtualSize
+            0x1000,  # VirtualAddress
+            0x40,  # SizeOfRawData
+            0x200,  # PointerToRawData
+            0, 0, 0, 0,
+            0x60000020,  # Characteristics
+        )
+
+        # IMAGE_DEBUG_DIRECTORY with Type 20 (EX_DLLCHARACTERISTICS) whose
+        # SizeOfData (2) is too small to unpack the 4-byte structure.
+        struct.pack_into(
+            "<IIHHIIII",
+            data,
+            0x200,
+            0, 0, 0, 0,
+            20,  # Type: IMAGE_DEBUG_TYPE_EX_DLLCHARACTERISTICS
+            2,  # SizeOfData
+            0x1010,  # AddressOfRawData
+            0x220,  # PointerToRawData
+        )
+
+        pe = pefile.PE(data=bytes(data))
+        self.assertEqual(pe.DIRECTORY_ENTRY_DEBUG[0].struct.Type, 20)
+        self.assertIsNone(pe.DIRECTORY_ENTRY_DEBUG[0].entry)
+        pe.close()
+    def test_old_style_delay_import_phmod(self):
+        """The VA fields of an old style delay import descriptor are each
+        converted to an RVA, phmod must not take the value of pUnloadIAT.
+        """
+
+        data = bytearray(0x400)
+        data[0:2] = b"MZ"
+        struct.pack_into("<I", data, 0x3C, 0x40)
+        data[0x40:0x44] = b"PE\0\0"
+        struct.pack_into("<HHIIIHH", data, 0x44, 0x14C, 1, 0, 0, 0, 0xE0, 0x102)
+        opt = 0x58
+        struct.pack_into(
+            "<HBBIIIIII", data, opt, 0x10B, 0, 0, 0x200, 0, 0, 0x1000, 0x1000, 0
+        )
+        struct.pack_into("<III", data, opt + 28, 0x400000, 0x1000, 0x200)
+        struct.pack_into("<I", data, opt + 56, 0x2000)
+        struct.pack_into("<I", data, opt + 60, 0x200)
+        struct.pack_into("<H", data, opt + 68, 2)
+        struct.pack_into("<I", data, opt + 92, 16)
+        # IMAGE_DIRECTORY_ENTRY_DELAY_IMPORT
+        struct.pack_into("<II", data, opt + 96 + 13 * 8, 0x1000, 0x40)
+        sec = opt + 0xE0
+        data[sec : sec + 8] = b".data\0\0\0"
+        struct.pack_into("<IIII", data, sec + 8, 0x1000, 0x1000, 0x200, 0x200)
+        struct.pack_into("<I", data, sec + 36, 0xC0000040)
+        # grAttrs 0, then szName, phmod, pIAT, pINT, pBoundIAT, pUnloadIAT as VAs
+        va = 0x401000
+        fields = (0, va + 0x100, va + 0x180, va + 0x80, va + 0xA0, 0, va + 0xC0, 0)
+        struct.pack_into("<8I", data, 0x200, *fields)
+        struct.pack_into("<I", data, 0x200 + 0x80, va + 0x140)
+        struct.pack_into("<I", data, 0x200 + 0xA0, va + 0x140)
+        data[0x300:0x309] = b"test.dll\0"
+        data[0x342:0x346] = b"Foo\0"
+
+        pe = pefile.PE(data=bytes(data))
+        delay_import = pe.DIRECTORY_ENTRY_DELAY_IMPORT[0]
+        self.assertEqual(delay_import.dll, b"test.dll")
+        self.assertEqual(delay_import.struct.phmod, 0x1180)
+        self.assertEqual(delay_import.struct.pUnloadIAT, 0x10C0)
+
     def test_nt_headers_exception(self):
         """Parsing invalid data should fail (missing NT headers)."""
 
