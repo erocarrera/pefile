@@ -2950,6 +2950,11 @@ class PE:
         max_offset=0x10000000,
         max_repeated_import_addresses=15,
     ):
+        if name is None and data is None:
+            raise ValueError("Must supply either name or data")
+
+        fast_load = fast_load if fast_load is not None else globals()["fast_load"]
+
         self.max_symbol_exports = max_symbol_exports
         self.max_repeated_symbol = max_repeated_symbol
         self.max_repeated_import_addresses = max_repeated_import_addresses
@@ -2960,10 +2965,11 @@ class PE:
 
         self.__warnings = []
 
-        self.PE_TYPE = None
+        # We only want to print these warnings once
+        self.FileAlignment_Warning = False
+        self.SectionAlignment_Warning = False
 
-        if name is None and data is None:
-            raise ValueError("Must supply either name or data")
+        self.PE_TYPE = None
 
         # This list will keep track of all the structures created.
         # That will allow for an easy iteration through the list
@@ -2971,14 +2977,9 @@ class PE:
         self.__structures__ = []
         self.__from_file = None
 
-        # We only want to print these warnings once
-        self.FileAlignment_Warning = False
-        self.SectionAlignment_Warning = False
-
         # Count of total resource entries across nested tables
         self.__total_resource_entries_count = 0
-        # Sum of the size of all resource entries parsed, which should not
-        # exceed the file size.
+        # Sum of the size of all resource entries parsed, which should not exceed the file size
         self.__total_resource_bytes = 0
         # The number of imports parsed in this file
         self.__total_import_symbols = 0
@@ -2989,7 +2990,6 @@ class PE:
             5: PE.__IMAGE_SWITCHTABLE_BRANCH_DYNAMIC_RELOCATION_format__,
         }
 
-        fast_load = fast_load if fast_load is not None else globals()["fast_load"]
         try:
             self.__parse__(name, data, fast_load, max_offset)
         except Exception:
