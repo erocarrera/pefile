@@ -10,6 +10,7 @@ from pathlib import Path, PurePath
 import pytest
 
 import pefile
+from tests import PE_32
 
 # do not truncate outputs
 pefile.MAX_SECTIONS = 128000
@@ -111,6 +112,31 @@ def test_pe_image_regression_test(pe_filename, REGEN=False):
 class TestPEFile(unittest.TestCase):
 
     maxDiff = None
+
+    def test_deprecated_positional_export_limits(self):
+        for positional in (
+            (None, bytes(PE_32), None, 100),
+            (None, bytes(PE_32), None, 100, 7),
+        ):
+            with self.subTest(positional=positional[3:]):
+                with self.assertWarnsRegex(
+                    DeprecationWarning,
+                    "Passing max_symbol_exports and max_repeated_symbol positionally",
+                ):
+                    pe = pefile.PE(*positional)
+
+                expected_symbol_limit = positional[3]
+                expected_repeated_limit = positional[4] if len(positional) == 5 else 120
+                self.assertEqual(pe.max_symbol_exports, expected_symbol_limit)
+                self.assertEqual(pe.max_repeated_symbol, expected_repeated_limit)
+                pe.close()
+
+    def test_too_many_positional_arguments(self):
+        with self.assertRaisesRegex(
+            TypeError,
+            "PE.__init__.*takes from 1 to 6 positional arguments",
+        ):
+            pefile.PE(None, bytes(PE_32), None, 100, 7, 3)
 
     def test_directory_entry_architecture_alias(self):
         """Keep the standalone directory alias regression from this repository."""

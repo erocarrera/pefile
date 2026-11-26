@@ -31,6 +31,7 @@ import struct
 import sys
 import time
 import uuid
+import warnings
 from collections import Counter, defaultdict
 from functools import lru_cache, wraps
 from hashlib import md5, sha1, sha256, sha512
@@ -2944,12 +2945,28 @@ class PE:
         name=None,
         data=None,
         fast_load=None,
+        *positional_deprecated,
         max_symbol_exports=MAX_SYMBOL_EXPORT_COUNT,
         max_repeated_symbol=120,
-        *,  # args after this are keyword-only
         max_offset=0x10000000,
         max_repeated_import_addresses=15,
     ):
+
+        if positional_deprecated:
+            if len(positional_deprecated) > 2:
+                msg = f"PE.__init__() takes from 1 to 6 positional arguments but {4 + len(positional_deprecated)} were given"
+                raise TypeError(msg)
+            warnings.warn(
+                "Passing max_symbol_exports and max_repeated_symbol positionally is deprecated; "
+                "pass them as keyword arguments.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            if len(positional_deprecated) == 1:
+                max_symbol_exports = positional_deprecated[0]
+            else:
+                max_symbol_exports, max_repeated_symbol = positional_deprecated
+
         if name is None and data is None:
             raise ValueError("Must supply either name or data")
 
