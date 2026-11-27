@@ -1,67 +1,53 @@
-import unittest
+import pytest
 
 import pefile
 import peutils
 from tests import PE_32, PE_64
 
 
-class TestSignatureGeneration(unittest.TestCase):
-    def test_entry_point_signature_round_trip(self):
-        for data in (PE_32, PE_64):
-            for buffer_type in (bytes, bytearray):
-                with self.subTest(
-                    bits=32 if data is PE_32 else 64, buffer_type=buffer_type
-                ), pefile.PE(data=buffer_type(data), fast_load=True) as pe:
-                    section = pe.sections[0]
-                    pe.OPTIONAL_HEADER.AddressOfEntryPoint = section.VirtualAddress
-                    payload = b"\x00\x41\x80\xff"
-                    self.assertTrue(
-                        pe.set_bytes_at_offset(section.PointerToRawData, payload)
-                    )
-                    database = peutils.SignatureDatabase()
-                    signature = database.generate_ep_signature(
-                        pe, "sample", sig_length=4
-                    )
-                    self.assertIn("signature = 00 41 80 ff\n", signature)
-                    self.assertIn("ep_only = true\n", signature)
-                    database.load(data=signature)
-                    self.assertEqual(
-                        database.match_data(payload), (0, [["sample"]])
-                    )
+class TestSignatureGeneration:
+    @pytest.mark.parametrize(
+        ("data", "buffer_type"),
+        [
+            pytest.param(PE_32, bytes, id="32-bit-bytes"),
+            pytest.param(PE_32, bytearray, id="32-bit-bytearray"),
+            pytest.param(PE_64, bytes, id="64-bit-bytes"),
+            pytest.param(PE_64, bytearray, id="64-bit-bytearray"),
+        ],
+    )
+    def test_entry_point_signature_round_trip(self, data, buffer_type):
+        with pefile.PE(data=buffer_type(data), fast_load=True) as pe:
+            section = pe.sections[0]
+            pe.OPTIONAL_HEADER.AddressOfEntryPoint = section.VirtualAddress
+            payload = b"\x00\x41\x80\xff"
+            assert pe.set_bytes_at_offset(section.PointerToRawData, payload)
+            database = peutils.SignatureDatabase()
+            signature = database.generate_ep_signature(
+                pe, "sample", sig_length=4
+            )
+            assert "signature = 00 41 80 ff\n" in signature
+            assert "ep_only = true\n" in signature
+            database.load(data=signature)
+            assert database.match_data(payload) == (0, [["sample"]])
 
-    def test_section_signature_round_trip(self):
-        for data in (PE_32, PE_64):
-            with self.subTest(bits=32 if data is PE_32 else 64):
-                with pefile.PE(data=bytes(data), fast_load=True) as pe:
-                    section = pe.sections[0]
-                    section.Name = b".test\x00\x80\xff"
-                    payload = b"\xff\x80\x41\x00"
-                    self.assertTrue(
-                        pe.set_bytes_at_offset(section.PointerToRawData, payload)
-                    )
-                    database = peutils.SignatureDatabase()
-                    signature = database.generate_section_signatures(
-                        pe, "sample", sig_length=4
-                    )
-                    self.assertIn("[sample Section(1/1,.test)]\n", signature)
-                    self.assertIn("signature = ff 80 41 00\n", signature)
-                    self.assertIn("section_start_only = true\n", signature)
-                    database.load(data=signature)
-                    self.assertEqual(
-                        database.match_data(payload, section_start_only=True),
-                        (0, [["sample Section(1/1,.test)"]]),
-                    )
+    @pytest.mark.parametrize("data", [PE_32, PE_64], ids=["32-bit", "64-bit"])
+    def test_section_signature_round_trip(self, data):
+        with pefile.PE(data=bytes(data), fast_load=True) as pe:
+            section = pe.sections[0]
+            section.Name = b".test\x00\x80\xff"
+            payload = b"\xff\x80\x41\x00"
+            assert pe.set_bytes_at_offset(section.PointerToRawData, payload)
+            database = peutils.SignatureDatabase()
+            signature = database.generate_section_signatures(
+                pe, "sample", sig_length=4
+            )
+            assert "[sample Section(1/1,.test)]\n" in signature
+            assert "signature = ff 80 41 00\n" in signature
+            assert "section_start_only = true\n" in signature
+            database.load(data=signature)
+            assert database.match_data(payload, section_start_only=True) == (0, [["sample Section(1/1,.test)"]])
 
     def test_skip_short_sections(self):
         with pefile.PE(data=bytes(PE_32), fast_load=True) as pe:
             pe.sections[0].SizeOfRawData = 3
-            self.assertEqual(
-                peutils.SignatureDatabase().generate_section_signatures(
-                    pe, "sample", 4
-                ),
-                "\n",
-            )
-
-
-if __name__ == "__main__":
-    unittest.main()
+            assert peutils.SignatureDatabase().generate_section_signatures(pe, "sample", 4) == "\n"
