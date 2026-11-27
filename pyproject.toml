@@ -133,8 +133,6 @@ ignore = [
     "PLR2004",  # magic-value-comparison
     "PLW0642",  # self-or-cls-assignment
     "PLW2901",  # redefined-loop-name
-    "PT009",    # pytest-unittest-assertion
-    "PT027",    # pytest-unittest-raises-assertion
     "PT028",    # pytest-parameter-with-default-argument
     "PTH110",   # os-path-exists
     "PTH116",   # os-stat

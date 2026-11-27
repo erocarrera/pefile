@@ -1,5 +1,3 @@
-import unittest
-
 import pefile
 from tests import PE_32, PE_64
 
@@ -36,7 +34,7 @@ EXPECT_NAMES = [
 ]
 
 
-class TestExports(unittest.TestCase):
+class TestExports:
     def test_exports32(self):
         """Iterate all exports of the 32 bit binary, and validate that they are all accepted."""
         # Update all the symbol addresses to be __ImageBase+0x01
@@ -49,7 +47,7 @@ class TestExports(unittest.TestCase):
             name = exp.name.decode("utf-8") if exp.name else "-INVALID-"
             exports.append((exp.ordinal, name))
 
-        self.assertEqual(EXPECT_NAMES, exports)
+        assert exports == EXPECT_NAMES
 
     def test_rename_export_to_shorter_name(self):
         """A shorter replacement name must not keep the tail of the old one."""
@@ -60,8 +58,8 @@ class TestExports(unittest.TestCase):
         pe.DIRECTORY_ENTRY_EXPORT.symbols[0].name = b"XY"
 
         pe = pefile.PE(data=pe.write())
-        self.assertEqual(pe.DIRECTORY_ENTRY_EXPORT.symbols[0].name, b"XY")
-        self.assertEqual(pe.DIRECTORY_ENTRY_EXPORT.symbols[1].name, b'TST"')
+        assert pe.DIRECTORY_ENTRY_EXPORT.symbols[0].name == b"XY"
+        assert pe.DIRECTORY_ENTRY_EXPORT.symbols[1].name == b'TST"'
 
     def test_exports64(self):
         """Iterate all exports of the 64 bit binary, and validate that they are all accepted."""
@@ -75,4 +73,4 @@ class TestExports(unittest.TestCase):
             name = exp.name.decode("utf-8") if exp.name else "-INVALID-"
             exports.append((exp.ordinal, name))
 
-        self.assertEqual(EXPECT_NAMES, exports)
+        assert exports == EXPECT_NAMES
