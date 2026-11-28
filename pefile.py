@@ -1135,19 +1135,9 @@ class SectionStructure(Structure):
 
     def get_PointerToRawData_adj(self):
         if self.PointerToRawData_adj is None and self.PointerToRawData is not None:
-            # When the SectionAlignment is smaller than the native page-size the
-            # loader reads a section's data straight from PointerToRawData without
-            # rounding it down to a sector boundary (LdrpWx86FormatVirtualImage).
-            # This isn't limited to sections where PointerToRawData ==
-            # VirtualAddress: resource-only images can have e.g. PointerToRawData
-            # 0x160 / VirtualAddress 0x1a0, and rounding that down to 0 sends the
-            # resource directory RVA->offset lookup into the MZ header.
-            if self.pe.OPTIONAL_HEADER.SectionAlignment < 0x1000:
-                self.PointerToRawData_adj = self.PointerToRawData
-            else:
-                self.PointerToRawData_adj = self.pe.adjust_PointerToRawData(
-                    self.PointerToRawData
-                )
+            self.PointerToRawData_adj = self.pe.adjust_PointerToRawData(
+                self.PointerToRawData
+            )
         return self.PointerToRawData_adj
 
     def get_VirtualAddress_adj(self):
@@ -7967,6 +7957,16 @@ class PE:
                     f"Value: {self.OPTIONAL_HEADER.FileAlignment:#x}"
                 )
                 self.FileAlignment_Warning = True
+
+        # When the SectionAlignment is smaller than the native page-size the
+        # loader reads a section's data straight from PointerToRawData without
+        # rounding it down to a sector boundary (LdrpWx86FormatVirtualImage).
+        # This isn't limited to sections where PointerToRawData ==
+        # VirtualAddress: resource-only images can have e.g. PointerToRawData
+        # 0x160 / VirtualAddress 0x1a0, and rounding that down to 0 sends the
+        # resource directory RVA->offset lookup into the MZ header.
+        if self.OPTIONAL_HEADER.SectionAlignment < 0x1000:
+            return val
 
         # (val // SECTOR_SIZE) * SECTOR_SIZE
         return val & ~0x1FF

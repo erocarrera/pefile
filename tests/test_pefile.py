@@ -658,6 +658,27 @@ class TestPEFile:
         assert hasattr(pe, "DIRECTORY_ENTRY_RESOURCE")
         assert [e.id for e in pe.DIRECTORY_ENTRY_RESOURCE.entries] == [3]
 
+    def test_low_alignment_header_includes_padding_before_first_section(self):
+        # Issue #430: for low-alignment images (SectionAlignment < 0x1000) the
+        # header ends at the lowest PointerToRawData, not at that value rounded
+        # down to a sector boundary. Rounding dropped the padding between the
+        # section table (ends at 0x160) and the first section's raw data.
+        ptr_raw = 0x170
+        data = _low_alignment_resource_pe(ptr_raw)
+        pe = pefile.PE(data=data)
+        assert len(pe.header) == ptr_raw
+        assert pe.header == data[:ptr_raw]
+
+    def test_low_alignment_merge_modified_section_data_keeps_file_intact(self):
+        # For low-alignment images section data must be written back to
+        # PointerToRawData (0x160), not to that value rounded down to a sector
+        # boundary (0), which overwrote the MZ header. The trailing bytes keep
+        # the section inside the range merge_modified_section_data() writes.
+        data = _low_alignment_resource_pe() + b"\x00" * 0x10
+        pe = pefile.PE(data=data)
+        pe.merge_modified_section_data()
+        assert bytes(pe.__data__) == data
+
     def test_VS_VERSIONINFO_dword_aligment(self):
         # Fixed a bug in pefile < 1.2.10-96. Fixed in revision 96:
         # http://code.google.com/p/pefile/source/detail?r=96
@@ -856,12 +877,15 @@ class TestPEFile:
         assert pe.verify_checksum()
 
 
-def _low_alignment_resource_pe():
+def _low_alignment_resource_pe(ptr_raw=0x160):
     """Minimal PE32 with SectionAlignment == FileAlignment == 0x10 and a single
     .rsrc section whose PointerToRawData (0x160) differs from its VirtualAddress
     (0x1a0), mirroring the resource-only DLL reported in issue #465.
+
+    The section table ends at 0x160; a larger ptr_raw leaves zero padding
+    between the section table and the section's raw data.
     """
-    va, ptr_raw = 0x1A0, 0x160
+    va = 0x1A0
 
     # resource tree, offsets relative to the start of .rsrc (RVA 0x1a0)
     res = b""
@@ -892,7 +916,8 @@ def _low_alignment_resource_pe():
     section = struct.pack(
         "<8sIIIIIIHHI", b".rsrc\x00\x00\x00", len(res), va, len(res), ptr_raw, 0, 0, 0, 0, 0x40000040
     )
-    return dos + b"PE\x00\x00" + coff + opt + section + res
+    headers = dos + b"PE\x00\x00" + coff + opt + section
+    return headers.ljust(ptr_raw, b"\x00") + res
 
 
 def _create_pe(virtual_size, size_of_raw_data):
